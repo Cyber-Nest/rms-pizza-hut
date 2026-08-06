@@ -1,0 +1,1063 @@
+# Delivery Tracking System — Final Implementation Plan
+
+Complete delivery tracking system with real-time driver location via Pusher Client Events (P2P), smooth map animations, driver app, and branch/user-frontend integration.
+
+---
+
+## Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Driver Phone"
+        GPS["GPS watchPosition()"]
+        SF["Smart Filter<br/>(50m / 30s)"]
+        PC["Pusher Client<br/>(sends client events)"]
+        GPS --> SF --> PC
+    end
+
+    subgraph "Pusher Cloud (FREE TIER)"
+        CH1["private-restaurant-{id}"]
+        CH2["private-order-{orderId}"]
+        AUTH["Auth Endpoint<br/>(1 call per subscribe)"]
+    end
+
+    subgraph "Branch Dashboard"
+        BM["Delivery Map<br/>(Leaflet + smooth animation)"]
+        BP["Dispatch Panel"]
+    end
+
+    subgraph "User Frontend"
+        UM["Tracking Map<br/>(Leaflet + smooth car)"]
+        US["Order Status Modal"]
+    end
+
+    subgraph "Backend (Vercel)"
+        API["REST API<br/>(status changes only)"]
+        PA["POST /api/pusher/auth"]
+        DB[(MongoDB)]
+    end
+
+    PC -->|"client-driver-location"| CH1
+    PC -->|"client-driver-location"| CH2
+    CH1 -->|WebSocket| BM
+    CH2 -->|WebSocket| UM
+    
+    API -->|"trigger (status events)"| CH1
+    API -->|"trigger (status events)"| CH2
+    API --> DB
+
+    BM -.->|"subscribe + auth"| PA
+    UM -.->|"subscribe + auth"| PA
+    PC -.->|"subscribe + auth"| PA
+
+    style GPS fill:#22c55e,color:white
+    style SF fill:#f59e0b,color:white
+    style PC fill:#6366f1,color:white
+    style CH1 fill:#8b5cf6,color:white
+    style CH2 fill:#8b5cf6,color:white
+```
+
+---
+
+## Core Design Decisions
+
+### 1. Location = Pure Pusher Client Events (P2P, No Backend/DB)
+
+> [!IMPORTANT]
+> Driver's phone sends GPS coordinates **directly through Pusher** to branch dashboard and user frontend. **Backend is NOT involved** for location updates. **No DB writes** for live location — it's ephemeral data that only matters during active delivery.
+
+**Flow:**
+```
+Driver Phone → Pusher Cloud → User Browser + Branch Dashboard
+(No backend hit, no DB write, no server load)
+```
+
+**Why:** Live location is ephemeral — once delivery is done, no one cares where driver was 5 minutes ago. Saving to DB would add unnecessary load for data that's never queried.
+
+### 2. Backend Only Handles Status Changes
+
+Backend REST API is only used for:
+- Pusher auth endpoint (required for private channels, called ONCE per subscription)
+- Driver login (dummy for testing)
+- Delivery assignment (branch assigns driver → order)
+- Status changes (accept, pickup, delivered) → saved to MongoDB + Pusher server trigger
+- Vehicle management
+
+### 3. Smart Distance-Based Filtering on Driver Phone
+
+```
+IF (moved > 50 meters from last sent position) → SEND location immediately
+ELSE IF (30 seconds since last send) → SEND heartbeat
+ELSE → DON'T SEND (saves Pusher messages)
+```
+
+**Result:** ~60% fewer Pusher messages compared to blind 10-second polling.
+
+### 4. Location Tracking Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> OrderPlaced: User places delivery order
+    OrderPlaced --> Preparing: Kitchen starts cooking
+    Preparing --> Ready: Kitchen marks ready
+    Ready --> DriverAssigned: Branch assigns driver
+    DriverAssigned --> PickedUp: Driver picks up food
+    
+    PickedUp --> TrackingActive: 30 sec delay then GPS starts
+    
+    state TrackingActive {
+        [*] --> Sending: watchPosition active
+        Sending --> Sending: Smart filtered (50m/30s)
+    }
+    
+    TrackingActive --> Delivered: Driver marks delivered
+    Delivered --> TrackingStopped: GPS stops, channels cleaned up
+    TrackingStopped --> [*]
+```
+
+- **GPS START:** 30 seconds after `picked-up` status
+- **GPS STOP:** Immediately when `delivered` status is set
+- **No tracking** when driver is `available`, `offline`, or waiting at restaurant
+
+### 5. Driver Navigation — Native Maps Deep Link (No In-App Map)
+
+When driver clicks the map/pin icon:
+```js
+// Detect platform and open native maps
+const lat = customerLocation.lat;
+const lng = customerLocation.lng;
+const address = encodeURIComponent(customerAddress);
+
+// Try Google Maps first (works on both Android & iOS)
+const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+window.open(url, '_blank');
+```
+- **Android:** Opens Google Maps app with route from current location → customer
+- **iOS:** Opens Apple Maps or Google Maps with route
+- **No in-app map needed for drivers**
+
+### 6. Each Restaurant Has Its Own Drivers
+
+Drivers belong to a specific restaurant. In V2 (multi-restaurant), each restaurant manages only its own drivers. Channel isolation ensures no cross-restaurant data leakage.
+
+---
+
+## Pusher Channel Strategy
+
+```mermaid
+graph LR
+    subgraph "Channels"
+        C1["private-restaurant-{restaurantId}"]
+        C2["private-order-{orderId}"]
+    end
+
+    subgraph "Client Events (P2P — no backend)"
+        E1["client-driver-location<br/>{driverId, lat, lng, bearing, timestamp}"]
+        E2["client-request-location<br/>(user asks driver where are you?)"]
+    end
+
+    subgraph "Server Events (backend triggers)"
+        E3["delivery-assigned<br/>{orderId, driverId, driverName}"]
+        E4["delivery-status-update<br/>{orderId, status, timestamp}"]
+        E5["driver-status-change<br/>{driverId, status}"]
+    end
+
+    C1 --- E1
+    C1 --- E3
+    C1 --- E4
+    C1 --- E5
+    C2 --- E1
+    C2 --- E2
+    C2 --- E4
+```
+
+**Who subscribes to what:**
+
+| Subscriber | Channel | Purpose |
+|---|---|---|
+| Branch Dashboard | `private-restaurant-{restaurantId}` | See ALL drivers + ALL delivery updates |
+| User (tracking) | `private-order-{orderId}` | See only THEIR driver's location + delivery status |
+| Driver App | `private-restaurant-{restaurantId}` + `private-order-{orderId}` per active delivery | Send location to both channels |
+
+**Driver with multiple deliveries:**
+```
+Driver subscribes to:
+  private-restaurant-{restaurantId}     ← always (1 channel)
+  private-order-{orderId1}              ← active delivery 1
+  private-order-{orderId2}              ← active delivery 2
+
+Each location update → send client-driver-location to ALL subscribed channels
+When delivery 1 completed → unsubscribe from private-order-{orderId1}
+```
+
+### Pusher Free Tier Capacity
+
+```
+V1 (1 restaurant, 3 drivers, 15 deliveries/day):
+  Location: 2,700 messages/day
+  Status + orders: ~240 messages/day
+  TOTAL: ~2,940 messages/day
+
+  FREE TIER LIMIT: 200,000 messages/day
+  USAGE: 1.5% ← VERY SAFE ✅
+  
+  Connections: ~8 (limit: 100) ✅
+  Channels: ~5 (limit: 200) ✅
+```
+
+---
+
+## Edge Cases & Solutions
+
+### Edge Case 1: User Opens Tracking Page Late
+
+**Problem:** Driver has been delivering for 10 minutes. User opens tracking — no location history since we don't save to DB. User sees blank map until next Pusher event (5-30 seconds).
+
+**Solution: "Request Location" Ping**
+```
+User opens tracking page
+  → subscribes to private-order-{orderId}
+  → sends client event: "client-request-location"
+
+Driver app listens for "client-request-location"
+  → immediately responds with current GPS position
+  → User sees driver within 1-2 seconds ✅
+```
+
+### Edge Case 2: Driver Goes Offline / Loses Internet
+
+**Solution:**
+```
+User frontend tracks "lastUpdateTimestamp":
+  < 30 seconds ago  → Green "Live" badge
+  30s - 2 min ago   → Yellow "Updating..." badge  
+  > 2 minutes ago   → Red "Driver may be offline" badge
+
+When driver reconnects:
+  → Pusher SDK auto-reconnects (built-in exponential backoff)
+  → Next GPS position sent immediately
+  → Map resumes tracking seamlessly
+```
+
+### Edge Case 3: Driver App Goes to Background / Screen Off
+
+**Problem:** Mobile browsers restrict GPS when tab is in background.
+
+**V1 Solution (testing):**
+- Show warning: "Keep this tab active for location tracking"
+- Use `document.visibilitychange` to detect background
+- When foregrounded, immediately send current position
+
+**V2 Solution (production):**
+- Convert to PWA with service worker for background geolocation
+- Or build React Native app
+
+### Edge Case 4: Map Auto-Follow vs Free Pan
+
+**Problem:** Should map auto-follow driver? What if user wants to zoom/pan?
+
+**Solution:**
+```
+Default: Map auto-follows driver (keeps centered)
+If user touches/drags/zooms map: Auto-follow PAUSES
+Show floating "Re-center" button (like Google Maps)
+Click re-center → resume auto-follow
+```
+
+### Edge Case 5: Pusher Connection Drops
+
+**Problem:** Pusher has 99.997% uptime, but connections can drop on flaky networks.
+
+**Solution:**
+- Pusher JS SDK has built-in auto-reconnection
+- During disconnect: UI shows "Reconnecting..." indicator (pulsing yellow)
+- On reconnect: driver's next location update resumes tracking
+- Status changes are DB-backed, so no data loss regardless
+
+### Edge Case 6: Multiple Deliveries Per Driver
+
+**Problem:** Driver has 3 orders. Needs to send location to 3 different order channels.
+
+**Solution:** Driver subscribes to multiple order channels dynamically:
+```
+On new assignment → subscribe to private-order-{newOrderId}
+On delivery complete → unsubscribe from private-order-{completedOrderId}
+Location update → trigger client event on ALL subscribed channels
+```
+
+---
+
+## Smooth Car Animation (Branch + User Frontend)
+
+### Interpolation Algorithm
+
+When a new GPS position arrives from Pusher, animate the marker smoothly instead of jumping:
+
+```
+1. Receive new GPS point from Pusher
+2. Calculate distance and bearing from current position to new position
+3. Animate marker along straight line using requestAnimationFrame
+4. Use easeOutCubic easing (car naturally decelerates — feels realistic)
+5. Rotate car icon SVG to face direction of travel (bearing)
+6. Animation duration: 2 seconds
+7. If new position arrives DURING animation: cancel current, start new from wherever marker is
+```
+
+**Easing curve:**
+```
+easeOutCubic(t) = 1 - (1-t)³
+
+t=0.0 → 0.00  (start — fast)
+t=0.3 → 0.66  (moving quickly)
+t=0.6 → 0.94  (slowing down)
+t=1.0 → 1.00  (arrived — smooth stop)
+```
+
+**Bearing calculation** (for car rotation):
+```
+bearing(from, to) = atan2(
+  sin(Δlng) × cos(lat2),
+  cos(lat1) × sin(lat2) - sin(lat1) × cos(lat2) × cos(Δlng)
+)
+→ Returns angle in degrees (0° = North, 90° = East, etc.)
+→ Apply as CSS transform: rotate(Xdeg) on car marker SVG
+```
+
+### Implementation: `useAnimatedMarker` Hook
+
+Both branch and user frontend will use a shared animation hook:
+
+```typescript
+function useAnimatedMarker(markerRef, targetPosition) {
+  // 1. Store current animated position in ref
+  // 2. On targetPosition change:
+  //    - Cancel any running animation
+  //    - Start new animation from current → target
+  //    - Use requestAnimationFrame + easeOutCubic
+  //    - Rotate car icon based on bearing
+  // 3. Cleanup: cancel animation on unmount
+}
+```
+
+### Car Marker Icon
+
+Bird's-eye view car SVG with:
+- CSS `transform: rotate(var(--car-rotation))` for direction
+- Smooth CSS transition on rotation (so car turns naturally, not snaps)
+- Pulsing ring animation when actively tracking
+- Driver color coding (same colors as branch dashboard markers)
+
+---
+
+## Proposed Changes
+
+### Component 1: Backend — New Delivery Module
+
+> New module at `src/modules/delivery/` following existing pattern (like `order` module).
+
+---
+
+#### [NEW] [Driver.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/delivery/models/Driver.model.js)
+
+MongoDB schema for drivers. **Dummy auth for V1 testing** — hardcoded 2-3 drivers, plain text passwords (no bcrypt).
+
+```js
+{
+  driverId: String,         // "DRV-001", "DRV-002", "DRV-003"
+  name: String,             // "Alex Mercer"
+  phone: String,            // "403-926-0190"
+  password: String,         // plain text for testing ("test123")
+  color: String,            // "#3B82F6" — for map marker color
+  status: {
+    type: String,
+    enum: ['available', 'on-delivery', 'returning', 'offline'],
+    default: 'offline'
+  },
+  assignedVehicleId: String | null,
+  activeOrderIds: [String], // Order._id references
+  restaurantId: String,     // V2-ready: which restaurant this driver belongs to
+}
+```
+
+**Seed data** (3 dummy drivers matching existing frontend data):
+
+| driverId | Name | Password | Color |
+|---|---|---|---|
+| DRV-001 | Alex Mercer | test123 | #3B82F6 (blue) |
+| DRV-002 | Marcus Vance | test123 | #F97316 (orange) |
+| DRV-003 | Oliver Taylor | test123 | #8B5CF6 (purple) |
+
+---
+
+#### [NEW] [DeliveryAssignment.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/delivery/models/DeliveryAssignment.model.js)
+
+Links an order to a driver for delivery tracking:
+
+```js
+{
+  orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
+  driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver' },
+  status: {
+    type: String,
+    enum: ['assigned', 'picked-up', 'en-route', 'delivered', 'cancelled'],
+    default: 'assigned'
+  },
+  assignedAt: Date,
+  pickedUpAt: Date,
+  deliveredAt: Date,
+  customerLocation: {
+    lat: Number,
+    lng: Number,
+    address: String
+  },
+  restaurantId: String,   // V2-ready
+}
+```
+
+---
+
+#### [NEW] [Vehicle.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/delivery/models/Vehicle.model.js)
+
+```js
+{
+  number: String,            // "1", "2", ... "12"
+  label: String,             // "Vehicle #1"
+  isAssigned: Boolean,
+  assignedDriverId: { type: mongoose.Schema.Types.ObjectId, ref: 'Driver', default: null },
+  restaurantId: String,      // V2-ready
+}
+```
+
+---
+
+#### [NEW] [delivery.controller.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/delivery/controllers/delivery.controller.js)
+
+**Branch Dashboard APIs:**
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/delivery/orders` | Delivery-type orders (today, filter by status) |
+| `GET` | `/api/delivery/drivers` | All drivers with status |
+| `GET` | `/api/delivery/vehicles` | All vehicles |
+| `POST` | `/api/delivery/assign` | Assign driver to delivery order → creates DeliveryAssignment, triggers `delivery-assigned` Pusher server event |
+| `PATCH` | `/api/delivery/orders/:id/status` | Update delivery status → triggers `delivery-status-update` Pusher server event |
+| `POST` | `/api/delivery/vehicles/assign` | Assign vehicle to driver |
+| `DELETE` | `/api/delivery/vehicles/unassign/:driverId` | Unassign vehicle |
+
+**Driver App APIs:**
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/delivery/driver/login` | Driver login (driverId + password) → returns driver data |
+| `GET` | `/api/delivery/driver/:id/assignments` | Get assigned deliveries for this driver |
+| `PATCH` | `/api/delivery/driver/accept/:assignmentId` | Accept assignment |
+| `PATCH` | `/api/delivery/driver/pickup/:assignmentId` | Mark picked up → triggers status event |
+| `PATCH` | `/api/delivery/driver/deliver/:assignmentId` | Mark delivered → triggers status event, stops tracking |
+| `PATCH` | `/api/delivery/driver/:id/status` | Go online/offline |
+
+**User Tracking API:**
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/delivery/track/:orderId` | Get delivery assignment info (driver name, color, vehicle, status) — NOT location (location comes via Pusher P2P) |
+
+**Pusher Auth API:**
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/pusher/auth` | Authenticate private channel subscriptions. Validates channel name format, returns Pusher auth signature. Called ONCE per channel subscription. |
+
+---
+
+#### [NEW] [delivery.routes.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/delivery/routes/delivery.routes.js)
+
+Express router mapping all above endpoints.
+
+---
+
+#### [NEW] [index.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/delivery/index.js)
+
+```js
+const deliveryRoutes = require('./routes/delivery.routes');
+exports.initDeliveryModule = (app) => {
+  app.use('/api/delivery', deliveryRoutes);
+};
+```
+
+---
+
+#### [NEW] [seed.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/delivery/seed.js)
+
+Script to seed the 3 dummy drivers and 12 vehicles into MongoDB for testing. Run once via `node src/modules/delivery/seed.js`.
+
+---
+
+#### [MODIFY] [pusher.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/config/pusher.js)
+
+Add new functions:
+
+```js
+// --- Existing functions (keep as-is) ---
+triggerNewOrder(order)
+triggerOrderUpdated(order)
+
+// --- New functions ---
+
+// Authenticate a private channel subscription
+authenticateChannel(socketId, channelName)
+
+// Server-triggered events for status changes (NOT location)
+triggerDeliveryAssigned(restaurantId, orderId, { driverId, driverName, driverColor, vehicleNumber })
+triggerDeliveryStatusUpdate(restaurantId, orderId, { status, timestamp })
+triggerDriverStatusChange(restaurantId, { driverId, status })
+```
+
+> [!NOTE]
+> No `triggerDriverLocation()` function needed — location goes through Pusher CLIENT events directly from driver phone, never touches backend.
+
+---
+
+#### [MODIFY] [app.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/app.js)
+
+```diff
+ const { initPaymentModule } = require("./modules/payment");
++const { initDeliveryModule } = require("./modules/delivery");
+
+ initPaymentModule(app);
++initDeliveryModule(app);
+```
+
+Also add `DRIVER_FRONTEND_URL` to CORS allowed origins:
+```diff
+ if (process.env.USER_FRONTEND_URL) {
+   allowedOrigins.push(process.env.USER_FRONTEND_URL.trim());
+ }
++if (process.env.DRIVER_FRONTEND_URL) {
++  allowedOrigins.push(process.env.DRIVER_FRONTEND_URL.trim());
++}
+```
+
+---
+
+#### [MODIFY] [.env](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/.env)
+
+```diff
++DRIVER_FRONTEND_URL=http://localhost:3003
+```
+
+---
+
+### Component 2: Branch Frontend — Delivery Module Refactor
+
+> Replace all dummy data with real API calls. Replace simulation with Pusher real-time updates.
+
+---
+
+#### [MODIFY] [delivery.ts](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/types/delivery.ts)
+
+Update types to match backend models:
+
+```typescript
+export interface DeliveryOrder {
+  _id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress: string;
+  coordinates: { lat: number; lng: number };
+  status: 'assign' | 'en-route' | 'delivered';
+  assignedDriverId: string | null;
+  duration: string;
+  timeOrdered: string;
+  items: string[];
+  total: number;
+  // REMOVED: route[] — no more frontend route simulation
+}
+
+export interface Driver {
+  _id: string;
+  driverId: string;
+  name: string;
+  phone: string;
+  status: 'available' | 'on-delivery' | 'returning' | 'offline';
+  currentLocation: { lat: number; lng: number };
+  color: string;
+  activeOrders: string[];
+  assignedVehicle: Vehicle | null;
+  // NEW: for tracking freshness
+  locationUpdatedAt?: number; // timestamp of last location update
+}
+
+export interface Vehicle {
+  _id: string;
+  number: string;
+  label: string;
+  isAssigned: boolean;
+  assignedDriverId: string | null;
+}
+
+// NEW
+export interface DeliveryAssignment {
+  _id: string;
+  orderId: string;
+  driverId: string;
+  status: 'assigned' | 'picked-up' | 'en-route' | 'delivered' | 'cancelled';
+  assignedAt: string;
+  customerLocation: { lat: number; lng: number; address: string };
+}
+```
+
+---
+
+#### [MODIFY] [deliveryStore.ts](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/store/deliveryStore.ts)
+
+Major refactor:
+
+**Remove:**
+- All imports from `dummyData.ts`
+- `simulateDriverMovement()` action — replaced by real Pusher events
+- All dummy initial data
+
+**Add:**
+```typescript
+// ── API Actions ──
+fetchOrders: () => Promise<void>       // GET /api/delivery/orders
+fetchDrivers: () => Promise<void>      // GET /api/delivery/drivers
+fetchVehicles: () => Promise<void>     // GET /api/delivery/vehicles
+
+// ── Pusher Integration ──
+initPusher: () => void                 // Subscribe to private-restaurant-{id}
+cleanupPusher: () => void              // Unsubscribe + disconnect
+
+// ── Updated Actions (now call backend) ──
+assignDriver: (orderId, driverId) => Promise<void>     // POST /api/delivery/assign
+markDelivered: (orderId) => Promise<void>               // PATCH /api/delivery/orders/:id/status
+assignVehicle: (driverId, vehicleId) => Promise<void>  // POST /api/delivery/vehicles/assign
+unassignVehicle: (driverId) => Promise<void>            // DELETE /api/delivery/vehicles/unassign/:id
+
+// ── Real-time update handler ──
+updateDriverLocation: (driverId, lat, lng, bearing) => void  // Called by Pusher event listener
+```
+
+**Pusher subscription logic in `initPusher()`:**
+```typescript
+// Subscribe to private-restaurant-{restaurantId}
+const channel = pusher.subscribe(`private-restaurant-${restaurantId}`);
+
+// Listen for P2P client events (driver location — no backend involved)
+channel.bind('client-driver-location', (data) => {
+  // Update driver's currentLocation in store
+  // Trigger smooth animation on map
+  updateDriverLocation(data.driverId, data.lat, data.lng, data.bearing);
+});
+
+// Listen for server-triggered status events
+channel.bind('delivery-assigned', (data) => { /* re-fetch or update store */ });
+channel.bind('delivery-status-update', (data) => { /* update order status */ });
+channel.bind('driver-status-change', (data) => { /* update driver status */ });
+```
+
+---
+
+#### [MODIFY] [DeliveryDispatchDashboard.tsx](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/components/DeliveryDispatchDashboard.tsx)
+
+Add `useEffect` for initialization and cleanup:
+
+```typescript
+useEffect(() => {
+  // Fetch initial data from backend
+  fetchOrders();
+  fetchDrivers();
+  fetchVehicles();
+  
+  // Subscribe to Pusher for real-time updates
+  initPusher();
+  
+  return () => {
+    cleanupPusher(); // Unsubscribe on unmount
+  };
+}, []);
+```
+
+---
+
+#### [MODIFY] [DeliveryMap.tsx](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/components/DeliveryMap.tsx)
+
+**Remove:**
+- `simulateDriverMovement` interval (`useEffect` with `setInterval`)
+- Route polylines (no more client-side route simulation)
+
+**Add:**
+- `useAnimatedMarker` hook for smooth driver marker movement
+- Bearing-based car rotation on driver markers
+- "Last updated" indicator per driver (using `locationUpdatedAt`)
+- Driver markers auto-update when store's `drivers[]` changes via Pusher events
+
+**Driver marker enhancement:**
+- Car icon faces direction of travel (CSS rotation based on bearing)
+- Smooth 2-second animation between GPS points (lerp + easeOutCubic)
+- Pulsing ring when driver is actively moving
+- Dim/grey marker when driver location is stale (>2 min)
+
+---
+
+#### [MODIFY] [OrderCard.tsx](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/components/OrderCard.tsx)
+
+- `assignDriver()` now calls backend API (async)
+- `markDelivered()` now calls backend API (async)
+- Add loading state during API calls
+
+---
+
+#### [MODIFY] [CarriersPanel.tsx](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/components/CarriersPanel.tsx)
+
+- Vehicle assign/unassign now calls backend APIs
+- Add loading state during API calls
+
+---
+
+#### [MODIFY] [VehicleAssignModal.tsx](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/components/VehicleAssignModal.tsx)
+
+- `assignVehicle()` now calls backend API
+
+---
+
+#### [DELETE] [dummyData.ts](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/modules/delivery/data/dummyData.ts)
+
+No longer needed — all data comes from backend.
+
+---
+
+#### [MODIFY] [.env](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/branch/.env)
+
+Already has Pusher keys. No changes needed.
+
+---
+
+### Component 3: User Frontend — Live Delivery Tracking with Map
+
+> When delivery order is active, user sees driver's live location on an embedded Leaflet map.
+
+---
+
+#### [NEW] [DeliveryTrackingMap.tsx](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/user-frontend/components/DeliveryTrackingMap.tsx)
+
+Dynamically imported (SSR-safe) Leaflet map component for user-side tracking.
+
+**Props:**
+```typescript
+interface DeliveryTrackingMapProps {
+  orderId: string;
+  driverInfo: {
+    name: string;
+    color: string;
+    vehicleNumber: string;
+  } | null;
+  customerCoords: { lat: number; lng: number };
+  restaurantCoords: { lat: number; lng: number };
+  deliveryStatus: string;
+}
+```
+
+**Features:**
+- Subscribes to `private-order-{orderId}` Pusher channel
+- On first subscribe: sends `client-request-location` event (ping) so driver responds immediately
+- Listens for `client-driver-location` events → smooth car animation
+- Shows 3 markers: restaurant (pin), customer delivery address (pin), driver (animated car)
+- Car marker rotates based on bearing (direction of travel)
+- Auto-follows driver by default
+- If user pans/zooms map → auto-follow pauses → show "Re-center" floating button
+- Glassmorphic info overlay: driver name, vehicle number, "Live" badge
+- Freshness indicator:
+  - < 30s: Green "Live" with pulsing dot
+  - 30s-2min: Yellow "Updating..."
+  - > 2min: Red "Driver may be offline"
+- Cleanup: unsubscribe from Pusher channel on unmount
+
+**Map tiles:** Same Carto Voyager tiles as branch dashboard for consistency.
+
+---
+
+#### [MODIFY] [OrderStatusModal.tsx](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/user-frontend/components/OrderStatusModal.tsx)
+
+For delivery orders, add embedded tracking map:
+
+```typescript
+// After the progress tracker timeline, add:
+{isDelivery && (currentStatus === 'preparing' || currentStatus === 'ready') && (
+  <div className="mt-4">
+    {/* Dynamic import of map */}
+    <DeliveryTrackingMap
+      orderId={liveOrder._id}
+      driverInfo={driverInfo}
+      customerCoords={customerCoords}
+      restaurantCoords={restaurantCoords}
+      deliveryStatus={currentStatus}
+    />
+  </div>
+)}
+```
+
+Also:
+- When modal opens for delivery order, fetch driver info from `GET /api/delivery/track/:orderId`
+- Update progress tracker step for "Out for Delivery" to show driver name and vehicle
+- When delivery status is "picked-up" or "en-route", show the map section
+- When delivery is completed, show final "Delivered!" state and hide map
+
+---
+
+#### [MODIFY] [.env](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/user-frontend/.env)
+
+```diff
+ NEXT_PUBLIC_API_URL=http://localhost:5000/api
+ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
++NEXT_PUBLIC_PUSHER_KEY="fc1a170b04cd047c782b"
++NEXT_PUBLIC_PUSHER_CLUSTER="ap2"
+```
+
+---
+
+#### New Dependencies for user-frontend:
+
+```
+pusher-js        — Pusher client for subscribing to channels
+leaflet          — Map rendering
+react-leaflet    — React wrapper for Leaflet
+@types/leaflet   — TypeScript types (devDep)
+```
+
+---
+
+### Component 4: Driver App (New Project — Testing Only)
+
+> New Next.js project at `driver-app/`. Mobile-optimized, no in-app map. Opens native Google Maps/Apple Maps for navigation.
+
+---
+
+#### [NEW] `driver-app/` — Complete file structure:
+
+```
+driver-app/
+├── app/
+│   ├── globals.css           # Mobile-optimized styles, dark theme
+│   ├── layout.tsx            # Root layout with meta tags
+│   ├── page.tsx              # Login page (driver ID + password)
+│   └── dashboard/
+│       └── page.tsx          # Main dashboard (delivery list + controls)
+├── components/
+│   ├── DeliveryCard.tsx      # Individual delivery assignment card
+│   └── LocationTracker.tsx   # Background GPS tracking component
+├── lib/
+│   ├── api.ts                # Axios instance + API helpers
+│   └── pusher.ts             # Pusher client initialization
+├── package.json
+├── .env
+├── next.config.ts
+├── tsconfig.json
+└── postcss.config.mjs
+```
+
+---
+
+#### [NEW] Login Page (`app/page.tsx`)
+
+- Clean, mobile-first login form
+- Driver ID number input + password input
+- Calls `POST /api/delivery/driver/login`
+- On success: stores driver data in localStorage, redirects to `/dashboard`
+- Immediately requests location permission (`navigator.geolocation.getCurrentPosition()`)
+- Error handling for wrong credentials
+
+---
+
+#### [NEW] Dashboard Page (`app/dashboard/page.tsx`)
+
+**Header section:**
+- Driver name + avatar
+- Status toggle button (Online ↔ Offline) → calls `PATCH /api/delivery/driver/:id/status`
+- Shows assigned vehicle number
+
+**Delivery cards list:**
+- Fetches from `GET /api/delivery/driver/:id/assignments`
+- Each card shows:
+  - Order number + customer name
+  - Delivery address
+  - Items summary + total amount
+  - Status badge (Assigned → Picked Up → En Route → Delivered)
+  - **Map Pin icon** → click opens Google Maps with customer coordinates
+  - Action buttons based on current status:
+
+| Current Status | Button | API Call |
+|---|---|---|
+| `assigned` | **Accept Delivery** | `PATCH /api/delivery/driver/accept/:id` |
+| `assigned` (accepted) | **Picked Up** | `PATCH /api/delivery/driver/pickup/:id` |
+| `picked-up` | **Mark Delivered** | `PATCH /api/delivery/driver/deliver/:id` |
+| `delivered` | ✅ Completed (no button) | — |
+
+**Pusher subscription:**
+- Subscribe to `private-restaurant-{restaurantId}`
+- Listen for `delivery-assigned` events → add new delivery card dynamically
+- Listen for `client-request-location` on order channels → respond with current position
+
+---
+
+#### [NEW] LocationTracker Component (`components/LocationTracker.tsx`)
+
+Background component that handles ALL GPS + Pusher location sending:
+
+```typescript
+interface LocationTrackerProps {
+  driverId: string;
+  restaurantId: string;
+  activeOrderIds: string[];  // Currently active delivery order IDs
+  isTracking: boolean;       // Only true when driver has picked up order
+}
+```
+
+**Logic:**
+```
+1. On mount (when isTracking = true):
+   - Start navigator.geolocation.watchPosition()
+   - Subscribe to private-restaurant-{restaurantId} (if not already)
+   - Subscribe to private-order-{orderId} for each active order
+
+2. On each GPS position:
+   - Calculate distance from last sent position
+   - If moved > 50m OR 30s since last send:
+     - Calculate bearing from lastPosition → currentPosition
+     - Send client event "client-driver-location" to ALL subscribed channels:
+       { driverId, lat, lng, bearing, timestamp }
+     - Update lastSentPosition and lastSentTime
+
+3. Listen for "client-request-location" events:
+   - Immediately respond with current GPS position (ping-pong)
+
+4. On visibilitychange (tab backgrounded):
+   - Show notification: "Keep tab active for tracking"
+   - When foregrounded: immediately send current position
+
+5. On unmount / delivery complete:
+   - Stop watchPosition
+   - Unsubscribe from order channels
+   - Clear references
+```
+
+**Smart filter implementation:**
+```typescript
+const DISTANCE_THRESHOLD = 50;  // meters
+const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
+function getDistanceMeters(pos1, pos2) {
+  // Haversine formula for distance between two GPS coordinates
+  const R = 6371000; // Earth's radius in meters
+  const dLat = toRad(pos2.lat - pos1.lat);
+  const dLng = toRad(pos2.lng - pos1.lng);
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(toRad(pos1.lat)) * Math.cos(toRad(pos2.lat)) *
+    Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function getBearing(from, to) {
+  const dLng = toRad(to.lng - from.lng);
+  const y = Math.sin(dLng) * Math.cos(toRad(to.lat));
+  const x = Math.cos(toRad(from.lat)) * Math.sin(toRad(to.lat)) -
+    Math.sin(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+```
+
+---
+
+#### [NEW] DeliveryCard Component (`components/DeliveryCard.tsx`)
+
+Individual delivery card with:
+- Order info (number, customer, address, items, total)
+- Status badge with color coding
+- **Map pin icon button** → opens native maps:
+  ```typescript
+  const openNavigation = (lat: number, lng: number) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    window.open(url, '_blank');
+  };
+  ```
+- Action buttons (Accept / Picked Up / Delivered) with loading states
+- Calls respective API endpoints on button click
+- Smooth transitions between states
+
+---
+
+#### [NEW] `.env` for driver-app
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_PUSHER_KEY="fc1a170b04cd047c782b"
+NEXT_PUBLIC_PUSHER_CLUSTER="ap2"
+```
+
+---
+
+#### [NEW] `next.config.ts` for driver-app
+
+```typescript
+const nextConfig = {
+  // Run on port 3003 for development
+  // (configured via package.json scripts: "dev": "next dev -p 3003")
+};
+```
+
+---
+
+## Implementation Order
+
+| Phase | Tasks | Dependencies |
+|---|---|---|
+| **Phase 1** | Backend: Models (Driver, DeliveryAssignment, Vehicle) | None |
+| **Phase 2** | Backend: Controller + Routes + Pusher auth | Phase 1 |
+| **Phase 3** | Backend: Seed script → run to populate test data | Phase 2 |
+| **Phase 4** | Driver App: Create project, Login, Dashboard, LocationTracker | Phase 3 |
+| **Phase 5** | Branch Frontend: Refactor deliveryStore (API + Pusher) | Phase 3 |
+| **Phase 6** | Branch Frontend: Update DeliveryMap (smooth animation, remove simulation) | Phase 5 |
+| **Phase 7** | User Frontend: DeliveryTrackingMap + OrderStatusModal changes | Phase 3 |
+| **Phase 8** | End-to-end testing | All phases |
+
+---
+
+## Verification Plan
+
+### End-to-End Flow Test
+
+```
+1. Run seed script → 3 drivers + 12 vehicles in MongoDB
+2. Open Branch dashboard → Delivery section → verify drivers/vehicles loaded from API
+3. Open Driver app (port 3003) → login as DRV-001/test123
+4. Create a delivery order from user-frontend
+5. In Branch dashboard: assign driver DRV-001 to the order
+   → Verify: driver app shows new delivery card (Pusher event)
+6. In Driver app: click "Accept"
+   → Verify: branch dashboard updates status
+7. In Driver app: click "Picked Up"  
+   → Verify: 30 seconds later, GPS tracking starts
+   → Verify: branch map shows car marker moving smoothly
+8. Open user-frontend → track order
+   → Verify: map loads, driver location appears within 2 seconds (request-location ping)
+   → Verify: car moves smoothly with correct rotation
+9. In Driver app: click map pin icon
+   → Verify: Google Maps opens with correct destination
+10. In Driver app: click "Delivered"
+    → Verify: GPS tracking stops
+    → Verify: branch dashboard shows "delivered"
+    → Verify: user-frontend shows "Delivered!" state
+11. Close driver app → reopen
+    → Verify: driver stays logged in (localStorage)
+```
+
+### Edge Case Tests
+
+```
+- Driver offline: Close driver app tab → verify user sees "Driver may be offline" after 2 min
+- Late tracking: Start delivery, wait 5 min, THEN open user tracking → verify ping works
+- Multiple deliveries: Assign 2 orders to same driver → verify both users see location
+- Map interaction: Pan/zoom user map → verify auto-follow pauses → click re-center → resumes
+- Pusher disconnect: Disable internet briefly → verify reconnection and tracking resumes
+```

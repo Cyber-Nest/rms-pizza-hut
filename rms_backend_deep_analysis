@@ -1,0 +1,590 @@
+# 🔍 RMS Backend — Complete Deep Analysis
+
+> Full code review of every file, every endpoint, every query — with optimization recommendations, index needs, scalability assessment, and V2 multi-restaurant roadmap.
+
+---
+
+## 📁 Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Vercel Serverless"
+        API["api/index.js"] --> APP["src/app.js"]
+        APP --> MENU["Menu Module"]
+        APP --> ORDER["Order Module"]
+        APP --> PROMO["Promo Module"]
+        APP --> EXPENSE["Expense Module"]
+        APP --> PAYMENT["Payment Module"]
+    end
+
+    subgraph "External Services"
+        MONGO["MongoDB Atlas"]
+        CLOUD["Cloudinary"]
+        STRIPE["Stripe"]
+        PUSHER["Pusher"]
+    end
+
+    ORDER --> MONGO
+    ORDER --> STRIPE
+    ORDER --> PUSHER
+    MENU --> MONGO
+    MENU --> CLOUD
+    PROMO --> MONGO
+    EXPENSE --> MONGO
+    PAYMENT --> STRIPE
+```
+
+| Component | Tech | Files |
+|-----------|------|-------|
+| Runtime | Node.js + Express 5 | [app.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/app.js) |
+| Database | MongoDB Atlas (Mongoose 9) | [db.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/config/db.js) |
+| Real-time | Pusher | [pusher.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/config/pusher.js) |
+| Payments | Stripe | [payment.controller.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/payment/controllers/payment.controller.js) |
+| Images | Cloudinary | [cloudinary.config.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/config/cloudinary.config.js) |
+| Deploy | Vercel Serverless | [vercel.json](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/vercel.json) |
+
+**Models**: 7 total — Order, OrderCounter, Deposit, Product, Category, ModifierGroup, Expense, Payment, Promo
+
+---
+
+## 🚨 CRITICAL SECURITY ISSUES (Fix Immediately!)
+
+> [!CAUTION]
+> ### 1. NO AUTHENTICATION / AUTHORIZATION — ANYWHERE
+> Your entire backend is **completely open**. Anyone who knows the URL can:
+> - Create/cancel/modify any order
+> - Delete menu items, categories, products
+> - Access all customer data (phone, email, address)
+> - View all financial reports
+> - Create/delete promo codes
+> - Access Stripe payment intents
+>
+> **There is ZERO auth middleware** — no JWT, no API keys, no session tokens, nothing.
+
+> [!CAUTION]
+> ### 2. API KEYS EXPOSED IN `.env` (COMMITTED TO GIT)
+> Your [.env](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/.env) file contains **live credentials** for:
+> - MongoDB Atlas connection string (with username/password)
+> - Cloudinary API keys
+> - Stripe secret key
+> - Pusher credentials
+>
+> If this repo is public on GitHub, **rotate ALL keys immediately**.
+
+> [!WARNING]
+> ### 3. No Input Validation / Sanitization
+> - `req.body` is passed directly to Mongoose without validation
+> - No rate limiting on any endpoint
+> - No request size limits beyond multer (5MB)
+> - MongoDB injection possible via unvalidated query params (e.g., `$regex` in expense search)
+
+---
+
+## 📊 Endpoint-by-Endpoint Optimization Analysis
+
+### A. ORDER MODULE — 24 Endpoints (THE BOTTLENECK)
+
+Source: [order.service.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/order/services/order.service.js) (1715 lines, 55KB)
+
+| # | Endpoint | Method | Optimization Level | Issue |
+|---|----------|--------|-------------------|-------|
+| 1 | `POST /api/orders` | Create | ⚠️ Medium | 2 DB writes (Order + Counter) + Stripe verify + Pusher = **4-5 async ops** |
+| 2 | `GET /api/orders` | List | ⚠️ Medium | No pagination — fetches ALL orders |
+| 3 | `GET /api/orders/:id` | Detail | ✅ OK | Simple `findById` + lean |
+| 4 | `PATCH /api/orders/:id/status` | Status | ⚠️ Medium | `findById` + `save()` = 2 DB ops (should use `findByIdAndUpdate`) |
+| 5 | `PATCH /api/orders/:id/payment` | Pay | ❌ Slow | Loop `for (const p of payments)` saves Payment docs **one by one** |
+| 6 | `DELETE /api/orders/:id` | Cancel | ⚠️ Medium | `findById` + `save()` = 2 DB ops |
+| 7 | `GET /api/orders/next-number` | Preview | ⚠️ Medium | `countDocuments` + `findOne` = 2 queries per call |
+| 8 | `PATCH /api/orders/:id/due-time` | Due | ⚠️ Medium | `findById` + `save()` = 2 DB ops |
+| 9 | `PATCH /api/orders/:id` | Edit Items | ⚠️ Medium | `findById` + `save()` |
+| 10 | `GET /api/orders/sales-summary` | Sales | 🔴 **CRITICAL** | Fetches ALL orders + ALL products + ALL expenses in memory |
+| 11 | `GET /api/orders/reports-summary` | Reports | ⚠️ Medium | Uses aggregation (good) but still fetches all products + expenses |
+| 12 | `GET /api/orders/item-sales-summary` | Items | ⚠️ OK | Aggregation pipeline (decent) |
+| 13 | `GET /api/orders/hourly-sales-summary` | Hourly | ⚠️ Medium | Fetches all orders then JS loops |
+| 14 | `GET /api/orders/monthly-sales-summary` | Monthly | 🔴 **CRITICAL** | Fetches ALL orders + ALL cancelled + ALL expenses + ALL deposits, then filters per day in JS |
+| 15 | `GET /api/orders/dashboard-metrics` | Dashboard | 🔴 **CRITICAL** | Fetches 30 days of orders, iterates ALL in memory |
+| 16 | `GET /api/orders/customers` | Customers | ✅ OK | Uses aggregation pipeline |
+| 17 | `GET /api/orders/sales-summary/pdf` | PDF | 🔴 CRITICAL | Calls getSalesSummary (heavy) + generates PDF |
+| 18 | `POST /api/orders/sales-summary/deposit` | Deposit | ✅ OK | `findOneAndUpdate` upsert |
+| 19 | `GET /api/orders/export-report` | Export | ⚠️ Medium | Depends on report type, some call getAllOrders |
+| 20 | `GET /api/orders/:id/pdf` | Receipt | ✅ OK | Single order fetch + PDF |
+
+---
+
+### B. MENU MODULE — 14 Endpoints
+
+Source: [menu.service.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/menu/services/menu.service.js)
+
+| # | Endpoint | Optimization | Issue |
+|---|----------|-------------|-------|
+| 1 | `GET /api/menu/pos-feed` | ✅ **GOOD** — In-memory cache | Cache never expires (TTL missing) |
+| 2 | `GET /api/menu/categories` | ✅ OK | Simple find + sort |
+| 3 | `GET /api/menu/products` | ⚠️ Medium | Deep populate (3 levels) on every call |
+| 4 | `GET /api/menu/products/branch-list` | ✅ OK | Good projection + populate |
+| 5 | `GET /api/menu/modifiers` | ⚠️ Medium | `populate('options.modifierGroups')` on every call |
+| 6 | All CRUD operations | ✅ OK | Standard Mongoose operations |
+
+### C. PROMO, EXPENSE, PAYMENT — Small, Fine
+
+| Module | Endpoints | Assessment |
+|--------|-----------|------------|
+| Promo | 5 | ✅ OK — Simple CRUD + validate |
+| Expense | 2 | ✅ OK — Uses indexes |
+| Payment | 1 | ✅ OK — Stripe intent creation |
+
+---
+
+## 🔴 Top 5 Endpoints That MUST Be Optimized
+
+### 1. `getSalesSummary` — Lines 381-693
+```
+GET /api/orders/sales-summary?date=2026-07-08
+```
+
+**Current Problem**: 
+- `Order.find(query).lean()` → Fetches ALL matching orders into memory
+- `Product.find().populate("categoryId")` → Fetches ALL products for category mapping
+- `Expense.find(expQuery)` → Another full collection scan
+- Then **loops through every order in JavaScript** to calculate totals
+
+**Fix**: Replace with MongoDB `$facet` aggregation (like `getReportsSummary` already does). The code at Line 983 already shows the correct pattern.
+
+### 2. `getMonthlySalesSummary` — Lines 1458-1713
+```
+GET /api/orders/monthly-sales-summary?startDate=2026-07-01&endDate=2026-07-31
+```
+
+**Current Problem**:
+- Fetches ALL active orders: `Order.find(ordersQuery).lean()` — NO projection
+- Fetches ALL cancelled orders: `Order.find(cancelledQuery).lean()` — NO projection
+- Fetches ALL expenses for range
+- Fetches ALL deposits for range
+- Then **loops day-by-day** through ALL data in JavaScript
+
+**THIS IS YOUR SLOWEST ENDPOINT.** For 30 days with 100 orders/day = 3000 orders loaded into memory, filtered 30 times.
+
+**Fix**: Single aggregation with `$group` by date, `$facet` for cancellations. Use `$dateToString` for day grouping.
+
+### 3. `getDashboardMetrics` — Lines 718-876
+```
+GET /api/orders/dashboard-metrics?date=2026-07-08
+```
+
+**Current Problem**:
+- Fetches 30 days of orders with `Order.find(dateQuery).lean()`
+- Iterates ALL orders to find unique customers, popular days, popular food items
+- Uses JavaScript Maps for customer tracking
+
+**Fix**: Use `$facet` aggregation with `$group` stages for each metric.
+
+### 4. `getHourlySalesSummary` — Lines 1398-1455
+```
+GET /api/orders/hourly-sales-summary
+```
+
+**Current Problem**:
+- `Order.find(matchQuery).lean()` → fetches all orders
+- JavaScript loop with `hourlySlots.find()` = O(n×m)
+
+**Fix**: Use `$group` with `$hour` operator in aggregation:
+```javascript
+{ $group: { _id: { $hour: "$createdAt" }, count: { $sum: 1 }, total: { $sum: "$total" } } }
+```
+
+### 5. `getAllOrders` — Lines 152-200
+```
+GET /api/orders
+```
+
+**Current Problem**: 
+- NO PAGINATION — Returns **every** order ever created
+- 100 orders/day × 365 days = 36,500 orders in a single JSON response
+
+**Fix**: Add `skip/limit` pagination or cursor-based pagination.
+
+---
+
+## 📇 Missing Indexes — Model by Model
+
+### Order Model — [order.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/order/models/order.model.js)
+
+**Existing Indexes** (Lines 213-217):
+```javascript
+orderSchema.index({ createdAt: -1 });         // ✅ 
+orderSchema.index({ status: 1 });              // ✅
+orderSchema.index({ scheduledAt: 1 }, { sparse: true });  // ✅
+orderSchema.index({ "customer.phone": 1 }, { sparse: true }); // ✅
+orderSchema.index({ "customer.email": 1 }, { sparse: true }); // ✅
+// orderNumber has { index: true } in schema  // ✅
+```
+
+**Missing Indexes Needed**:
+```javascript
+// 1. Compound index for date-filtered queries (used in EVERY report endpoint)
+orderSchema.index({ orderTiming: 1, createdAt: -1 });
+orderSchema.index({ orderTiming: 1, scheduledAt: -1 });
+
+// 2. Compound index for status + date (used in sales summaries)
+orderSchema.index({ status: 1, createdAt: -1 });
+
+// 3. Payment status queries
+orderSchema.index({ paymentStatus: 1 });
+
+// 4. Order source for channel summaries
+orderSchema.index({ orderSource: 1 });
+
+// 5. Compound for the $or date filter pattern used everywhere
+orderSchema.index({ orderTiming: 1, createdAt: -1, status: 1 });
+```
+
+### Payment Model — [payment.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/payment/models/payment.model.js)
+
+**Existing Indexes**: ❌ NONE
+
+**Missing Indexes Needed**:
+```javascript
+paymentSchema.index({ orderId: 1 });          // Lookup by order
+paymentSchema.index({ createdAt: -1 });        // Time-based queries
+paymentSchema.index({ status: 1 });            // Filter by status
+paymentSchema.index({ orderNumber: 1 });       // Lookup by order number
+```
+
+### Promo Model — [promo.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/promo/models/promo.model.js)
+
+**Existing Indexes**: Only `code: unique` (implicit)
+
+**Missing Indexes Needed**:
+```javascript
+promoSchema.index({ isActive: 1, expiresAt: 1 });  // Active promo lookup
+```
+
+### Category Model — [category.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/menu/models/category.model.js)
+
+**Existing Indexes**: Only `slug: unique` (implicit)
+
+**Missing Indexes Needed**:
+```javascript
+categorySchema.index({ isActive: 1, displayOrder: 1 });  // POS feed query
+```
+
+### Product Model — [product.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/menu/models/product.model.js)
+
+**Existing Indexes** (Lines 84-86):
+```javascript
+productSchema.index({ categoryId: 1 });  // ✅
+productSchema.index({ isActive: 1 });    // ✅
+productSchema.index({ name: 1 });        // ✅
+```
+
+**Missing Indexes Needed**:
+```javascript
+productSchema.index({ isActive: 1, categoryId: 1 });  // POS feed compound
+```
+
+### Expense Model — [expense.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/expense/models/expense.model.js)
+
+**Existing Indexes**: 
+```javascript
+expenseSchema.index({ expenseDate: -1 });  // ✅
+```
+**OK for now.**
+
+---
+
+## ⚡ Can Your Backend Handle 100+ Orders/Day on Vercel?
+
+### Short Answer: **YES, but barely — and reporting endpoints WILL be slow.**
+
+### Detailed Assessment:
+
+| Factor | Status | Details |
+|--------|--------|---------|
+| **Vercel Cold Starts** | ⚠️ Risky | Every serverless function has ~500ms-2s cold start. Your `connectDB()` middleware adds more latency |
+| **Function Timeout** | ⚠️ 10s limit | Vercel free/hobby has 10s max execution. `getMonthlySalesSummary` with 3000+ orders **will timeout** |
+| **Memory** | ⚠️ 1GB limit | Loading all orders into memory for reports will hit limits at ~5000-10000 orders |
+| **MongoDB Connection** | ✅ Good | Your `global.mongoose` caching pattern is correct for serverless |
+| **Connection Pool** | ⚠️ Risk | `maxPoolSize: 10` × concurrent functions = could hit Atlas connection limit |
+| **Order Creation** | ✅ Fine | ~200-500ms per order (DB write + Pusher + optional Stripe) |
+| **Order List** | ⚠️ No pagination | Will degrade as orders grow |
+| **POS Menu Feed** | ✅ Excellent | In-memory cache works perfectly |
+| **Real-time (Pusher)** | ✅ Fine | Fire-and-forget pattern is correct |
+
+### Specific Numbers:
+
+```
+100 orders/day × 365 days = 36,500 orders/year
+
+GET /api/orders (no pagination) → 36,500 documents loaded → ~5-10 seconds
+GET /api/orders/monthly-sales-summary → 3,000 docs × JS processing → ~3-8 seconds
+GET /api/orders/sales-summary → 100-500 docs → ~500ms-2s (OK for daily)
+GET /api/orders/dashboard-metrics → 3,000 docs → ~2-5 seconds
+```
+
+> [!WARNING]
+> **After 6 months (18,000+ orders), your reporting endpoints will start timing out on Vercel's 10-second limit.** The `getAllOrders` endpoint without pagination will also become unusable.
+
+### Quick Fixes for 100/day on Vercel:
+
+1. ✅ Add pagination to `getAllOrders` (limit 50 per page)
+2. ✅ Convert `getSalesSummary` to aggregation pipeline
+3. ✅ Convert `getMonthlySalesSummary` to aggregation pipeline
+4. ✅ Add `.select()` projection where missing (e.g., getMonthlySalesSummary Line 1476 — `.lean()` without `.select()` fetches ENTIRE order document)
+
+---
+
+## 🏗️ V2 Multi-Restaurant (50+ Branches) — What's Needed
+
+### Current V1 Architecture Problem:
+
+```
+Single MongoDB database → Single collection per entity → No tenant isolation
+```
+
+All orders, products, expenses go into **one collection**. This works for 1 restaurant. For 50+ it's a disaster.
+
+---
+
+### Required Architecture Changes:
+
+### 1. 🔑 Tenant ID (Restaurant/Branch ID) — MUST ADD TO EVERY MODEL
+
+Every model needs a `branchId` or `restaurantId` field:
+
+```javascript
+// EVERY schema needs this:
+const orderSchema = new mongoose.Schema({
+  branchId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Branch',
+    required: true,
+    index: true  // CRITICAL for performance
+  },
+  // ... existing fields
+});
+
+// Compound indexes change to:
+orderSchema.index({ branchId: 1, createdAt: -1 });
+orderSchema.index({ branchId: 1, status: 1, createdAt: -1 });
+```
+
+**Models that need `branchId`**:
+- Order ✅
+- Product ✅
+- Category ✅
+- ModifierGroup ✅
+- Expense ✅
+- Deposit ✅
+- Payment ✅
+- Promo (could be global or per-branch) ✅
+- OrderCounter ✅
+
+### 2. 🏢 New Models Needed
+
+```javascript
+// Restaurant model (parent entity)
+const restaurantSchema = {
+  name: String,
+  ownerEmail: String,
+  plan: { type: String, enum: ['basic', 'pro', 'enterprise'] },
+  settings: { taxRate, currency, timezone },
+  createdAt: Date
+};
+
+// Branch model (child of restaurant)
+const branchSchema = {
+  restaurantId: ObjectId,
+  name: String,
+  address: String,
+  phone: String,
+  isActive: Boolean,
+  settings: { /* branch-specific overrides */ }
+};
+
+// User model (for auth)
+const userSchema = {
+  email: String,
+  passwordHash: String,
+  role: { type: String, enum: ['super-admin', 'owner', 'manager', 'employee'] },
+  restaurantId: ObjectId,  // which restaurant they belong to
+  branchIds: [ObjectId],   // which branches they can access
+  permissions: [String]
+};
+```
+
+### 3. 🔐 Authentication & Authorization — MANDATORY
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Auth tokens | JWT (jsonwebtoken) | User login/session |
+| Password | bcrypt | Password hashing |
+| Middleware | Custom auth middleware | Extract user + branchId from token |
+| RBAC | Role-based access control | super-admin, owner, manager, employee |
+| Rate limiting | express-rate-limit | Prevent abuse |
+| Input validation | Joi / Zod | Validate req.body and query params |
+
+### 4. 🔴 Redis — YES, You Need It
+
+| Use Case | Why Redis | Priority |
+|----------|-----------|----------|
+| **POS Menu Cache** | Your current `cachedPOSMenuFeed` variable only works in a single process. On Vercel, each serverless function is a new process = cache miss every time | 🔴 HIGH |
+| **Session Store** | JWT blacklisting, token refresh | 🔴 HIGH |
+| **Rate Limiting** | Distributed rate limiting across serverless functions | 🟡 MEDIUM |
+| **Real-time state** | Order status cache, kitchen display cache | 🟡 MEDIUM |
+| **Dashboard Metrics Cache** | Cache computed dashboard results for 5 minutes | 🟢 NICE |
+
+**Recommended**: [Upstash Redis](https://upstash.com/) — serverless-friendly, pay-per-request, perfect for Vercel.
+
+```javascript
+// Example: POS Menu cache with Redis
+const Redis = require('@upstash/redis');
+const redis = new Redis({ url: process.env.UPSTASH_REDIS_URL, token: process.env.UPSTASH_REDIS_TOKEN });
+
+exports.getPOSMenuFeed = async (branchId) => {
+  const cacheKey = `pos-menu:${branchId}`;
+  const cached = await redis.get(cacheKey);
+  if (cached) return cached;
+
+  const feed = await buildMenuFeed(branchId);
+  await redis.set(cacheKey, JSON.stringify(feed), { ex: 300 }); // 5 min TTL
+  return feed;
+};
+```
+
+### 5. 🟡 BullMQ — YES, For Background Jobs
+
+| Job | Why BullMQ | Current Problem |
+|-----|-----------|-----------------|
+| **PDF Generation** | Receipt & report PDFs are generated synchronously during request. For 50 branches generating reports = timeout | Blocks response |
+| **Email Notifications** | Order confirmation emails (nodemailer is installed but unused) | Not implemented |
+| **Daily Report Aggregation** | Pre-compute daily summaries at midnight instead of on-demand | Slow queries |
+| **Promo Usage Tracking** | Async increment without blocking order creation | Minor delay acceptable |
+| **Cloudinary Cleanup** | Batch delete unused images | Manual currently |
+
+**But...** BullMQ needs a persistent Redis connection and a worker process. **This doesn't work on Vercel serverless.**
+
+> [!IMPORTANT]
+> ### For V2, you need to move off Vercel to one of these:
+> | Option | Cost | Complexity | Recommendation |
+> |--------|------|-----------|----------------|
+> | **Railway.app** | $5-20/mo | Low | ✅ Best for your stage |
+> | **Render.com** | $7-25/mo | Low | ✅ Good alternative |
+> | **DigitalOcean App Platform** | $12-24/mo | Medium | ✅ Good for growth |
+> | **AWS ECS / EC2** | $20-50/mo | High | For later scale |
+> | **Vercel + Inngest/Trigger.dev** | $10-30/mo | Medium | If staying on Vercel |
+
+### 6. 📊 Database Strategy for 50+ Branches
+
+| Approach | Pros | Cons | Recommended? |
+|----------|------|------|-------------|
+| **Shared DB + branchId field** | Simple, low cost | All data in one collection | ✅ For up to 50 branches |
+| **Separate DB per restaurant** | Full isolation | Complex connection management | ❌ Overkill for now |
+| **Sharded cluster** | Unlimited scale | Expensive, complex | ❌ Way too early |
+
+**Recommendation**: **Shared DB with `branchId`** on every document + compound indexes. This handles 50+ branches with up to 100K+ orders easily.
+
+### 7. 📝 Additional V2 Features Checklist
+
+| Feature | New Tech Needed | Priority |
+|---------|----------------|----------|
+| Authentication (JWT) | jsonwebtoken, bcrypt | 🔴 MUST |
+| Input validation | Joi or Zod | 🔴 MUST |
+| Rate limiting | express-rate-limit + Redis | 🔴 MUST |
+| Pagination on all list endpoints | Built-in | 🔴 MUST |
+| API versioning (/api/v2/) | Express router | 🟡 HIGH |
+| Request/response compression | compression middleware | 🟡 HIGH |
+| Health check with DB ping | Mongoose readyState | 🟢 LOW |
+| Webhook for Stripe events | Stripe webhook handler | 🔴 MUST |
+| Audit log (who changed what) | New AuditLog model | 🟡 HIGH |
+| Soft deletes (instead of hard delete) | isDeleted flag | 🟡 HIGH |
+| Image optimization | Cloudinary transforms | 🟢 LOW |
+| API documentation | Swagger/OpenAPI | 🟡 HIGH |
+| Error tracking | Sentry | 🟡 HIGH |
+| Automated tests | Jest + Supertest | 🟡 HIGH |
+
+---
+
+## 🔧 Other Code Issues Found
+
+### 1. `connectDB()` Called Twice
+In [app.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/app.js) Line 15 and Line 18-29:
+```javascript
+connectDB();  // Line 15 — called on module load
+
+app.use(async (req, res, next) => {  // Line 18 — called on EVERY request
+  await connectDB();
+  next();
+});
+```
+The middleware version is correct for Vercel serverless. **Remove Line 15** — it's redundant and adds a cold-start DB call.
+
+### 2. ProductId Generation — Full Table Scan
+In [product.model.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/menu/models/product.model.js) Lines 60-75:
+```javascript
+const products = await Product.find({ productId: { $regex: /^M\d+$/ } }, 'productId');
+```
+**This scans ALL products** on every new product creation. Should use an auto-incrementing counter like OrderCounter.
+
+### 3. POS Menu Cache Never Expires
+In [menu.service.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/menu/services/menu.service.js) Line 7:
+```javascript
+let cachedPOSMenuFeed = null;  // Never expires, only cleared on writes
+```
+On Vercel, this variable resets on every cold start anyway, so the cache is essentially useless in production. Add Redis or TTL-based caching.
+
+### 4. Stripe Initialized Even if Key is Missing
+In [order.service.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/order/services/order.service.js) Line 7:
+```javascript
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_mock");
+```
+This creates a Stripe instance with a fake key, which will throw misleading errors.
+
+### 5. `markOrderPaid` Saves Payments One-by-One
+[order.service.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/order/services/order.service.js) Lines 257-268:
+```javascript
+for (const p of payments) {
+  const paymentDoc = new Payment({...});
+  await paymentDoc.save();  // Sequential writes!
+}
+```
+Should use `Payment.insertMany(paymentDocs)` for batch insert.
+
+### 6. `deleteModifierGroup` Has a Bug
+[menu.service.js](file:///c:/Users/yoges/Desktop/Cyber%20Nest/restaurant-management-system/backend/src/modules/menu/services/menu.service.js) Line 105:
+```javascript
+const group = await ModifierGroup.deleteModifierGroup || await ModifierGroup.findByIdAndDelete(id);
+```
+`ModifierGroup.deleteModifierGroup` is **undefined** (it's not a Mongoose method). This line evaluates the OR and falls through to `findByIdAndDelete`, but it's a bug waiting to cause confusion.
+
+---
+
+## 📋 Summary — Priority Action Items
+
+### ❌ Do RIGHT NOW (Before more users):
+1. **Add authentication middleware** (JWT + bcrypt)
+2. **Remove .env from git** (add to .gitignore, rotate all keys)
+3. **Add pagination to `getAllOrders`**
+4. **Add input validation** (Joi/Zod)
+
+### 🟡 Do Within 2 Weeks:
+5. Convert `getSalesSummary` to aggregation pipeline
+6. Convert `getMonthlySalesSummary` to aggregation pipeline
+7. Convert `getDashboardMetrics` to aggregation pipeline
+8. Add missing indexes (Payment model, compound indexes)
+9. Fix ProductId generation (use counter)
+10. Add rate limiting
+
+### 🟢 Do For V2 (Multi-Restaurant):
+11. Add `branchId` to every model
+12. Create Restaurant, Branch, User models
+13. Set up Redis (Upstash) for caching
+14. Move to Railway/Render (away from Vercel serverless)
+15. Add BullMQ for background jobs (PDF, email, reports)
+16. Add API versioning
+17. Add Stripe webhook handling
+18. Add audit logging
+19. Add automated tests
+
+---
+
+> [!NOTE]
+> **Bottom Line**: Your V1 backend architecture is **clean and well-structured** (modular design, service layer, proper error handling, Winston logging). But it's a **prototype-level** backend — no auth, no pagination, no query optimization for reporting. It works fine for a single restaurant with <100 orders/day today, but will start breaking at 6-12 months of data. For V2 multi-restaurant, you need fundamental changes — tenant isolation, auth, Redis, and likely moving off Vercel.
