@@ -1,47 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F5F4F1;
-  --foreground: #1C1917;
+  --background: #f7f7f7;
+  --foreground: #111111;
 }
 
 @theme inline {
   /* ── Brand Colors (Maroon) ── */
-  --color-brand-primary:       #8a1538;
-  --color-brand-primary-hover: #70102b;
-  --color-brand-primary-light: #fdf2f4;
-  --color-brand-primary-muted: #f7cbd4;
+  --color-brand-primary:       #e31837;
+  --color-brand-primary-hover: #b9142d;
+  --color-brand-primary-light: #fff1f2;
+  --color-brand-primary-muted: #fecdd6;
 
   /* ── Tailwind Orange Overrides ── */
-  --color-orange-50:           #fdf2f4;
-  --color-orange-100:          #fbe5e9;
-  --color-orange-200:          #f7cbd4;
-  --color-orange-300:          #f0a3b2;
-  --color-orange-400:          #e3708a;
-  --color-orange-500:          #8a1538;
-  --color-orange-600:          #70102b;
-  --color-orange-700:          #590c21;
-  --color-orange-800:          #420817;
-  --color-orange-900:          #2c040d;
-  --color-orange-950:          #1b0107;
+  --color-orange-50:           #fff1f2;
+  --color-orange-100:          #ffe4e8;
+  --color-orange-200:          #fecdd6;
+  --color-orange-300:          #fda4b2;
+  --color-orange-400:          #fb7185;
+  --color-orange-500:          #e31837;
+  --color-orange-600:          #b9142d;
+  --color-orange-700:          #8f1024;
+  --color-orange-800:          #5f0b18;
+  --color-orange-900:          #2a050b;
+  --color-orange-950:          #120205;
 
   /* ── Surface & Backgrounds ── */
-  --color-brand-dark:    #1E1B18;
+  --color-brand-dark:    #080808;
   --color-brand-surface: #FFFFFF;
-  --color-brand-bg:      #F5F4F1;
-  --color-brand-bg-2:    #FAFAF9;
+  --color-brand-bg:      #f7f7f7;
+  --color-brand-bg-2:    #fafafa;
 
   /* ── Neutral Palette ── */
-  --color-neutral-50:  #FAFAF9;
-  --color-neutral-100: #F5F5F4;
-  --color-neutral-200: #E7E5E4;
-  --color-neutral-300: #D6D3D1;
-  --color-neutral-400: #A8A29E;
-  --color-neutral-500: #78716C;
-  --color-neutral-600: #57534E;
-  --color-neutral-700: #44403C;
-  --color-neutral-800: #292524;
-  --color-neutral-900: #1C1917;
+  --color-neutral-50:  #fafafa;
+  --color-neutral-100: #f4f4f5;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d4d4d8;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #666666;
+  --color-neutral-600: #4a4a4a;
+  --color-neutral-700: #2f2f2f;
+  --color-neutral-800: #1f1f1f;
+  --color-neutral-900: #111111;
 
   /* ── Semantic ── */
   --color-success:  #16A34A;
@@ -50,9 +50,9 @@
   --color-info:     #2563EB;
 
   /* ── Legacy aliases  ── */
-  --color-brand-red:       #8a1538;
-  --color-brand-red-hover: #70102b;
-  --color-brand-light-grey: #E7E5E4;
+  --color-brand-red:       #e31837;
+  --color-brand-red-hover: #b9142d;
+  --color-brand-light-grey: #e5e7eb;
 
   /* ── Typography ── */
   --font-sans: var(--font-sans), system-ui, -apple-system, sans-serif;
@@ -148,7 +148,7 @@ h1, h2, h3, h4, h5, h6, .font-display {
    Focus ring (orange)
 ──────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid #8a1538;
+  outline: 2px solid #e31837;
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -157,13 +157,13 @@ h1, h2, h3, h4, h5, h6, .font-display {
    Utility helpers
 ──────────────────────────────────────── */
 .btn-primary {
-  background-color: #8a1538;
+  background-color: #e31837;
   color: white;
   font-weight: 600;
   border-radius: 10px;
   transition: background-color 0.15s, transform 0.1s;
 }
-.btn-primary:hover  { background-color: #70102b; }
+.btn-primary:hover  { background-color: #b9142d; }
 .btn-primary:active { transform: scale(0.98); }
 
 .card {

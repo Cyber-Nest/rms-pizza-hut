@@ -61,10 +61,10 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
             <ChefHat size={22} className="text-black stroke-[2.5]" />
             <div className="leading-none text-left font-sans">
               <span className="text-sm font-900 tracking-tight block">
-                Chicken
+                Pizza
               </span>
               <span className="text-[11px] font-800 tracking-widest uppercase text-black block">
-                Delight
+                Hut
               </span>
             </div>
           </div>
@@ -289,7 +289,7 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
         {/* Footer Messages matching photo */}
         <div className="text-center space-y-1.5 pt-1 text-[10px] text-neutral-800">
           <p className="font-800 italic">
-            "Don't Cook Tonight, Call Chicken Delight!"
+            "Don't Cook Tonight, Call Pizza Hut!"
           </p>
           <p className="font-600">Have a nice day, Visit us again!</p>
           <p className="text-[8.5px] leading-tight text-neutral-600 pt-1 px-1">

@@ -38,13 +38,7 @@ export default function ReceptionNavbar({ onToggleSidebar }: ReceptionNavbarProp
       <div className="flex items-center gap-5">
         {/* Logo */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-brand-primary rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
-            <ChefHat size={18} className="text-white" strokeWidth={2.5} />
-          </div>
-          <div className="leading-none">
-            <p className="text-[13px] font-900 text-neutral-900 leading-tight tracking-tight">Chicken</p>
-            <p className="text-[11px] font-700 text-brand-primary leading-tight tracking-widest uppercase">Delight</p>
-          </div>
+          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-10 w-[72px] object-contain" />
         </div>
 
         {/* Divider */}

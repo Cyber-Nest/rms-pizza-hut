@@ -520,7 +520,7 @@ export default function BranchesPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Chicken Delight Downtown"
+                    placeholder="e.g. Pizza Hut Downtown"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 border border-neutral-200 rounded-xl text-xs focus:outline-none focus:border-brand-primary"

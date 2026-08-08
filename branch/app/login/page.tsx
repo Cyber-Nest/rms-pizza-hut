@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import {
-  Store, Mail, Lock, Eye, EyeOff, ArrowRight,
+  Mail, Lock, Eye, EyeOff, ArrowRight,
   KeyRound, UserCheck, ShieldCheck, ShieldOff, Loader2,
   CheckCircle2, LogIn,
 } from 'lucide-react';
@@ -162,10 +162,12 @@ export default function BranchLoginPage() {
 
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary mx-auto shadow-md shadow-brand-primary/10">
-            <Store size={28} />
-          </div>
-          <h1 className="text-xl font-800 tracking-tight text-neutral-900 uppercase">Chicken Delight</h1>
+          <img
+            src="/pizza-hut-logo.svg"
+            alt="Pizza Hut"
+            className="mx-auto h-16 w-28 object-contain"
+          />
+          <h1 className="text-xl font-800 tracking-tight text-neutral-900 uppercase">Pizza Hut</h1>
           <p className="text-xs font-600 text-neutral-500">Branch POS &amp; Terminal Login</p>
         </div>
 

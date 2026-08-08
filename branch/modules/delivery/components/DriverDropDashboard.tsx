@@ -619,7 +619,7 @@ export default function DriverDropDashboard() {
             disabled={!selectedDriver}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none ${
               selectedDriver
-                ? "bg-[#851532] hover:bg-[#6b0f27] active:scale-95"
+                ? "bg-[#e31837] hover:bg-[#b9142d] active:scale-95"
                 : "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
             }`}
           >
@@ -638,7 +638,7 @@ export default function DriverDropDashboard() {
             disabled={!selectedDriver}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none ${
               selectedDriver
-                ? "bg-[#851532] hover:bg-[#6b0f27] active:scale-95"
+                ? "bg-[#e31837] hover:bg-[#b9142d] active:scale-95"
                 : "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
             }`}
           >
@@ -721,7 +721,7 @@ export default function DriverDropDashboard() {
                       }
                     }
                   }}
-                  className="px-4 py-2 bg-brand-primary hover:bg-[#6b0f27] text-white text-[11.5px] font-800 rounded-lg transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0 flex items-center gap-1.5"
+                  className="px-4 py-2 bg-brand-primary hover:bg-[#b9142d] text-white text-[11.5px] font-800 rounded-lg transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0 flex items-center gap-1.5"
                 >
                   <Search size={13} />
                   <span>Search</span>
@@ -1203,7 +1203,7 @@ export default function DriverDropDashboard() {
                           ? "bg-emerald-700 text-white cursor-not-allowed opacity-90 shadow-xs"
                           : isSubmitDisabled || isSubmitting
                           ? "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
-                          : "bg-[#851532] hover:bg-[#6b0f27] text-white cursor-pointer active:scale-95 shadow-md"
+                          : "bg-[#e31837] hover:bg-[#b9142d] text-white cursor-pointer active:scale-95 shadow-md"
                       }`}
                     >
                       {selectedDriver?.isSettled ? (

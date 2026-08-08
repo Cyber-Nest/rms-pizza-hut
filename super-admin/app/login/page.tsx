@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { Lock, Mail, ShieldCheck, ArrowRight, AlertCircle, ChefHat, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, ShieldCheck, ArrowRight, AlertCircle, Eye, EyeOff } from "lucide-react";
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
@@ -55,11 +55,9 @@ export default function SuperAdminLoginPage() {
       <div className="relative w-full max-w-md bg-[#1B1917] border border-neutral-800/90 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
         {/* Header Branding */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-14 h-14 bg-brand-primary rounded-2xl flex items-center justify-center shadow-lg shadow-brand-primary/30 mb-4 border border-white/10">
-            <ChefHat size={28} className="text-white" strokeWidth={2.5} />
-          </div>
+          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="mb-4 h-16 w-28 object-contain" />
           <h1 className="text-xl font-900 tracking-tight text-neutral-100">
-            CYBER NEST <span className="text-brand-primary">SUPER ADMIN</span>
+            PIZZA HUT <span className="text-brand-primary">SUPER ADMIN</span>
           </h1>
           <p className="text-xs font-500 text-neutral-400 mt-1">
             Centralized Multi-Unit Restaurant Control Portal
@@ -152,7 +150,7 @@ export default function SuperAdminLoginPage() {
 
         <div className="mt-8 text-center border-t border-neutral-800/80 pt-4">
           <p className="text-[10.5px] text-neutral-500 font-600 tracking-wide">
-            Cyber Nest RMS • Protected by Enterprise Multi-Tenant Security
+            Pizza Hut RMS • Protected by Enterprise Multi-Tenant Security
           </p>
         </div>
       </div>

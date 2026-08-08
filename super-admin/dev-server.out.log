@@ -1,0 +1,19 @@
+
+> company-admin@0.1.0 dev
+> next dev -p 3001
+
+▲ Next.js 16.2.9 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.111:3001
+✓ Ready in 1435ms
+Creating turbopack project { dir: 'C:\\Users\\sukan\\rms-pizza-hut\\super-admin', testMode: true }
+
+○ Compiling /login ...
+ GET /login 200 in 14.7s (next.js: 13.5s, application-code: 1231ms)
+  Reload env: .env
+ GET /login 200 in 126ms (next.js: 66ms, application-code: 60ms)
+  Reload env: .env
+✓ Compiled in 139ms
+ GET /login 200 in 295ms (next.js: 146ms, application-code: 149ms)
+ GET /login 200 in 114ms (next.js: 37ms, application-code: 78ms)
+ GET /login 200 in 40ms (next.js: 4ms, application-code: 36ms)

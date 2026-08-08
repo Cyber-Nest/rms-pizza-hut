@@ -30,7 +30,7 @@ exports.generateReportCsv = (type, data, dateRangeStr, res) => {
     let csvContent = "\uFEFF";
 
     
-    csvContent += formatRow(["Chicken Delight"]);
+    csvContent += formatRow(["Pizza Hut"]);
     csvContent += formatRow([reportTitle]);
     csvContent += formatRow([`Period: ${dateRangeStr}`]);
     csvContent += formatRow([]); 

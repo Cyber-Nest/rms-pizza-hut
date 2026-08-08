@@ -93,12 +93,12 @@ function createDriverIcon(
 
 function createRestaurantIcon() {
   const html = `
-    <div class="restaurant-marker-enhanced" style="width: 48px; height: 58px; position: relative; filter: drop-shadow(0 6px 16px rgba(138,21,56,0.25));">
+    <div class="restaurant-marker-enhanced" style="width: 48px; height: 58px; position: relative; filter: drop-shadow(0 6px 16px rgba(227,24,55,0.25));">
       <!-- Pulsing glow beneath -->
       <div style="
         position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
         width: 24px; height: 8px;
-        background: radial-gradient(ellipse, rgba(138,21,56,0.3) 0%, transparent 70%);
+        background: radial-gradient(ellipse, rgba(227,24,55,0.3) 0%, transparent 70%);
         animation: restaurantGlow 2s ease-in-out infinite;
       "></div>
       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="58" viewBox="0 0 48 58" style="width: 100%; height: 100%;">
@@ -106,7 +106,7 @@ function createRestaurantIcon() {
         <defs>
           <linearGradient id="pinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" style="stop-color:#a91d47"/>
-            <stop offset="100%" style="stop-color:#8a1538"/>
+            <stop offset="100%" style="stop-color:#e31837"/>
           </linearGradient>
           <filter id="pinShadow">
             <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.2"/>
@@ -581,7 +581,7 @@ export default function DeliveryMap() {
                         height="14"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#8a1538"
+                        stroke="#e31837"
                         strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"

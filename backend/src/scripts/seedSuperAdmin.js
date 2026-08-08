@@ -11,7 +11,7 @@ async function seed() {
     await SuperAdmin.deleteMany({ email: "admin@cybernest.com" });
 
     const admin = new SuperAdmin({
-      name: "Cyber Nest Super Admin",
+      name: "Pizza Hut Super Admin",
       email: "admin@cybernest.com",
       password: "admin123",
       role: "super_admin",

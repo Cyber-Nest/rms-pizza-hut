@@ -332,7 +332,7 @@ export default function DeliveryTrackingMapInner({
   ];
 
   const driverIcon = createDriverIcon(driverInfo?.color || "#3B82F6", bearing);
-  const restaurantIcon = createPinIcon("#8a1538", "Store");
+  const restaurantIcon = createPinIcon("#e31837", "Store");
   const customerIcon = createPinIcon("#16A34A", "You");
 
   return (
@@ -423,7 +423,7 @@ export default function DeliveryTrackingMapInner({
       <div className="absolute bottom-4 left-4 right-4 sm:right-auto z-30 bg-white/95 backdrop-blur-md border border-neutral-200/50 p-3.5 rounded-2xl shadow-xl flex items-center gap-3 sm:min-w-[280px]">
         <div
           className="w-8.5 h-8.5 rounded-full flex items-center justify-center text-white font-extrabold shrink-0"
-          style={{ backgroundColor: driverInfo?.color || "#8a1538" }}
+          style={{ backgroundColor: driverInfo?.color || "#e31837" }}
         >
           <Navigation size={15} className="rotate-45" />
         </div>

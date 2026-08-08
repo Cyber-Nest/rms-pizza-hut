@@ -150,7 +150,7 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
           <p className="text-neutral-400 font-500 text-[11px] mb-5">Could not fetch sales data for the selected date. Please check your connection and try again.</p>
           <button
             onClick={() => fetchSummary(true)}
-            className="px-6 py-2 bg-brand-primary text-white text-[11px] font-800 uppercase tracking-wide rounded-full hover:bg-[#6b0f27] active:scale-95 transition-all cursor-pointer shadow-sm"
+            className="px-6 py-2 bg-brand-primary text-white text-[11px] font-800 uppercase tracking-wide rounded-full hover:bg-[#b9142d] active:scale-95 transition-all cursor-pointer shadow-sm"
           >
             Retry
           </button>
@@ -193,7 +193,7 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
         <div className="flex items-center gap-2.5">
           <button 
             onClick={handleDownloadSalesSummaryPdf}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#851532] hover:bg-[#6b0f27] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#e31837] hover:bg-[#b9142d] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm"
           >
             <Printer size={13} />
             <span>Print Receipt</span>
@@ -745,7 +745,7 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
                   className={`flex items-center gap-2 px-6 py-2 text-white font-800 text-[12px] uppercase tracking-wide rounded-full shadow-sm transition-all ${
                     data.deposit 
                       ? 'bg-neutral-250 text-neutral-400 cursor-not-allowed opacity-60'
-                      : 'bg-[#851532] hover:bg-[#6b0f27] active:scale-95 cursor-pointer'
+                      : 'bg-[#e31837] hover:bg-[#b9142d] active:scale-95 cursor-pointer'
                   }`}
                 >
                   <PlusCircle size={15} />

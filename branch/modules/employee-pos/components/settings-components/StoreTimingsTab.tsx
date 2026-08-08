@@ -159,7 +159,7 @@ export default function StoreTimingsTab({
             </button>
             <button
               type="submit"
-              className="px-8 py-2.5 rounded-full bg-[#8a1538] hover:bg-[#70102b] text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-[#8a1538]/20 flex items-center gap-1.5 active:scale-95"
+              className="px-8 py-2.5 rounded-full bg-[#e31837] hover:bg-[#b9142d] text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-[#e31837]/20 flex items-center gap-1.5 active:scale-95"
             >
               <Check size={14} />
               <span>Submit</span>

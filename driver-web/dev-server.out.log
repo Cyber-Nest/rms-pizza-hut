@@ -1,0 +1,12 @@
+
+> driver-web@0.1.0 dev
+> next dev -p 3003
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3003
+- Network:       http://192.168.0.111:3003
+✓ Ready in 1426ms
+Creating turbopack project { dir: 'C:\\Users\\sukan\\rms-pizza-hut\\driver-web', testMode: true }
+
+  Reload env: .env
+  Reload env: .env

@@ -155,7 +155,7 @@ export default function BranchProfileTab() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Chicken Delight Downtown"
+              placeholder="e.g. Pizza Hut Downtown"
               className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3 py-2 text-xs font-600 text-neutral-800 focus:outline-none focus:border-brand-primary focus:bg-white transition-all"
             />
           </div>

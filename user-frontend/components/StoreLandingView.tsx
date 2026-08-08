@@ -6,7 +6,6 @@ import {
   Phone,
   Clock,
   Search,
-  ChefHat,
   Building2,
   ArrowRight,
   Sparkles,
@@ -66,17 +65,11 @@ export default function StoreLandingView({
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-4 sm:px-6 py-3 flex items-center justify-between shadow-sm">
         {/* Brand Logo */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-brand-primary rounded-xl flex items-center justify-center text-white shadow-md shadow-brand-primary/25 flex-shrink-0">
-            <ChefHat size={18} strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col leading-none">
-            <span className="font-display font-medium text-[15px] text-neutral-800 tracking-tight">
-              Chicken
-            </span>
-            <span className="font-display font-medium text-[10px] text-brand-primary tracking-[0.2em] mt-0.5">
-              DELIGHT
-            </span>
-          </div>
+          <img
+            src="/pizza-hut-logo.svg"
+            alt="Pizza Hut"
+            className="h-10 w-[72px] object-contain"
+          />
         </div>
 
         <div className="hidden sm:flex items-center gap-2 bg-orange-50/60 border border-orange-100 px-3.5 py-1.5 rounded-xl text-xs text-neutral-700 font-medium">
@@ -94,7 +87,7 @@ export default function StoreLandingView({
           </span>
 
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-neutral-900 leading-tight">
-            Order Fresh & Hot Meals From <span className="text-brand-primary">Chicken Delight</span> Near You
+            Order Fresh & Hot Meals From <span className="text-brand-primary">Pizza Hut</span> Near You
           </h1>
 
           <p className="text-xs sm:text-sm text-neutral-500 max-w-xl mx-auto leading-relaxed">
@@ -275,7 +268,7 @@ export default function StoreLandingView({
 
       {/* ── FOOTER ── */}
       <footer className="border-t border-neutral-200/80 bg-white py-5 text-center text-xs text-neutral-500 font-medium">
-        <p>© 2026 Chicken Delight. All rights reserved. Powered by RMS Platform.</p>
+        <p>© 2026 Pizza Hut. All rights reserved. Powered by RMS Platform.</p>
       </footer>
     </div>
   );

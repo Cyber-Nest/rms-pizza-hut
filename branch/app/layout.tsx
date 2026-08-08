@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chicken Delight POS | Employee Terminal",
+  title: "Pizza Hut POS | Employee Terminal",
   description: "Production-level Restaurant Employee Point of Sale System",
 };
 

@@ -141,7 +141,7 @@ export default function TerminalSetupTab({
             setTerminalForm({ _id: '', realDevices: true, terminalName: '', terminalId: '', apiToken: '', storeId: '' });
             setIsTerminalAddOpen(true);
           }}
-          className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#8a1538] hover:bg-[#70102b] text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm active:scale-95"
+          className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#e31837] hover:bg-[#b9142d] text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm active:scale-95"
         >
           <Plus size={14} strokeWidth={2.5} />
           Add Terminal Setup
@@ -195,7 +195,7 @@ export default function TerminalSetupTab({
                           });
                           setIsTerminalEditOpen(true);
                         }}
-                        className="w-8 h-8 rounded-full bg-[#8a1538] text-white hover:bg-[#70102b] flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer shadow-xs"
+                        className="w-8 h-8 rounded-full bg-[#e31837] text-white hover:bg-[#b9142d] flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer shadow-xs"
                         title="Edit"
                       >
                         <Edit2 size={13} strokeWidth={2.5} />
@@ -332,7 +332,7 @@ export default function TerminalSetupTab({
             <div className="bg-neutral-50 px-6 py-4 flex justify-end">
               <button
                 onClick={() => { setSelectedTerminal(null); setIsTerminalModalOpen(false); }}
-                className="px-6 py-2 rounded-lg bg-[#851532] text-white hover:bg-[#6f0f27] text-xs font-800 transition-colors cursor-pointer"
+                className="px-6 py-2 rounded-lg bg-[#e31837] text-white hover:bg-[#b9142d] text-xs font-800 transition-colors cursor-pointer"
               >
                 Close
               </button>
@@ -412,13 +412,13 @@ export default function TerminalSetupTab({
             <div className="bg-neutral-50 px-6 py-4 flex justify-end gap-2.5">
               <button
                 onClick={() => handleAddTerminal(false)}
-                className="px-5 py-2 rounded-lg border border-[#8a1538] text-[#8a1538] hover:bg-[#8a1538]/10 text-xs font-800 transition-colors cursor-pointer active:scale-95"
+                className="px-5 py-2 rounded-lg border border-[#e31837] text-[#e31837] hover:bg-[#e31837]/10 text-xs font-800 transition-colors cursor-pointer active:scale-95"
               >
                 Submit
               </button>
               <button
                 onClick={() => handleAddTerminal(true)}
-                className="px-5 py-2 rounded-lg bg-[#8a1538] hover:bg-[#70102b] text-white text-xs font-800 transition-colors cursor-pointer"
+                className="px-5 py-2 rounded-lg bg-[#e31837] hover:bg-[#b9142d] text-white text-xs font-800 transition-colors cursor-pointer"
               >
                 Submit & Close
               </button>
@@ -494,7 +494,7 @@ export default function TerminalSetupTab({
             <div className="bg-neutral-50 px-6 py-4 flex justify-end gap-2.5">
               <button
                 onClick={handleEditTerminalSave}
-                className="px-6 py-2 rounded-lg bg-[#8a1538] hover:bg-[#70102b] text-white text-xs font-800 transition-colors cursor-pointer"
+                className="px-6 py-2 rounded-lg bg-[#e31837] hover:bg-[#b9142d] text-white text-xs font-800 transition-colors cursor-pointer"
               >
                 Save
               </button>

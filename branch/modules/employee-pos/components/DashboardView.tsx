@@ -17,7 +17,7 @@ interface DashboardViewProps {
 }
 
 const COLORS = [
-  '#8a1538', // Brand Primary Maroon
+  '#e31837', // Brand Primary Maroon
   '#991B1B', // Burgundy
   '#16A34A', // Success Green
   '#D97706', // Warning Amber

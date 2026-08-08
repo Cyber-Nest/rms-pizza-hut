@@ -329,7 +329,7 @@ export default function MainSettingsTab({
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-2.5 rounded-full bg-[#8a1538] hover:bg-[#70102b] text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50 flex items-center gap-2"
+              className="px-8 py-2.5 rounded-full bg-[#e31837] hover:bg-[#b9142d] text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm active:scale-98 disabled:opacity-50 flex items-center gap-2"
             >
               {saving ? (
                 <>

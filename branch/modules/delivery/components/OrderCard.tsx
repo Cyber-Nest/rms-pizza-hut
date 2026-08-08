@@ -101,7 +101,7 @@ export default function OrderCard({ order }: OrderCardProps) {
   const getBorderClass = () => {
     if (order.status !== "assign") {
       return isSelected
-        ? "border-brand-primary shadow-[0_0_0_1px_#8a1538,0_3px_12px_rgba(138,21,56,0.08)]"
+        ? "border-brand-primary shadow-[0_0_0_1px_#e31837,0_3px_12px_rgba(227,24,55,0.08)]"
         : "border-neutral-200 hover:border-neutral-300 hover:shadow-sm";
     }
 

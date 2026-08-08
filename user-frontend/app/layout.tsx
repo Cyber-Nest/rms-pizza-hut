@@ -17,11 +17,11 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Chicken Delight | Fresh, Hot & Delicious Online Ordering",
+  title: "Pizza Hut | Fresh, Hot & Delicious Online Ordering",
   description:
-    "Don't cook tonight, order online from Chicken Delight! Delicious fried chicken, combos, burgers, sides, and more delivered fresh to your door.",
+    "Don't cook tonight, order online from Pizza Hut! Delicious pizzas, combos, sides, and more delivered fresh to your door.",
   keywords:
-    "chicken delight, online order, fast food delivery, takeout, fried chicken, burgers, meals",
+    "pizza hut, online order, fast food delivery, takeout, pizza, wings, sides, meals",
 };
 
 export default function RootLayout({
@@ -51,7 +51,7 @@ export default function RootLayout({
               },
               success: {
                 iconTheme: {
-                  primary: "#8a1538",
+                  primary: "#e31837",
                   secondary: "#FFFFFF",
                 },
               },

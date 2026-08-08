@@ -1,0 +1,16 @@
+
+> user-frontend@0.1.0 dev
+> next dev -p 3002
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3002
+- Network:       http://192.168.0.111:3002
+✓ Ready in 1511ms
+Creating turbopack project {
+  dir: 'C:\\Users\\sukan\\rms-pizza-hut\\user-frontend',
+  testMode: true
+}
+
+○ Compiling / ...
+  Reload env: .env
+  Reload env: .env

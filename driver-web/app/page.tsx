@@ -162,15 +162,13 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
       {/* Background Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-600/10 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[130px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-red-600/10 blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-zinc-500/10 blur-[130px] pointer-events-none" />
 
       {/* Top Header Store Selector */}
       <header className="fixed top-0 inset-x-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900 px-4 py-3 z-30 flex items-center justify-between max-w-md mx-auto">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-black">
-            <Truck size={17} />
-          </div>
+          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-8 w-14 object-contain" />
           <span className="text-xs font-black tracking-wider uppercase text-zinc-200">
             Driver Hub
           </span>
@@ -182,7 +180,7 @@ export default function LoginPage() {
             onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
             className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-xs font-bold text-zinc-200 transition-all cursor-pointer shadow-sm"
           >
-            <Building2 size={13} className="text-emerald-400" />
+            <Building2 size={13} className="text-red-400" />
             <span className="max-w-[130px] truncate">
               {activeStore ? activeStore.branchName : "Pair Store"}
             </span>
@@ -205,7 +203,7 @@ export default function LoginPage() {
                     }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
                       activeStore?.branchId === store.branchId
-                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-950/40"
+                        ? "bg-red-600 text-white shadow-md shadow-red-950/40"
                         : "text-zinc-300 hover:bg-zinc-800"
                     }`}
                   >
@@ -223,7 +221,7 @@ export default function LoginPage() {
                     setIsStoreDropdownOpen(false);
                     setIsQrModalOpen(true);
                   }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-950/30 transition-all flex items-center gap-2"
+                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-950/30 transition-all flex items-center gap-2"
                 >
                   <Plus size={14} />
                   <span>Scan Store QR Code</span>
@@ -238,7 +236,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm pt-16 pb-8 space-y-6">
         {/* Brand Icon & Title */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto shadow-xl shadow-emerald-950/20">
+          <div className="w-14 h-14 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center text-red-400 mx-auto shadow-xl shadow-red-950/20">
             <Truck size={28} />
           </div>
           <h1 className="text-xl font-black tracking-tight text-white uppercase">
@@ -285,13 +283,13 @@ export default function LoginPage() {
             {/* Active Store Badge */}
             <div className="flex items-center justify-between bg-zinc-950/60 border border-zinc-800/60 px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-zinc-300">
               <div className="flex items-center gap-2 truncate">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse shrink-0" />
                 <span className="truncate">{activeStore.branchName}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsQrModalOpen(true)}
-                className="text-[10px] text-emerald-400 hover:underline uppercase font-black shrink-0"
+                className="text-[10px] text-red-400 hover:underline uppercase font-black shrink-0"
               >
                 Change
               </button>
@@ -310,7 +308,7 @@ export default function LoginPage() {
                     placeholder="E.g. DRV-001"
                     value={driverId}
                     onChange={(e) => setDriverId(e.target.value.toUpperCase())}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs font-mono font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-all uppercase tracking-wider"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-xs font-mono font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 transition-all uppercase tracking-wider"
                   />
                 </div>
               </div>
@@ -328,7 +326,7 @@ export default function LoginPage() {
                     placeholder="••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-10 py-3 text-xs font-mono font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-all tracking-widest"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-10 py-3 text-xs font-mono font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-red-500 transition-all tracking-widest"
                   />
                   <button
                     type="button"
@@ -343,7 +341,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+                className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-red-950/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
               >
                 {loading ? (
                   <>

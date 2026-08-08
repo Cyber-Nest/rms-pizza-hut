@@ -215,9 +215,9 @@ export default function MenuMatrixPage() {
     );
   }, [branches, branchSearchTerm]);
 
-  // Shorten branch name for matrix header (trims repetitive 'Chicken Delight' prefix)
+  // Shorten branch name for matrix header (trims repetitive Pizza Hut prefix)
   const getShortBranchName = (fullName: string) => {
-    const trimmed = fullName.replace(/^chicken\s+delight\s*[-–—]?\s*/i, "").trim();
+    const trimmed = fullName.replace(/^pizza\s+hut\s*[-–—]?\s*/i, "").trim();
     return trimmed || fullName;
   };
 

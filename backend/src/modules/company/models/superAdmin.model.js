@@ -7,7 +7,7 @@ const superAdminSchema = new mongoose.Schema(
       type: String,
       required: [true, "Name is required"],
       trim: true,
-      default: "Cyber Nest Super Admin",
+      default: "Pizza Hut Super Admin",
     },
     email: {
       type: String,

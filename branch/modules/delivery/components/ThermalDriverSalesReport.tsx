@@ -66,10 +66,10 @@ export default function ThermalDriverSalesReport({ data }: ThermalDriverSalesRep
             <ChefHat size={20} className="text-black stroke-[2.5]" />
             <div className="leading-none text-left font-sans">
               <span className="text-sm font-900 tracking-tight block">
-                Chicken
+                Pizza
               </span>
               <span className="text-[10px] font-800 tracking-widest uppercase text-black block">
-                Delight
+                Hut
               </span>
             </div>
           </div>

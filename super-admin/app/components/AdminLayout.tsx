@@ -268,12 +268,10 @@ export default function AdminLayout({ children }: Props) {
       {/* ── SIDEBAR (Desktop) ── */}
       <aside className="hidden md:flex flex-col w-64 bg-brand-dark text-white flex-shrink-0 border-r border-neutral-800">
         <div className="h-16 px-6 flex items-center gap-2.5 border-b border-neutral-800 bg-[#161412]">
-          <div className="w-8 h-8 rounded-lg bg-brand-primary flex items-center justify-center font-bold text-white text-base shadow-lg shadow-brand-primary/20">
-            CN
-          </div>
+          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-9 w-16 object-contain" />
           <div>
             <h1 className="text-[12px] font-800 tracking-wide uppercase leading-tight text-neutral-200">
-              Cyber Nest
+              Pizza Hut
             </h1>
             <p className="text-[9px] font-600 text-brand-primary uppercase tracking-wider leading-none">
               RMS Admin
@@ -453,7 +451,7 @@ export default function AdminLayout({ children }: Props) {
               </div>
               <div className="hidden sm:block text-left">
                 <p className="text-[10px] font-700 text-neutral-800 leading-tight">
-                  {adminUser?.name || "Cyber Nest Super Admin"}
+                  {adminUser?.name || "Pizza Hut Super Admin"}
                 </p>
                 <p className="text-[8px] font-600 text-neutral-400 uppercase tracking-wide leading-none mt-0.5">
                   Brand Manager
@@ -489,12 +487,10 @@ export default function AdminLayout({ children }: Props) {
           <div className="relative w-64 bg-brand-dark text-white flex flex-col animate-drawer-slide-in">
             <div className="h-16 px-6 flex items-center justify-between border-b border-neutral-800 bg-[#161412]">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-brand-primary flex items-center justify-center font-bold text-white text-base shadow-lg">
-                  CN
-                </div>
+                <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-9 w-16 object-contain" />
                 <div>
                   <h1 className="text-[12px] font-800 tracking-wide uppercase leading-tight">
-                    Cyber Nest
+                    Pizza Hut
                   </h1>
                   <p className="text-[9px] font-600 text-brand-primary uppercase tracking-wider leading-none">
                     RMS Admin

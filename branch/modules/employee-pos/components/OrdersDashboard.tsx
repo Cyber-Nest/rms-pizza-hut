@@ -828,7 +828,7 @@ export default function OrdersDashboard() {
                   {/* More Search Button */}
                   <button
                     onClick={() => setIsAdvanceSearchOpen(true)}
-                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-full bg-[#851532] hover:bg-[#6b0f27] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none"
+                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-full bg-[#e31837] hover:bg-[#b9142d] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none"
                   >
                     <Search size={13} />
                     <span>More Search</span>
@@ -890,7 +890,7 @@ export default function OrdersDashboard() {
                   {/* More Search Button */}
                   <button
                     onClick={() => setIsAdvanceSearchOpen(true)}
-                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-full bg-[#851532] hover:bg-[#6b0f27] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none"
+                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-full bg-[#e31837] hover:bg-[#b9142d] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none"
                   >
                     <Search size={13} />
                     <span>More Search</span>
@@ -918,7 +918,7 @@ export default function OrdersDashboard() {
                   {/* More Search Button */}
                   <button
                     onClick={() => setIsAdvanceSearchOpen(true)}
-                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-full bg-[#851532] hover:bg-[#6b0f27] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none"
+                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-full bg-[#e31837] hover:bg-[#b9142d] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none"
                   >
                     <Search size={13} />
                     <span>More Search</span>

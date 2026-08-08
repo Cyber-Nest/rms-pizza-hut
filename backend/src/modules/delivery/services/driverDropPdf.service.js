@@ -72,7 +72,7 @@ exports.generateDriverDropPdf = async ({ driver, date, type = "both", settlement
     // ── SLIP 1: EMPLOYEE SALES REPORT SLIP ──
     if (type === "sales" || type === "both") {
       // Header Logo & Title
-      doc.font("Courier-Bold").fontSize(12).text("Chicken", startX, doc.y, { align: "center", width: printableWidth });
+      doc.font("Courier-Bold").fontSize(12).text("Pizza Hut", startX, doc.y, { align: "center", width: printableWidth });
       doc.font("Courier-Bold").fontSize(9).text("DELIGHT", startX, doc.y, { align: "center", width: printableWidth });
       doc.moveDown(0.3);
       drawDashedLine();

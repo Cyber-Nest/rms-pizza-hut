@@ -5,7 +5,7 @@ const Branch = require("../../company/models/branch.model");
 exports.generateReceiptPdf = async (order, res) => {
   try {
     let branchInfo = {
-      name: order.branchName || "Chicken Delight",
+      name: order.branchName || "Pizza Hut",
       code: order.branchCode || "DELIGHT",
       address: "231 Edgefield Pl , Strathmore,",
       city: "Alberta, T1P 0E8, Canada",
@@ -522,7 +522,7 @@ exports.generateReceiptPdf = async (order, res) => {
     doc
       .font("Helvetica-BoldOblique")
       .fontSize(8)
-      .text('"Don\'t Cook Tonight, Call Chicken Delight!"', startX, doc.y, {
+      .text('"Don\'t Cook Tonight, Call Pizza Hut!"', startX, doc.y, {
         align: "center",
         width: printableWidth,
       });
@@ -566,7 +566,7 @@ exports.generateSalesSummaryReceiptPdf = async (
 ) => {
   try {
     let branchInfo = {
-      name: summary.branchName || "Chicken Delight",
+      name: summary.branchName || "Pizza Hut",
       code: summary.branchCode || "DELIGHT",
       address: "231 Edgefield Pl , Strathmore,",
       city: "Alberta, T1P 0E8, Canada",
@@ -849,7 +849,7 @@ exports.generateSalesSummaryReceiptPdf = async (
     doc
       .font("Helvetica-BoldOblique")
       .fontSize(8)
-      .text('"Don\'t Cook Tonight, Call Chicken Delight!"', startX, doc.y, {
+      .text('"Don\'t Cook Tonight, Call Pizza Hut!"', startX, doc.y, {
         align: "center",
         width: printableWidth,
       });

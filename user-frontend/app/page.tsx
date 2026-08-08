@@ -17,7 +17,6 @@ import {
   Info,
   Maximize2,
   X,
-  ChefHat,
 } from "lucide-react";
 import { Category, MenuItem } from "../types";
 import { useCart } from "../context/CartContext";
@@ -372,17 +371,11 @@ export default function HomePage() {
             onClick={handleSwitchStoreClick}
             className="flex items-center gap-2.5 cursor-pointer group"
           >
-            <div className="w-9 h-9 bg-brand-primary group-hover:bg-brand-primary-hover rounded-xl flex items-center justify-center text-white shadow-md shadow-brand-primary/25 flex-shrink-0 transition-all">
-              <ChefHat size={18} strokeWidth={2.5} />
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="font-display font-medium text-[15px] text-neutral-800 tracking-tight">
-                Chicken
-              </span>
-              <span className="font-display font-medium text-[10px] text-brand-primary tracking-[0.2em] mt-0.5">
-                DELIGHT
-              </span>
-            </div>
+            <img
+              src="/pizza-hut-logo.svg"
+              alt="Pizza Hut"
+              className="h-10 w-[72px] object-contain transition-transform group-hover:scale-105"
+            />
           </div>
 
           <button

@@ -32,7 +32,7 @@ export default function OrderTypePanel() {
             <circle cx="50" cy="65" r="28" fill="#F5F0EB" />
             <circle cx="50" cy="65" r="24" fill="#FAF7F4" />
             <path d="M26 65H74" stroke="#E7E5E4" strokeWidth="2" strokeLinecap="round" />
-            <path d="M26 63C26 40.5 40.5 30 50 30C59.5 30 74 40.5 74 63H26Z" fill="#8a1538" opacity="0.85" />
+            <path d="M26 63C26 40.5 40.5 30 50 30C59.5 30 74 40.5 74 63H26Z" fill="#e31837" opacity="0.85" />
             <circle cx="50" cy="26" r="5" fill="#f7cbd4" />
             <path d="M48 30C48 28.5 49 26 50 26C51 26 52 28.5 52 30" stroke="#f7cbd4" strokeWidth="2" />
             <path d="M32 58C32 48 39 42 45 40" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.35" />

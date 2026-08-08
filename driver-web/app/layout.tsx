@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#e31837",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -22,13 +22,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Driver Hub — Delivery Dispatch",
-  description: "Real-time Delivery GPS & Dispatch Web App for Drivers",
+  title: "Pizza Hut Driver Hub",
+  description: "Real-time Pizza Hut delivery GPS and dispatch web app for drivers",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Driver Hub",
+    title: "Pizza Hut Driver Hub",
   },
   formatDetection: {
     telephone: false,

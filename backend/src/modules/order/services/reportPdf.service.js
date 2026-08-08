@@ -4,7 +4,7 @@ const Branch = require("../../company/models/branch.model");
 
 exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = null) => {
   try {
-    let branchName = "Chicken Delight";
+    let branchName = "Pizza Hut";
     let branchCode = "";
 
     if (branchId) {
@@ -45,7 +45,7 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
     doc
       .font("Helvetica-Bold")
       .fontSize(20)
-      .fillColor("#8a1538") // Brand primary color
+      .fillColor("#e31837") // Brand primary color
       .text(`${branchCode}${branchName}`, 40, doc.y, { align: "center", width: printableWidth });
 
     doc
@@ -87,7 +87,7 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
       if (bgColor) {
         doc.rect(startX, rowY - 3, printableWidth, 15).fill(bgColor);
       }
-      doc.fillColor(bgColor === "#8a1538" ? "#FFFFFF" : "#1C1917");
+      doc.fillColor(bgColor === "#e31837" ? "#FFFFFF" : "#1C1917");
       doc.font(isBold ? "Helvetica-Bold" : "Helvetica").fontSize(8.5);
 
       let currentX = startX;
@@ -140,7 +140,7 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
       data.forEach((group) => {
         // Category header row
         const catRowY = doc.y;
-        doc.rect(startX, catRowY - 3, printableWidth, 15).fill("#8a1538");
+        doc.rect(startX, catRowY - 3, printableWidth, 15).fill("#e31837");
         doc
           .font("Helvetica-Bold")
           .fontSize(8.5)
@@ -433,7 +433,7 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
       .font("Helvetica-Oblique")
       .fontSize(8)
       .fillColor("#A8A29E")
-      .text('"Don\'t Cook Tonight, Call Chicken Delight!"', 40, doc.y, {
+      .text('"Don\'t Cook Tonight, Call Pizza Hut!"', 40, doc.y, {
         align: "center",
         width: printableWidth,
       });
