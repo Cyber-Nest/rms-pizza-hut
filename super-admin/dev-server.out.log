@@ -17,3 +17,4 @@ Creating turbopack project { dir: 'C:\\Users\\sukan\\rms-pizza-hut\\super-admin'
  GET /login 200 in 295ms (next.js: 146ms, application-code: 149ms)
  GET /login 200 in 114ms (next.js: 37ms, application-code: 78ms)
  GET /login 200 in 40ms (next.js: 4ms, application-code: 36ms)
+ GET /login 200 in 603ms (next.js: 16ms, application-code: 587ms)

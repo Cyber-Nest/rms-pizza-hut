@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "src/server.js",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
-    "seed:superadmin": "node src/scripts/seedSuperAdmin.js",
+    "dev": "node --use-system-ca --watch src/server.js",
+    "start": "node --use-system-ca src/server.js",
+    "seed:superadmin": "node --use-system-ca src/scripts/seedSuperAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
