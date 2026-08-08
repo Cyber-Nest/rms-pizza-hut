@@ -40,7 +40,7 @@ export default function KitchenNavbar({ activePendingCount, activeConfirmedCount
       <div className="flex items-center gap-5">
         {/* Logo */}
         <div className="flex items-center gap-2.5">
-          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-10 w-[72px] object-contain" />
+          <img src="/pizza-hut-logo.webp" alt="Pizza Hut" className="h-12 w-[86px] object-contain rounded-sm" />
         </div>
 
         {/* Divider */}

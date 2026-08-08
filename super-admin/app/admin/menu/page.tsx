@@ -98,7 +98,13 @@ export default function MenuPage() {
       </div>
 
       {/* ── VIEWPORT ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div
+        className={`grid grid-cols-1 gap-6 ${
+          activeTab === "modifiers"
+            ? "lg:grid-cols-[minmax(420px,1.15fr)_minmax(0,1.85fr)]"
+            : "lg:grid-cols-3"
+        }`}
+      >
         {activeTab === "categories" && (
           <CategoriesTab
             categories={categories}

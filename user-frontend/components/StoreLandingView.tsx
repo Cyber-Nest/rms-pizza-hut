@@ -66,9 +66,9 @@ export default function StoreLandingView({
         {/* Brand Logo */}
         <div className="flex items-center gap-2.5">
           <img
-            src="/pizza-hut-logo.svg"
+            src="/pizza-hut-logo.webp"
             alt="Pizza Hut"
-            className="h-10 w-[72px] object-contain"
+            className="h-14 w-[100px] object-contain rounded-sm"
           />
         </div>
 

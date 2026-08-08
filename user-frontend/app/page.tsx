@@ -372,9 +372,9 @@ export default function HomePage() {
             className="flex items-center gap-2.5 cursor-pointer group"
           >
             <img
-              src="/pizza-hut-logo.svg"
+              src="/pizza-hut-logo.webp"
               alt="Pizza Hut"
-              className="h-10 w-[72px] object-contain transition-transform group-hover:scale-105"
+              className="h-14 w-[100px] object-contain rounded-sm transition-transform group-hover:scale-105"
             />
           </div>
 

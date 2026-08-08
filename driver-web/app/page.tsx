@@ -168,7 +168,7 @@ export default function LoginPage() {
       {/* Top Header Store Selector */}
       <header className="fixed top-0 inset-x-0 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900 px-4 py-3 z-30 flex items-center justify-between max-w-md mx-auto">
         <div className="flex items-center gap-2">
-          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-8 w-14 object-contain" />
+          <img src="/pizza-hut-logo.webp" alt="Pizza Hut" className="h-12 w-[86px] object-contain rounded-sm" />
           <span className="text-xs font-black tracking-wider uppercase text-zinc-200">
             Driver Hub
           </span>

@@ -1,0 +1,5 @@
+[browser] You may test your Stripe.js integration over HTTP. However, live Stripe.js integrations must use HTTPS. (https://js.stripe.com/dahlia/stripe.js:1:876916)
+[browser] You may test your Stripe.js integration over HTTP. However, live Stripe.js integrations must use HTTPS. (https://js.stripe.com/dahlia/stripe.js:1:876916)
+[browser] Failed to load public branches: AxiosError: Network Error (app/page.tsx:123:17)
+[browser] You may test your Stripe.js integration over HTTP. However, live Stripe.js integrations must use HTTPS. (https://js.stripe.com/dahlia/stripe.js:1:876916)
+[browser] Failed to load public branches: AxiosError: Network Error (app/page.tsx:123:17)

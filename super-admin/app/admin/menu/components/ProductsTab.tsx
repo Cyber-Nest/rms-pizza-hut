@@ -60,7 +60,7 @@ export default function ProductsTab({
     modifierGroups: [],
     badge: null,
     isActive: true,
-    kitchenLabel: "chicken",
+    kitchenLabel: "pizza",
   });
 
   // Sync default category
@@ -152,7 +152,7 @@ export default function ProductsTab({
       includedToppings: prod.includedToppings || [],
       badge: prod.badge || null,
       isActive: prod.isActive !== false,
-      kitchenLabel: prod.kitchenLabel || "chicken",
+      kitchenLabel: "pizza",
     });
   };
 
@@ -171,7 +171,7 @@ export default function ProductsTab({
       modifierGroups: [],
       badge: null,
       isActive: true,
-      kitchenLabel: "chicken",
+      kitchenLabel: "pizza",
     });
   };
 
@@ -214,7 +214,7 @@ export default function ProductsTab({
             modifierGroups: [],
             badge: null,
             isActive: true,
-            kitchenLabel: "chicken",
+            kitchenLabel: "pizza",
           });
           fetchProducts();
         }
@@ -482,27 +482,13 @@ export default function ProductsTab({
                 Kitchen Label
               </label>
               <div className="flex items-center gap-2">
-                {(["chicken", "pizza"] as const).map((label) => {
-                  const isSelected = (prodForm.kitchenLabel || "chicken") === label;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() =>
-                        setProdForm({ ...prodForm, kitchenLabel: label })
-                      }
-                      className={`flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
-                        isSelected
-                          ? label === "pizza"
-                            ? "bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/15"
-                            : "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/15"
-                          : "bg-[#FAFAF9] border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:text-neutral-700"
-                      }`}
-                    >
-                      {label === "chicken" ? "🍗 Chicken" : "🍕 Pizza"}
-                    </button>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={() => setProdForm({ ...prodForm, kitchenLabel: "pizza" })}
+                  className="flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/15"
+                >
+                  Pizza
+                </button>
               </div>
               <p className="text-[8px] text-neutral-400 mt-1.5 leading-normal">
                 Determines which Kitchen View filter this product appears under.

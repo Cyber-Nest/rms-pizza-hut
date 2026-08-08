@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 760" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 0 960 760" preserveAspectRatio="xMidYMid meet" overflow="visible" role="img" aria-labelledby="title">
   <title id="title">Pizza Hut</title>
   <rect width="900" height="760" fill="none"/>
   <path fill="#e31837" d="M8 204c-8 12-8 31 3 40 5 5 13 8 22 8h835c15 0 29-10 31-24 2-13-6-25-18-30L704 127 682 20C679 9 669 1 657 1H335c-10 0-20 6-24 16l-59 116L23 190c-6 2-11 7-15 14Z"/>

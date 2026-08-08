@@ -800,7 +800,7 @@ export default function ModifiersTab({
         </form>
       </div>
 
-      <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200 p-5 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl border border-neutral-200 p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100">
           <div className="flex items-center gap-2">
             <SlidersHorizontal size={16} className="text-brand-primary" />

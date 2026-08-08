@@ -163,11 +163,10 @@ export default function BranchLoginPage() {
         {/* Logo */}
         <div className="text-center space-y-2">
           <img
-            src="/pizza-hut-logo.svg"
+            src="/pizza-hut-logo.webp"
             alt="Pizza Hut"
-            className="mx-auto h-16 w-28 object-contain"
+            className="mx-auto h-24 w-44 object-contain rounded-md"
           />
-          <h1 className="text-xl font-800 tracking-tight text-neutral-900 uppercase">Pizza Hut</h1>
           <p className="text-xs font-600 text-neutral-500">Branch POS &amp; Terminal Login</p>
         </div>
 

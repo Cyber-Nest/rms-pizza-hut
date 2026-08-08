@@ -20,7 +20,7 @@ export default function KitchenDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'preparing' | 'ready'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'takeout' | 'drive-through' | 'dine-in' | 'delivery' | 'online'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'chicken' | 'pizza'>('chicken');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'chicken' | 'pizza'>('pizza');
   const [branchMenuItems, setBranchMenuItems] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [startIndex, setStartIndex] = useState(0);
@@ -296,35 +296,21 @@ export default function KitchenDashboard() {
       }
     });
 
-    // Apply category filter (kitchen label) and filter items inside the orders
-    let categoryFiltered: Order[] = [];
-    if (categoryFilter === 'pizza') {
-      candidates.forEach((o) => {
-        const pizzaItems = o.items?.filter((item: any) => item.kitchenLabel === 'pizza') || [];
-        if (pizzaItems.length > 0) {
-          categoryFiltered.push({
-            ...o,
-            items: pizzaItems
-          });
-        }
-      });
-    } else if (categoryFilter === 'chicken') {
-      candidates.forEach((o) => {
-        const chickenItems = o.items?.filter((item: any) => item.kitchenLabel !== 'pizza') || [];
-        if (chickenItems.length > 0) {
-          categoryFiltered.push({
-            ...o,
-            items: chickenItems
-          });
-        }
-      });
-    } else {
-      categoryFiltered = candidates;
-    }
+    // Kitchen view is pizza-only for this brand.
+    const categoryFiltered: Order[] = [];
+    candidates.forEach((o) => {
+      const pizzaItems = o.items?.filter((item: any) => item.kitchenLabel === 'pizza') || [];
+      if (pizzaItems.length > 0) {
+        categoryFiltered.push({
+          ...o,
+          items: pizzaItems
+        });
+      }
+    });
 
     // Sort strictly by createdAt (oldest first)
     return categoryFiltered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [orders, draftCart, statusFilter, typeFilter, categoryFilter, currentTime]);
+  }, [orders, draftCart, statusFilter, typeFilter, currentTime]);
 
   // Category counts (based on status+type filtered orders, before category filter)
   const categoryCountData = React.useMemo(() => {
@@ -388,15 +374,12 @@ export default function KitchenDashboard() {
     return tabs;
   }, [hasChickenMenu, hasPizzaMenu]);
 
-  // Automatically fallback categoryFilter if active tab is not available for this branch
+  // Keep Kitchen View fixed to pizza items only.
   useEffect(() => {
-    if (categoryFilter === 'pizza' && !hasPizzaMenu) {
-      setCategoryFilter(hasChickenMenu ? 'chicken' : 'all');
-    } else if (categoryFilter === 'all' && !(hasChickenMenu && hasPizzaMenu)) {
-      if (hasChickenMenu && !hasPizzaMenu) setCategoryFilter('chicken');
-      else if (hasPizzaMenu && !hasChickenMenu) setCategoryFilter('pizza');
+    if (categoryFilter !== 'pizza') {
+      setCategoryFilter('pizza');
     }
-  }, [hasPizzaMenu, hasChickenMenu, categoryFilter]);
+  }, [categoryFilter]);
 
   const visibleOrders = filteredOrders.slice(startIndex, startIndex + 4);
 
@@ -433,29 +416,6 @@ export default function KitchenDashboard() {
             );
           })}
         </div>
-
-        {/* Category Segment Bar — Only rendered if multiple kitchen labels exist for this branch */}
-        {availableCatTabs.length > 1 && (
-          <div className="flex items-center gap-1 bg-neutral-50 p-1 rounded-xl border border-neutral-200">
-            {availableCatTabs.map((catTab) => {
-              const active = categoryFilter === catTab.id;
-              const count = categoryCountData[catTab.id as keyof typeof categoryCountData] ?? 0;
-              return (
-                <button
-                  key={catTab.id}
-                  onClick={() => setCategoryFilter(catTab.id as any)}
-                  className={`px-4 py-1 rounded-lg text-[10px] font-700 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
-                    active
-                      ? "bg-brand-primary text-white shadow-xs"
-                      : "text-neutral-550 hover:text-brand-primary"
-                  }`}
-                >
-                  {catTab.label} ({count})
-                </button>
-              );
-            })}
-          </div>
-        )}
 
         {/* Order Types Segment Bar */}
         <div className="flex items-center gap-1 bg-neutral-50 p-1 rounded-xl border border-neutral-200">

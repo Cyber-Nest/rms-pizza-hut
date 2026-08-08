@@ -267,12 +267,9 @@ export default function AdminLayout({ children }: Props) {
     <div className="h-screen w-screen overflow-hidden bg-[#F5F4F1] flex font-sans antialiased text-neutral-900 select-none">
       {/* ── SIDEBAR (Desktop) ── */}
       <aside className="hidden md:flex flex-col w-64 bg-brand-dark text-white flex-shrink-0 border-r border-neutral-800">
-        <div className="h-16 px-6 flex items-center gap-2.5 border-b border-neutral-800 bg-[#161412]">
-          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-9 w-16 object-contain" />
+        <div className="h-16 px-6 flex items-center gap-3 border-b border-neutral-800 bg-[#161412]">
+          <img src="/pizza-hut-logo.webp" alt="Pizza Hut" className="h-12 w-[86px] object-contain rounded-sm" />
           <div>
-            <h1 className="text-[12px] font-800 tracking-wide uppercase leading-tight text-neutral-200">
-              Pizza Hut
-            </h1>
             <p className="text-[9px] font-600 text-brand-primary uppercase tracking-wider leading-none">
               RMS Admin
             </p>
@@ -486,12 +483,9 @@ export default function AdminLayout({ children }: Props) {
           />
           <div className="relative w-64 bg-brand-dark text-white flex flex-col animate-drawer-slide-in">
             <div className="h-16 px-6 flex items-center justify-between border-b border-neutral-800 bg-[#161412]">
-              <div className="flex items-center gap-2">
-                <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="h-9 w-16 object-contain" />
+              <div className="flex items-center gap-3">
+                <img src="/pizza-hut-logo.webp" alt="Pizza Hut" className="h-12 w-[86px] object-contain rounded-sm" />
                 <div>
-                  <h1 className="text-[12px] font-800 tracking-wide uppercase leading-tight">
-                    Pizza Hut
-                  </h1>
                   <p className="text-[9px] font-600 text-brand-primary uppercase tracking-wider leading-none">
                     RMS Admin
                   </p>

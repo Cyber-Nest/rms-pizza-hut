@@ -55,10 +55,8 @@ export default function SuperAdminLoginPage() {
       <div className="relative w-full max-w-md bg-[#1B1917] border border-neutral-800/90 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
         {/* Header Branding */}
         <div className="flex flex-col items-center text-center mb-8">
-          <img src="/pizza-hut-logo.svg" alt="Pizza Hut" className="mb-4 h-16 w-28 object-contain" />
-          <h1 className="text-xl font-900 tracking-tight text-neutral-100">
-            PIZZA HUT <span className="text-brand-primary">SUPER ADMIN</span>
-          </h1>
+          <img src="/pizza-hut-logo.webp" alt="Pizza Hut" className="mb-4 h-24 w-44 object-contain rounded-md" />
+          <h1 className="text-xl font-900 tracking-tight text-brand-primary">SUPER ADMIN</h1>
           <p className="text-xs font-500 text-neutral-400 mt-1">
             Centralized Multi-Unit Restaurant Control Portal
           </p>
