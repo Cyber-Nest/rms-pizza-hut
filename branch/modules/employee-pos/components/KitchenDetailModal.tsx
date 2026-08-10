@@ -1000,7 +1000,13 @@ export default function KitchenDetailModal({
                                                 {mod.groupName}
                                               </span>
                                               <div className="flex justify-between items-baseline text-neutral-700 font-600 pl-0.5">
-                                                <span>{mod.optionName}</span>
+                                                {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
+                                                  <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
+                                                    {mod.optionName}
+                                                  </span>
+                                                ) : (
+                                                  <span>{mod.optionName}</span>
+                                                )}
                                                 {mod.quantity > 1 && (
                                                   <span className="font-700 text-neutral-850 ml-1 text-[11.5px]">
                                                     x{mod.quantity}
@@ -1100,7 +1106,13 @@ export default function KitchenDetailModal({
                                                 {mod.groupName}
                                               </span>
                                               <div className="flex justify-between items-baseline text-neutral-600 font-600 pl-0.5">
-                                                <span>{mod.optionName}</span>
+                                                {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
+                                                  <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
+                                                    {mod.optionName}
+                                                  </span>
+                                                ) : (
+                                                  <span>{mod.optionName}</span>
+                                                )}
                                                 {mod.quantity > 1 && (
                                                   <span className="font-700 text-neutral-800 ml-1 text-[11.5px]">
                                                     x{mod.quantity}

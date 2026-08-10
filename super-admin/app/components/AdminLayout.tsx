@@ -151,12 +151,8 @@ export default function AdminLayout({ children }: Props) {
             const currentHost = window.location.hostname;
             const currentProtocol = window.location.protocol;
 
-            if (currentPort === "3000") {
-              branchAppUrl = `${currentProtocol}//${currentHost}:3001`;
-            } else if (currentPort === "3002") {
+            if (currentHost.includes("localhost") || currentHost.includes("127.0.0.1")) {
               branchAppUrl = `${currentProtocol}//${currentHost}:3000`;
-            } else if (currentHost.includes("localhost") || currentHost.includes("127.0.0.1")) {
-              branchAppUrl = `${currentProtocol}//${currentHost}:3001`;
             }
             else if (currentHost.startsWith("admin.")) {
               branchAppUrl = `${currentProtocol}//${currentHost.replace("admin.", "pos.")}`;

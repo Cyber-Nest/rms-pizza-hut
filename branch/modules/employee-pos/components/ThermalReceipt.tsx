@@ -144,12 +144,15 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
                   {item.selectedModifiers &&
                     item.selectedModifiers.length > 0 && (
                       <div className="pl-3 space-y-0.5 text-[10px] text-neutral-700 font-500">
-                        {item.selectedModifiers.map((mod, mIdx) => (
-                          <p key={mIdx} className="leading-tight">
-                            {mod.optionName}{" "}
-                            {mod.price > 0 ? `(+$${mod.price.toFixed(2)})` : ""}
-                          </p>
-                        ))}
+                        {item.selectedModifiers.map((mod, mIdx) => {
+                          const isMinus = mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ');
+                          return (
+                            <p key={mIdx} className={`leading-tight ${isMinus ? "font-800 text-black uppercase" : ""}`}>
+                              {mod.optionName}{" "}
+                              {mod.price > 0 ? `(+$${mod.price.toFixed(2)})` : ""}
+                            </p>
+                          );
+                        })}
                       </div>
                     )}
 

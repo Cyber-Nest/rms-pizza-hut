@@ -7,6 +7,8 @@ import {
   Image as ImageIcon,
   Loader2,
   Store,
+  Search,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Category } from "../types";
@@ -24,7 +26,18 @@ export default function CategoriesTab({
   fetchCategories,
   showToast,
 }: CategoriesTabProps) {
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const filteredCategories = categories.filter((cat) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      cat.name.toLowerCase().includes(q) ||
+      cat.slug.toLowerCase().includes(q) ||
+      (cat.description && cat.description.toLowerCase().includes(q))
+    );
+  });
   const [uploadingCategory, setUploadingCategory] = useState(false);
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [visibilityTarget, setVisibilityTarget] = useState<{
@@ -415,25 +428,52 @@ export default function CategoriesTab({
       </div>
 
       <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200 p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100">
-          <div className="flex items-center gap-2">
-            <FolderPlus size={16} className="text-brand-primary" />
-            <h3 className="text-[12px] font-800 text-neutral-800 uppercase tracking-wider">
-              Category List
-            </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-neutral-100 gap-2.5">
+          <div className="flex items-center justify-between sm:justify-start gap-2">
+            <div className="flex items-center gap-2">
+              <FolderPlus size={16} className="text-brand-primary" />
+              <h3 className="text-[12px] font-800 text-neutral-800 uppercase tracking-wider">
+                Category List
+              </h3>
+            </div>
+            <span className="text-[9px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-700">
+              {searchQuery ? `${filteredCategories.length} / ${categories.length}` : `${categories.length}`} Categories
+            </span>
           </div>
-          <span className="text-[9px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-700">
-            {categories.length} Categories
-          </span>
+
+          {/* Search Input Bar */}
+          <div className="relative w-full sm:w-64">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search category name or slug..."
+              className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-xl py-1.5 pl-8 pr-8 text-[11px] text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
         </div>
 
         {categories.length === 0 ? (
           <div className="text-center py-12 text-neutral-400 italic text-[11px]">
             No categories found. Add your first category.
           </div>
+        ) : filteredCategories.length === 0 ? (
+          <div className="text-center py-12 text-neutral-400 italic text-[11px]">
+            No categories matching &quot;{searchQuery}&quot;
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {categories.map((cat) => (
+            {filteredCategories.map((cat) => (
               <div
                 key={cat.id || cat._id}
                 className="p-4 border border-neutral-200 rounded-xl bg-[#FAFAF9] flex gap-3 shadow-xs"

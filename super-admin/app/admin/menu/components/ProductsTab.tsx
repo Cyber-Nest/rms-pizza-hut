@@ -9,6 +9,9 @@ import {
   Image as ImageIcon,
   Loader2,
   Store,
+  Search,
+  X,
+  Copy,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Product, Category, ModifierGroup } from "../types";
@@ -38,7 +41,61 @@ export default function ProductsTab({
   fetchProducts,
   showToast,
 }: ProductsTabProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [modGroupSearch, setModGroupSearch] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const sortedModifiers = React.useMemo(() => {
+    const list = [...modifiers];
+    const getBase = (n: string) =>
+      n.replace(/\s*\([^)]*copy[^)]*\)/gi, "").trim().toLowerCase();
+
+    const result: ModifierGroup[] = [];
+    const addedIds = new Set<string>();
+
+    list.forEach((group) => {
+      const gId = (group.id || group._id) as string;
+      if (addedIds.has(gId)) return;
+
+      const isCopy = /\([^)]*copy[^)]*\)/i.test(group.name);
+      if (!isCopy) {
+        result.push(group);
+        addedIds.add(gId);
+
+        const base = getBase(group.name);
+        list.forEach((other) => {
+          const oId = (other.id || other._id) as string;
+          if (
+            !addedIds.has(oId) &&
+            /\([^)]*copy[^)]*\)/i.test(other.name) &&
+            getBase(other.name) === base
+          ) {
+            result.push(other);
+            addedIds.add(oId);
+          }
+        });
+      }
+    });
+
+    list.forEach((group) => {
+      const gId = (group.id || group._id) as string;
+      if (!addedIds.has(gId)) {
+        result.push(group);
+        addedIds.add(gId);
+      }
+    });
+
+    return result;
+  }, [modifiers]);
+
+  const filteredProducts = products.filter((prod) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      prod.name.toLowerCase().includes(q) ||
+      (prod.description && prod.description.toLowerCase().includes(q))
+    );
+  });
   const [uploading, setUploading] = useState(false);
   const [editProd, setEditProd] = useState<Product | null>(null);
   const [visibilityTarget, setVisibilityTarget] = useState<{
@@ -621,44 +678,90 @@ export default function ProductsTab({
 
             {(prodForm.itemType === "combo" || prodForm.hasVariants) && (
               <div className="space-y-2.5 pt-2 border-t border-neutral-100">
-                <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider">
-                  Link Modifier Groups
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider">
+                    Link Modifier Groups
+                  </label>
+                  {modifiers.length > 0 && (
+                    <span className="text-[8.5px] font-700 text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded">
+                      {prodForm.modifierGroups.length} Selected
+                    </span>
+                  )}
+                </div>
+
                 {modifiers.length === 0 ? (
                   <p className="text-[9px] text-neutral-400 italic">
                     No modifier groups created yet.
                   </p>
                 ) : (
-                  <div className="border border-neutral-200 rounded-xl bg-[#FAFAF9] overflow-hidden">
-                    <div className="max-h-44 overflow-y-auto p-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                        {modifiers.map((g) => {
-                          const gid = (g.id || g._id) as string;
-                          const linked = prodForm.modifierGroups.includes(gid);
-                          return (
-                            <button
-                              key={gid}
-                              type="button"
-                              onClick={() => handleProductModifierToggle(gid)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10.5px] font-600 transition-all text-left cursor-pointer ${
-                                linked
-                                  ? "bg-orange-50 border-brand-primary text-brand-primary font-700"
-                                  : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800"
-                              }`}
-                            >
-                              <div
-                                className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                                  linked
-                                    ? "bg-brand-primary border-brand-primary text-white"
-                                    : "border-neutral-300 bg-white"
-                                }`}
-                              >
-                                {linked && <Check size={8} strokeWidth={3} />}
-                              </div>
-                              <span className="truncate">{g.name}</span>
-                            </button>
-                          );
-                        })}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                      <input
+                        type="text"
+                        value={modGroupSearch}
+                        onChange={(e) => setModGroupSearch(e.target.value)}
+                        placeholder="Search modifier groups..."
+                        className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-lg py-1 pl-7 pr-6 text-[10px] text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary"
+                      />
+                      {modGroupSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setModGroupSearch("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border border-neutral-200 rounded-xl bg-[#FAFAF9] overflow-hidden">
+                      <div className="max-h-48 overflow-y-auto p-2.5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                          {sortedModifiers
+                            .filter((g) => {
+                              if (!modGroupSearch.trim()) return true;
+                              const q = modGroupSearch.toLowerCase().trim();
+                              return (
+                                g.name.toLowerCase().includes(q) ||
+                                g.options.some((opt) => opt.name.toLowerCase().includes(q))
+                              );
+                            })
+                            .map((g) => {
+                              const gid = (g.id || g._id) as string;
+                              const linked = prodForm.modifierGroups.includes(gid);
+                              const isCopy = /\([^)]*copy[^)]*\)/i.test(g.name);
+                              return (
+                                <button
+                                  key={gid}
+                                  type="button"
+                                  title={g.name}
+                                  onClick={() => handleProductModifierToggle(gid)}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-600 transition-all text-left cursor-pointer ${
+                                    linked
+                                      ? "bg-orange-50 border-brand-primary text-brand-primary font-700"
+                                      : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800"
+                                  }`}
+                                >
+                                  <div
+                                    className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                                      linked
+                                        ? "bg-brand-primary border-brand-primary text-white"
+                                        : "border-neutral-300 bg-white"
+                                    }`}
+                                  >
+                                    {linked && <Check size={8} strokeWidth={3} />}
+                                  </div>
+                                  <span className="truncate flex-1 min-w-0">{g.name}</span>
+                                  {isCopy && (
+                                    <span className="bg-blue-100 text-blue-700 border border-blue-200 text-[7.5px] font-800 px-1 py-0.5 rounded flex-shrink-0 flex items-center gap-0.5">
+                                      <Copy size={8} /> Copy
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -677,15 +780,23 @@ export default function ProductsTab({
                 </p>
                 <div className="border border-neutral-200 rounded-xl bg-[#FAFAF9] overflow-hidden">
                   <div className="max-h-56 overflow-y-auto p-3 space-y-3">
-                    {modifiers
+                    {sortedModifiers
                       .filter((g) => prodForm.modifierGroups.includes((g.id || g._id) as string))
                       .map((g) => {
                         const gid = (g.id || g._id) as string;
+                        const isCopy = /\([^)]*copy[^)]*\)/i.test(g.name);
                         return (
                           <div key={gid}>
-                            <p className="text-[8.5px] font-700 text-neutral-500 uppercase tracking-wider mb-1.5">
-                              {g.name}
-                            </p>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <p className="text-[8.5px] font-700 text-neutral-600 uppercase tracking-wider">
+                                {g.name}
+                              </p>
+                              {isCopy && (
+                                <span className="bg-blue-100 text-blue-700 border border-blue-200 text-[7.5px] font-800 px-1 py-0.5 rounded flex items-center gap-0.5">
+                                  <Copy size={8} /> Copy
+                                </span>
+                              )}
+                            </div>
                             <div className="grid grid-cols-2 gap-1">
                               {g.options.map((opt) => {
                                 const oid = (opt.id || opt._id) as string;
@@ -767,25 +878,52 @@ export default function ProductsTab({
       </div>
 
       <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200 p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100">
-          <div className="flex items-center gap-2">
-            <Layers size={16} className="text-brand-primary" />
-            <h3 className="text-[12px] font-800 text-neutral-800 uppercase tracking-wider">
-              Products List
-            </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-neutral-100 gap-2.5">
+          <div className="flex items-center justify-between sm:justify-start gap-2">
+            <div className="flex items-center gap-2">
+              <Layers size={16} className="text-brand-primary" />
+              <h3 className="text-[12px] font-800 text-neutral-800 uppercase tracking-wider">
+                Products List
+              </h3>
+            </div>
+            <span className="text-[9px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-700">
+              {searchQuery ? `${filteredProducts.length} / ${products.length}` : `${products.length}`} Products
+            </span>
           </div>
-          <span className="text-[9px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-700">
-            {products.length} Products
-          </span>
+
+          {/* Search Input Bar */}
+          <div className="relative w-full sm:w-64">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search product name or details..."
+              className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-xl py-1.5 pl-8 pr-8 text-[11px] text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
         </div>
 
         {products.length === 0 ? (
           <div className="text-center py-12 text-neutral-400 italic text-[11px]">
             No products found.
           </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-12 text-neutral-400 italic text-[11px]">
+            No products matching &quot;{searchQuery}&quot;
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {products.map((prod) => (
+            {filteredProducts.map((prod) => (
               <div
                 key={prod.id || prod._id}
                 className="p-4 border border-neutral-200 rounded-xl bg-[#FAFAF9] flex gap-3 shadow-xs"

@@ -405,11 +405,22 @@ export default function OrderDetailModal({ order, onClose, onRefresh }: OrderDet
                       {/* Render modifiers if any */}
                       {item.selectedModifiers && item.selectedModifiers.length > 0 && (
                         <div className="pl-3 mt-1 border-l-2 border-neutral-200 space-y-0.5 text-neutral-500 text-[12.5px] font-600">
-                          {item.selectedModifiers.map((mod, mIdx) => (
-                            <p key={mIdx}>
-                              {mod.groupName}: {mod.optionName} {mod.price > 0 ? `(+$${mod.price.toFixed(2)})` : ''}
-                            </p>
-                          ))}
+                          {item.selectedModifiers.map((mod, mIdx) => {
+                            const isMinusMod = mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ');
+                            return (
+                              <p key={mIdx}>
+                                <span>{mod.groupName}: </span>
+                                {isMinusMod ? (
+                                  <span className="text-red-600 font-800 bg-red-50 border border-red-200 rounded px-1.5 py-0.5 inline-block my-0.5 shadow-xs">
+                                    {mod.optionName}
+                                  </span>
+                                ) : (
+                                  <span>{mod.optionName}</span>
+                                )}
+                                {mod.price > 0 ? ` (+$${mod.price.toFixed(2)})` : ''}
+                              </p>
+                            );
+                          })}
                         </div>
                       )}
                       {item.note && (

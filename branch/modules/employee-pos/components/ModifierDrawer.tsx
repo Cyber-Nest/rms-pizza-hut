@@ -22,6 +22,9 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
   const [selections, setSelections] = useState<
     Record<string, ModifierOption[]>
   >({});
+  const [removedIncluded, setRemovedIncluded] = useState<
+    Record<string, string[]>
+  >({});
   const [activeIdx, setActiveIdx] = useState(0);
   const [note, setNote] = useState("");
   const [selectedSize, setSelectedSize] = useState<ProductVariant | null>(null);
@@ -49,6 +52,7 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
     setQuantity(1);
     setActiveIdx(0);
     setNote("");
+    setRemovedIncluded({});
 
     let defaultSize: ProductVariant | null = null;
     if (item.hasVariants && item.variants && item.variants.length > 0) {
@@ -177,10 +181,27 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
 
   const toggle = (g: ModifierGroup, opt: ModifierOption) => {
     const cur = selections[g.id] ?? [];
+    const curRemoved = removedIncluded[g.id] ?? [];
     const has = cur.some((o) => o.id === opt.id);
+    const isInc = isIncludedTopping(g.id, opt.id);
+    const isRemoved = curRemoved.includes(opt.id);
+
     let next: ModifierOption[];
-    
-    if (g.maxSelection === 1) {
+    let nextRemoved = [...curRemoved];
+
+    if (isInc) {
+      if (has) {
+        // Deselect/Remove this pre-included topping
+        next = cur.filter((o) => o.id !== opt.id);
+        if (!nextRemoved.includes(opt.id)) {
+          nextRemoved.push(opt.id);
+        }
+      } else {
+        // Re-select/Re-include this pre-included topping
+        next = [...cur, opt];
+        nextRemoved = nextRemoved.filter((id) => id !== opt.id);
+      }
+    } else if (g.maxSelection === 1) {
       next = has && !g.required ? [] : [opt];
     } else if (has) {
       next = cur.filter((o) => o.id !== opt.id);
@@ -189,6 +210,7 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
     } else return;
 
     const newSelections = { ...selections, [g.id]: next };
+    const newRemoved = { ...removedIncluded, [g.id]: nextRemoved };
 
     // Recursively initialize default sub-groups for new selections if not present
     const initNested = (o: ModifierOption) => {
@@ -196,9 +218,10 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
         o.modifierGroups.forEach((subG) => {
           if (newSelections[subG.id] === undefined) {
             const defs = subG.options.filter((so) => so.isDefault);
-            newSelections[subG.id] = defs.length > 0
-              ? defs
-              : subG.required && subG.maxSelection === 1 && subG.options.length > 0
+            newSelections[subG.id] =
+              defs.length > 0
+                ? defs
+                : subG.required && subG.maxSelection === 1 && subG.options.length > 0
                 ? [subG.options[0]]
                 : [];
             newSelections[subG.id].forEach(initNested);
@@ -209,11 +232,14 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
 
     next.forEach(initNested);
     setSelections(newSelections);
+    setRemovedIncluded(newRemoved);
   };
 
   const valid = () =>
     allActiveGroups.every((g) => {
       const n = (selections[g.id] ?? []).length;
+      const rN = (removedIncluded[g.id] ?? []).length;
+      if (rN > 0) return true;
       return n >= g.minSelection && n <= g.maxSelection;
     });
 
@@ -243,6 +269,22 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
           price: getOptionPrice(o, g.id),
           isRoot,
         });
+      });
+
+      // Explicitly removed included toppings
+      const removedOptIds = removedIncluded[g.id] ?? [];
+      removedOptIds.forEach((rId) => {
+        const optObj = g.options.find((o) => o.id === rId);
+        if (optObj) {
+          mods.push({
+            groupId: g.id,
+            groupName: g.name,
+            optionId: optObj.id,
+            optionName: `- NO ${optObj.name}`,
+            price: 0,
+            isRoot,
+          });
+        }
       });
     });
 
@@ -303,90 +345,116 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
           {g.options
             .filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode))
             .map((opt) => {
-            const sel = isSelected(g.id, opt.id);
-            const isCard = g.displayType === "card";
-            const optPrice = getOptionPrice(opt, g.id);
-            const included = isIncludedTopping(g.id, opt.id);
-            return (
-              <div key={opt.id} className="flex flex-col">
-                <button
-                  type="button"
-                  onClick={() => toggle(g, opt)}
-                  className={`relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] w-full ${
-                    sel
-                      ? included
-                        ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
-                        : "border-brand-primary bg-orange-50 ring-1 ring-brand-primary"
-                      : "border-neutral-200 bg-white hover:bg-neutral-50"
-                  }`}
-                >
-                  {/* Left selection circle/square for list types */}
-                  {!isCard && (
-                    <div
-                      className={`w-4 h-4 border flex items-center justify-center flex-shrink-0 transition-all ${
-                        g.displayType === "radio" || g.maxSelection === 1 ? "rounded-full" : "rounded"
-                      } ${
-                        sel
-                          ? included
-                            ? "bg-emerald-500 border-emerald-500 text-white"
-                            : "bg-brand-primary border-brand-primary text-white"
-                          : "border-neutral-300 bg-white"
-                      }`}
-                    >
-                      {sel && <Check size={9} strokeWidth={3} />}
-                    </div>
-                  )}
+              const sel = isSelected(g.id, opt.id);
+              const isCard = g.displayType === "card";
+              const optPrice = getOptionPrice(opt, g.id);
+              const included = isIncludedTopping(g.id, opt.id);
+              const isRemoved = (removedIncluded[g.id] ?? []).includes(opt.id);
 
-                  {/* Thumbnail Image for Cards Grid or if option has an image */}
-                  {(isCard || !!opt.image) && (
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200 flex-shrink-0">
-                      <img
-                        src={
-                          opt.image ||
-                          item.image ||
-                          "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60"
-                        }
-                        alt={opt.name}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60";
-                        }}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
+              return (
+                <div key={opt.id} className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => toggle(g, opt)}
+                    className={`relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] w-full ${
+                      isRemoved
+                        ? "border-red-300 bg-red-50/60 ring-1 ring-red-300"
+                        : sel
+                        ? included
+                          ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
+                          : "border-brand-primary bg-orange-50 ring-1 ring-brand-primary"
+                        : "border-neutral-200 bg-white hover:bg-neutral-50"
+                    }`}
+                  >
+                    {/* Left selection circle/square for list types */}
+                    {!isCard && (
+                      <div
+                        className={`w-4 h-4 border flex items-center justify-center flex-shrink-0 transition-all ${
+                          g.displayType === "radio" || g.maxSelection === 1 ? "rounded-full" : "rounded"
+                        } ${
+                          isRemoved
+                            ? "bg-red-500 border-red-500 text-white"
+                            : sel
+                            ? included
+                              ? "bg-emerald-500 border-emerald-500 text-white"
+                              : "bg-brand-primary border-brand-primary text-white"
+                            : "border-neutral-300 bg-white"
+                        }`}
+                      >
+                        {isRemoved ? (
+                          <Minus size={9} strokeWidth={3} />
+                        ) : sel ? (
+                          <Check size={9} strokeWidth={3} />
+                        ) : null}
+                      </div>
+                    )}
 
-                  <div className="flex-1 min-w-0 pr-4">
-                    <p className="text-[10px] font-600 text-neutral-800 truncate">
-                      {opt.name}
-                    </p>
-                    {included ? (
-                      <p className="text-[8.5px] font-700 text-emerald-600">
-                        ✓ Included
+                    {/* Thumbnail Image for Cards Grid or if option has an image */}
+                    {(isCard || !!opt.image) && (
+                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200 flex-shrink-0">
+                        <img
+                          src={
+                            opt.image ||
+                            item.image ||
+                            "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60"
+                          }
+                          alt={opt.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60";
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0 pr-4">
+                      <p
+                        className={`text-[10px] font-600 truncate ${
+                          isRemoved ? "text-red-700 line-through opacity-80" : "text-neutral-800"
+                        }`}
+                      >
+                        {opt.name}
                       </p>
-                    ) : optPrice > 0 ? (
-                      <p className="text-[9px] font-700 text-brand-primary">
-                        +${optPrice.toFixed(2)}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {/* Right selection indicator for Cards Grid */}
-                  {isCard && (
-                    <div
-                      className={`absolute top-2.5 right-2.5 w-4 h-4 border flex items-center justify-center transition-all ${
-                        g.maxSelection === 1 ? "rounded-full" : "rounded"
-                      } ${
-                        sel ? "bg-brand-primary border-brand-primary text-white" : "border-neutral-300"
-                      }`}
-                    >
-                      {sel && <Check size={9} strokeWidth={3} />}
+                      {isRemoved ? (
+                        <p className="text-[8.5px] font-700 text-red-600 flex items-center gap-0.5">
+                          <span>- NO {opt.name}</span>
+                        </p>
+                      ) : included ? (
+                        <p className="text-[8.5px] font-700 text-emerald-600">
+                          ✓ Included
+                        </p>
+                      ) : optPrice > 0 ? (
+                        <p className="text-[9px] font-700 text-brand-primary">
+                          +${optPrice.toFixed(2)}
+                        </p>
+                      ) : null}
                     </div>
-                  )}
-                </button>
-              </div>
-            );
-          })}
+
+                    {/* Right selection indicator for Cards Grid */}
+                    {isCard && (
+                      <div
+                        className={`absolute top-2.5 right-2.5 w-4 h-4 border flex items-center justify-center transition-all ${
+                          g.maxSelection === 1 ? "rounded-full" : "rounded"
+                        } ${
+                          isRemoved
+                            ? "bg-red-500 border-red-500 text-white"
+                            : sel
+                            ? "bg-brand-primary border-brand-primary text-white"
+                            : "border-neutral-300"
+                        }`}
+                      >
+                        {isRemoved ? (
+                          <Minus size={9} strokeWidth={3} />
+                        ) : sel ? (
+                          <Check size={9} strokeWidth={3} />
+                        ) : null}
+                      </div>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
         </div>
 
         {/*child groups for selected options in this group */}
@@ -584,14 +652,18 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
                 <span>Selected Choices</span>
                 <span className="bg-brand-primary-light text-brand-primary px-1.5 py-0.5 rounded-full text-[8px] font-800 ml-2">
                   {allActiveGroups.reduce(
-                    (acc, g) => acc + (selections[g.id] ?? []).length,
+                    (acc, g) =>
+                      acc +
+                      (selections[g.id] ?? []).length +
+                      (removedIncluded[g.id] ?? []).length,
                     0
                   )}
                 </span>
               </p>
               {allActiveGroups.map((g) => {
                 const opts = selections[g.id] ?? [];
-                if (!opts.length) return null;
+                const removedOpts = removedIncluded[g.id] ?? [];
+                if (!opts.length && !removedOpts.length) return null;
                 return (
                   <div key={g.id}>
                     <p className="text-[8.5px] font-600 text-neutral-400 uppercase tracking-wide mb-1">
@@ -605,7 +677,6 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
                           key={o.id}
                           className={`flex items-center gap-1 ${included ? "text-emerald-600" : "text-brand-primary"}`}
                         >
-                          <span className="text-[9px]">→</span>
                           <span className="text-[10px] font-600">{o.name}</span>
                           {included ? (
                             <span className="text-[8px] text-emerald-500 ml-auto font-700">
@@ -619,11 +690,31 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
                         </div>
                       );
                     })}
+                    {removedOpts.map((rId) => {
+                      const optObj = g.options.find((o) => o.id === rId);
+                      if (!optObj) return null;
+                      return (
+                        <div
+                          key={`removed-${rId}`}
+                          className="flex items-center justify-between text-red-600 bg-red-50/80 px-1.5 py-1 rounded-md border border-red-200 mt-1"
+                        >
+                          <span className="text-[9.5px] font-700 flex items-center gap-1">
+                            <span>- NO {optObj.name}</span>
+                          </span>
+                          <span className="text-[8px] text-red-500 font-800 uppercase bg-white px-1 py-0.2 rounded border border-red-200">
+                            Removed
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
               {allActiveGroups.reduce(
-                (acc, g) => acc + (selections[g.id] ?? []).length,
+                (acc, g) =>
+                  acc +
+                  (selections[g.id] ?? []).length +
+                  (removedIncluded[g.id] ?? []).length,
                 0
               ) === 0 && (
                 <p className="text-[9.5px] text-neutral-400 italic">
