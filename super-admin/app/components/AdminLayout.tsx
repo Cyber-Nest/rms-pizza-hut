@@ -306,7 +306,7 @@ export default function AdminLayout({ children }: Props) {
                 {adminUser?.name || "Super Admin"}
               </p>
               <p className="text-[8px] font-600 text-neutral-500 truncate leading-none mt-0.5">
-                {adminUser?.email || "admin@cybernest.com"}
+                {adminUser?.email || ""}
               </p>
             </div>
             <button

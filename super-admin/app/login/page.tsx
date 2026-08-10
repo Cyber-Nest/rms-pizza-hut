@@ -7,8 +7,8 @@ import { Lock, Mail, ShieldCheck, ArrowRight, AlertCircle, Eye, EyeOff } from "l
 
 export default function SuperAdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@cybernest.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -87,7 +87,7 @@ export default function SuperAdminLoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@cybernest.com"
+                placeholder="admin@example.com"
                 className="w-full bg-[#11100F] border border-neutral-800 rounded-2xl py-3 pl-10 pr-4 text-xs font-600 text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all"
               />
             </div>
@@ -122,11 +122,7 @@ export default function SuperAdminLoginPage() {
             </div>
           </div>
 
-          {/* Default Credentials Note */}
-          {/* <div className="p-3 bg-neutral-900/80 border border-neutral-800 rounded-xl text-[11px] text-neutral-400 flex items-center justify-between">
-            <span className="font-600">Default Super Admin:</span>
-            <span className="font-mono text-brand-primary text-[10px]">admin@cybernest.com / admin123</span>
-          </div> */}
+
 
           {/* Submit Button */}
           <button
