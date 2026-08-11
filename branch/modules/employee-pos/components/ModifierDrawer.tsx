@@ -134,6 +134,14 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
     [item, activeIdx],
   );
 
+  const isLargeGroup = useMemo(() => {
+    if (!activeGroup || !activeGroup.options) return false;
+    const count = activeGroup.options.filter((opt) =>
+      isOptionAvailableForSize(opt, selectedSize?.sizeCode),
+    ).length;
+    return count > 6;
+  }, [activeGroup, selectedSize]);
+
   // Helper to resolve option price based on active size (free for included toppings)
   const getOptionPrice = (opt: ModifierOption, groupId?: string) => {
     // If this option is an included topping, it's free
@@ -341,7 +349,15 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
         </div>
 
         {/* Options Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div
+          className={`grid gap-2.5 ${
+            g.options.filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode)).length > 10
+              ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"
+              : g.options.filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode)).length > 4
+              ? "grid-cols-2 sm:grid-cols-3"
+              : "grid-cols-2"
+          }`}
+        >
           {g.options
             .filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode))
             .map((opt) => {
@@ -487,9 +503,17 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
       />
 
       {/* Drawer */}
-      <div className="relative w-full max-w-3xl bg-white rounded-l-2xl overflow-hidden shadow-2xl flex z-10 animate-drawer-slide-in">
+      <div
+        className={`relative w-full bg-white rounded-l-2xl overflow-hidden shadow-2xl flex z-10 animate-drawer-slide-in transition-all duration-300 ${
+          isLargeGroup ? "max-w-[95vw] lg:max-w-6xl" : "max-w-3xl"
+        }`}
+      >
         {/* ── LEFT */}
-        <div className="w-[63%] flex flex-col bg-white border-r border-neutral-100">
+        <div
+          className={`${
+            isLargeGroup ? "flex-1 min-w-0" : "w-[63%]"
+          } flex flex-col bg-white border-r border-neutral-100`}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 flex-shrink-0">
             <div className="flex items-center gap-2">
@@ -634,7 +658,11 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
           </div>
         </div>
 
-        <div className="w-[37%] flex flex-col bg-neutral-50 px-5 py-5 justify-between overflow-hidden">
+        <div
+          className={`${
+            isLargeGroup ? "w-[300px] lg:w-[330px] flex-shrink-0" : "w-[37%]"
+          } flex flex-col bg-neutral-50 px-5 py-5 justify-between overflow-hidden border-l border-neutral-100`}
+        >
           <div className="flex-1 flex flex-col min-h-0 space-y-4 mb-4">
             {/* Item info */}
             <div className="pb-3 border-b border-neutral-200 flex-shrink-0">
@@ -666,9 +694,9 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
                 if (!opts.length && !removedOpts.length) return null;
                 return (
                   <div key={g.id}>
-                    <p className="text-[8.5px] font-600 text-neutral-400 uppercase tracking-wide mb-1">
+                    {/* <p className="text-[8.5px] font-600 text-neutral-400 uppercase tracking-wide mb-1">
                       {g.name}
-                    </p>
+                    </p> */}
                     {opts.map((o) => {
                       const optPrice = getOptionPrice(o, g.id);
                       const included = isIncludedTopping(g.id, o.id);

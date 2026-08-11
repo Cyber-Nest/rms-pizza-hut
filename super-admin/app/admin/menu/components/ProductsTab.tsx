@@ -88,14 +88,25 @@ export default function ProductsTab({
     return result;
   }, [modifiers]);
 
-  const filteredProducts = products.filter((prod) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      prod.name.toLowerCase().includes(q) ||
-      (prod.description && prod.description.toLowerCase().includes(q))
-    );
-  });
+  const filteredProducts = React.useMemo(() => {
+    const list = products.filter((prod) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        prod.name.toLowerCase().includes(q) ||
+        (prod.description && prod.description.toLowerCase().includes(q))
+      );
+    });
+
+    return [...list].sort((a, b) => {
+      const orderA = a.displayOrder || 0;
+      const orderB = b.displayOrder || 0;
+      if (orderA > 0 && orderB > 0) return orderA - orderB;
+      if (orderA > 0 && orderB === 0) return -1;
+      if (orderA === 0 && orderB > 0) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [products, searchQuery]);
   const [uploading, setUploading] = useState(false);
   const [editProd, setEditProd] = useState<Product | null>(null);
   const [visibilityTarget, setVisibilityTarget] = useState<{
@@ -109,7 +120,7 @@ export default function ProductsTab({
     description: "",
     price: 0,
     image: "",
-    itemType: "simple",
+    itemType: "combo",
     hasVariants: false,
     variants: [],
     includedToppings: [],
@@ -118,6 +129,7 @@ export default function ProductsTab({
     badge: null,
     isActive: true,
     kitchenLabel: "pizza",
+    displayOrder: 0,
   });
 
   // Sync default category
@@ -189,28 +201,38 @@ export default function ProductsTab({
     }
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const mainEl = document.querySelector("main");
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const startEditProduct = (prod: Product) => {
     setEditProd(prod);
     setProdForm({
       name: prod.name,
       description: prod.description || "",
-      price: prod.price,
+      price: prod.price || 0,
       image: prod.image || "",
-      itemType: prod.itemType,
+      itemType: prod.itemType || "combo",
       hasVariants: !!prod.hasVariants,
       variants: prod.variants && prod.variants.length > 0 ? prod.variants : DEFAULT_PIZZA_SIZES,
       categoryId:
         typeof prod.categoryId === "object"
           ? prod.categoryId.id || prod.categoryId._id
           : prod.categoryId,
-      modifierGroups: prod.modifierGroups.map((g: any) =>
+      modifierGroups: (prod.modifierGroups || []).map((g: any) =>
         typeof g === "object" ? g.id || g._id : g,
       ),
       includedToppings: prod.includedToppings || [],
       badge: prod.badge || null,
       isActive: prod.isActive !== false,
-      kitchenLabel: "pizza",
+      kitchenLabel: (prod.kitchenLabel as any) || "pizza",
+      displayOrder: prod.displayOrder ?? 0,
     });
+    scrollToTop();
   };
 
   const cancelEditProduct = () => {
@@ -220,7 +242,7 @@ export default function ProductsTab({
       description: "",
       price: 0,
       image: "",
-      itemType: "simple",
+      itemType: "combo",
       hasVariants: false,
       variants: [],
       includedToppings: [],
@@ -229,6 +251,7 @@ export default function ProductsTab({
       badge: null,
       isActive: true,
       kitchenLabel: "pizza",
+      displayOrder: 0,
     });
   };
 
@@ -243,8 +266,8 @@ export default function ProductsTab({
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prodForm.name || !prodForm.categoryId || prodForm.price <= 0) {
-      showToast("Name, Category, and positive price are required", "error");
+    if (!prodForm.name || !prodForm.categoryId) {
+      showToast("Name and Category are required", "error");
       return;
     }
     setLoading(true);
@@ -266,12 +289,13 @@ export default function ProductsTab({
             description: "",
             price: 0,
             image: "",
-            itemType: "simple",
+            itemType: "combo",
             categoryId: categories[0]?.id || categories[0]?._id || "",
             modifierGroups: [],
             badge: null,
             isActive: true,
             kitchenLabel: "pizza",
+            displayOrder: 0,
           });
           fetchProducts();
         }
@@ -341,8 +365,6 @@ export default function ProductsTab({
     uploading ||
     !prodForm.name.trim() ||
     !prodForm.categoryId ||
-    prodForm.price <= 0 ||
-    !prodForm.description.trim() ||
     !prodForm.image.trim();
 
   return (
@@ -408,7 +430,7 @@ export default function ProductsTab({
               </div>
               <div>
                 <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
-                  Base Price
+                  Base Price (Optional)
                 </label>
                 <input
                   type="number"
@@ -428,7 +450,7 @@ export default function ProductsTab({
             </div>
             <div>
               <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
-                Description
+                Description (Optional)
               </label>
               <textarea
                 rows={2}
@@ -494,21 +516,21 @@ export default function ProductsTab({
             <div className="grid grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
-                  Item Type
+                  Display Order
                 </label>
-                <select
-                  value={prodForm.itemType}
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 1"
+                  value={prodForm.displayOrder || 0}
                   onChange={(e) =>
                     setProdForm({
                       ...prodForm,
-                      itemType: e.target.value as any,
+                      displayOrder: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-xl px-2.5 py-2.5 text-[11px] focus:outline-none"
-                >
-                  <option value="simple">Simple Item</option>
-                  <option value="combo">Combo Meal</option>
-                </select>
+                  className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-xl px-3 py-2.5 text-[11px] focus:outline-none"
+                />
               </div>
               <div>
                 <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
@@ -969,6 +991,9 @@ export default function ProductsTab({
                     </div>
 
                     <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                      <span className="bg-orange-100 text-brand-primary text-[7.5px] font-700 px-1 py-0.2 rounded uppercase">
+                        Order: {prod.displayOrder ?? 0}
+                      </span>
                       <span className="bg-neutral-200 text-neutral-700 text-[7.5px] font-700 px-1 py-0.2 rounded uppercase">
                         {prod.categoryId?.name || "Uncategorized"}
                       </span>

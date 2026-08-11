@@ -118,6 +118,14 @@ export default function CategoriesTab({
     }
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const mainEl = document.querySelector("main");
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const startEditCategory = (cat: Category) => {
     setEditCat(cat);
     setCatForm({
@@ -128,6 +136,7 @@ export default function CategoriesTab({
       displayOrder: cat.displayOrder,
       isActive: cat.isActive !== false,
     });
+    scrollToTop();
   };
 
   const cancelEditCategory = () => {

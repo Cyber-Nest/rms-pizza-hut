@@ -164,9 +164,14 @@ export default function KitchenOrderCard({
                   {item.quantity}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-neutral-800 font-700 text-[15px] leading-tight">
-                    {item.name}
-                  </p>
+                  <div className="flex justify-between items-start gap-2">
+                    <p className="text-neutral-800 font-700 text-[15px] leading-tight flex-1">
+                      {item.name}
+                    </p>
+                    <span className="text-[12.5px] font-800 text-neutral-700 flex-shrink-0">
+                      ${((item.totalPrice ?? item.basePrice * item.quantity)).toFixed(2)}
+                    </span>
+                  </div>
 
                   {/* Modifiers */}
                   {item.selectedModifiers && item.selectedModifiers.length > 0 && (
@@ -179,9 +184,9 @@ export default function KitchenOrderCard({
                           >
                             {mod.isRoot ? (
                               <div className="mt-1">
-                                <span className="text-[10.5px] font-800 text-neutral-400 uppercase tracking-wider">
+                                {/* <span className="text-[10.5px] font-800 text-neutral-400 uppercase tracking-wider">
                                   {mod.groupName}
-                                </span>
+                                </span> */}
                                 <div className="flex justify-between items-baseline font-600 text-neutral-700">
                                   {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
                                     <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">

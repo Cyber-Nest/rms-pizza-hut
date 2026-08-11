@@ -195,6 +195,14 @@ export default function ModifiersTab({
     }
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const mainEl = document.querySelector("main");
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const startEditModifier = (group: ModifierGroup) => {
     setEditMod(group);
     setModForm({
@@ -204,6 +212,8 @@ export default function ModifiersTab({
       maxSelection: group.maxSelection,
       displayType: group.displayType,
       options: group.options.map((o) => ({
+        id: (o.id || o._id) as string,
+        _id: (o.id || o._id) as string,
         name: o.name,
         price: o.price,
         isDefault: o.isDefault,
@@ -216,6 +226,7 @@ export default function ModifiersTab({
           ) || [],
       })),
     });
+    scrollToTop();
   };
 
   const duplicateModifierGroup = async (group: ModifierGroup) => {
@@ -335,9 +346,26 @@ export default function ModifiersTab({
 
     setLoading(true);
     try {
+      const formattedOptions = filteredOptions.map((o: any) => {
+        const optObj: any = {
+          name: o.name,
+          price: o.price,
+          isDefault: o.isDefault,
+          image: o.image || "",
+          pricesPerSize: o.pricesPerSize || [],
+          availableForSizes: o.availableForSizes || [],
+          modifierGroups: o.modifierGroups || [],
+        };
+        const optId = o.id || o._id;
+        if (optId) {
+          optObj._id = optId;
+        }
+        return optObj;
+      });
+
       const payload = {
         ...modForm,
-        options: filteredOptions,
+        options: formattedOptions,
       };
       if (editMod) {
         const id = editMod.id || editMod._id;

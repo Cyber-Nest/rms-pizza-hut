@@ -183,12 +183,12 @@ export default function KitchenDetailModal({
   ) => {
     if (isDraft || !localOrder) return;
 
-    if (nextStatus === "completed" && localOrder.paymentStatus === "unpaid") {
-      toast.error(
-        "Cannot complete an unpaid order. Please collect payment and mark as Paid first.",
-      );
-      return;
-    }
+    // if (nextStatus === "completed" && localOrder.paymentStatus === "unpaid") {
+    //   toast.error(
+    //     "Cannot complete an unpaid order. Please collect payment and mark as Paid first.",
+    //   );
+    //   return;
+    // }
 
     setUpdating(true);
     try {
@@ -996,9 +996,9 @@ export default function KitchenDetailModal({
                                         >
                                           {mod.isRoot ? (
                                             <>
-                                              <span className="text-neutral-450 font-700 text-[11px] uppercase tracking-wider mt-1 select-none">
+                                              {/* <span className="text-neutral-450 font-700 text-[11px] uppercase tracking-wider mt-1 select-none">
                                                 {mod.groupName}
-                                              </span>
+                                              </span> */}
                                               <div className="flex justify-between items-baseline text-neutral-700 font-600 pl-0.5">
                                                 {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
                                                   <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
@@ -1102,9 +1102,9 @@ export default function KitchenDetailModal({
                                         >
                                           {mod.isRoot ? (
                                             <div className="mt-0.5">
-                                              <span className="text-neutral-400 font-750 text-[11px] uppercase tracking-wider select-none">
+                                              {/* <span className="text-neutral-400 font-750 text-[11px] uppercase tracking-wider select-none">
                                                 {mod.groupName}
-                                              </span>
+                                              </span> */}
                                               <div className="flex justify-between items-baseline text-neutral-600 font-600 pl-0.5">
                                                 {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
                                                   <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">

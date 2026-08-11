@@ -1,10 +1,10 @@
-const Category = require('../models/category.model');
-const ModifierGroup = require('../models/modifier.model');
-const Product = require('../models/product.model');
-const cloudinary = require('../../../config/cloudinary.config');
-const logger = require('../../../shared/utils/logger');
+const Category = require("../models/category.model");
+const ModifierGroup = require("../models/modifier.model");
+const Product = require("../models/product.model");
+const cloudinary = require("../../../config/cloudinary.config");
+const logger = require("../../../shared/utils/logger");
 // Dynamic import to prevent circular dependency
-const getOrderService = () => require('../../order/services/order.service');
+const getOrderService = () => require("../../order/services/order.service");
 
 let cachedPOSMenuFeed = null;
 const clearPOSMenuCache = () => {
@@ -15,8 +15,6 @@ const clearPOSMenuCache = () => {
     logger.warn(`Could not clear product lookup cache: ${err.message}`);
   }
 };
-
-
 
 exports.getAllCategories = async () => {
   try {
@@ -32,7 +30,7 @@ exports.createCategory = async (categoryData) => {
     const { slug } = categoryData;
     const existing = await Category.findOne({ slug });
     if (existing) {
-      throw new Error('Slug already exists.');
+      throw new Error("Slug already exists.");
     }
     const category = await Category.create(categoryData);
     clearPOSMenuCache();
@@ -45,9 +43,12 @@ exports.createCategory = async (categoryData) => {
 
 exports.updateCategory = async (id, categoryData) => {
   try {
-    const category = await Category.findByIdAndUpdate(id, categoryData, { returnDocument: 'after', runValidators: true });
+    const category = await Category.findByIdAndUpdate(id, categoryData, {
+      returnDocument: "after",
+      runValidators: true,
+    });
     if (!category) {
-      throw new Error('Category not found.');
+      throw new Error("Category not found.");
     }
     clearPOSMenuCache();
     return category;
@@ -61,7 +62,7 @@ exports.deleteCategory = async (id) => {
   try {
     const category = await Category.findByIdAndDelete(id);
     if (!category) {
-      throw new Error('Category not found.');
+      throw new Error("Category not found.");
     }
     clearPOSMenuCache();
     return category;
@@ -71,11 +72,12 @@ exports.deleteCategory = async (id) => {
   }
 };
 
-
-
 exports.getAllModifierGroups = async () => {
   try {
-    return await ModifierGroup.find().populate('options.modifierGroups').sort({ createdAt: -1 }).lean();
+    return await ModifierGroup.find()
+      .populate("options.modifierGroups")
+      .sort({ createdAt: -1 })
+      .lean();
   } catch (error) {
     logger.error(`Menu Service Error: getAllModifierGroups - ${error.message}`);
     throw error;
@@ -95,9 +97,12 @@ exports.createModifierGroup = async (groupData) => {
 
 exports.updateModifierGroup = async (id, groupData) => {
   try {
-    const group = await ModifierGroup.findByIdAndUpdate(id, groupData, { returnDocument: 'after', runValidators: true });
+    const group = await ModifierGroup.findByIdAndUpdate(id, groupData, {
+      returnDocument: "after",
+      runValidators: true,
+    });
     if (!group) {
-      throw new Error('Modifier group not found.');
+      throw new Error("Modifier group not found.");
     }
     clearPOSMenuCache();
     return group;
@@ -111,7 +116,7 @@ exports.deleteModifierGroup = async (id) => {
   try {
     const group = await ModifierGroup.findByIdAndDelete(id);
     if (!group) {
-      throw new Error('Modifier group not found.');
+      throw new Error("Modifier group not found.");
     }
     clearPOSMenuCache();
     return group;
@@ -121,27 +126,27 @@ exports.deleteModifierGroup = async (id) => {
   }
 };
 
-
-
 exports.getAllProducts = async (query = {}) => {
   try {
     if (query.minimal === "true" || query.minimal === true) {
       return await Product.find()
-        .select('_id name price image categoryId productId isActive kitchenLabel disabledBranches outOfStockBranches')
-        .populate('categoryId', 'name')
-        .sort({ name: 1 })
+        .select(
+          "_id name price image categoryId productId isActive kitchenLabel displayOrder disabledBranches outOfStockBranches",
+        )
+        .populate("categoryId", "name")
+        .sort({ displayOrder: 1, name: 1 })
         .lean();
     }
 
     return await Product.find()
-      .populate('categoryId')
+      .populate("categoryId")
       .populate({
-        path: 'modifierGroups',
+        path: "modifierGroups",
         populate: {
-          path: 'options.modifierGroups'
-        }
+          path: "options.modifierGroups",
+        },
       })
-      .sort({ name: 1 })
+      .sort({ displayOrder: 1, name: 1 })
       .lean();
   } catch (error) {
     logger.error(`Menu Service Error: getAllProducts - ${error.message}`);
@@ -152,16 +157,22 @@ exports.getAllProducts = async (query = {}) => {
 exports.getBranchProductsList = async (branchId) => {
   try {
     const products = await Product.find()
-      .select('_id name price image itemType categoryId productId isActive kitchenLabel isOutOfStock disabledBranches outOfStockBranches')
-      .populate('categoryId', 'name')
-      .sort({ name: 1 });
+      .select(
+        "_id name price image itemType categoryId productId isActive kitchenLabel displayOrder isOutOfStock disabledBranches outOfStockBranches",
+      )
+      .populate("categoryId", "name")
+      .sort({ displayOrder: 1, name: 1 });
 
     if (branchId) {
       const bIdStr = branchId.toString();
-      return products.map(p => {
+      return products.map((p) => {
         const pObj = p.toObject();
-        const isDisabledForBranch = p.disabledBranches && p.disabledBranches.some(b => b.toString() === bIdStr);
-        const isOutOfStockForBranch = p.outOfStockBranches && p.outOfStockBranches.some(b => b.toString() === bIdStr);
+        const isDisabledForBranch =
+          p.disabledBranches &&
+          p.disabledBranches.some((b) => b.toString() === bIdStr);
+        const isOutOfStockForBranch =
+          p.outOfStockBranches &&
+          p.outOfStockBranches.some((b) => b.toString() === bIdStr);
         return {
           ...pObj,
           isActive: isDisabledForBranch ? false : p.isActive,
@@ -172,7 +183,9 @@ exports.getBranchProductsList = async (branchId) => {
 
     return products;
   } catch (error) {
-    logger.error(`Menu Service Error: getBranchProductsList - ${error.message}`);
+    logger.error(
+      `Menu Service Error: getBranchProductsList - ${error.message}`,
+    );
     throw error;
   }
 };
@@ -181,31 +194,37 @@ exports.toggleProductActive = async (id, isActive, branchId) => {
   try {
     let updateQuery = {};
     if (branchId) {
-      updateQuery = isActive === false
-        ? { $addToSet: { disabledBranches: branchId } }
-        : { $pull: { disabledBranches: branchId } };
+      updateQuery =
+        isActive === false
+          ? { $addToSet: { disabledBranches: branchId } }
+          : { $pull: { disabledBranches: branchId } };
     } else {
       updateQuery = { isActive };
     }
 
-    const product = await Product.findByIdAndUpdate(
-      id,
-      updateQuery,
-      { returnDocument: 'after', runValidators: true }
-    )
-      .select('_id name price image itemType categoryId productId isActive kitchenLabel isOutOfStock disabledBranches outOfStockBranches')
-      .populate('categoryId', 'name');
-    
+    const product = await Product.findByIdAndUpdate(id, updateQuery, {
+      returnDocument: "after",
+      runValidators: true,
+    })
+      .select(
+        "_id name price image itemType categoryId productId isActive kitchenLabel isOutOfStock disabledBranches outOfStockBranches",
+      )
+      .populate("categoryId", "name");
+
     if (!product) {
-      throw new Error('Product not found.');
+      throw new Error("Product not found.");
     }
     clearPOSMenuCache();
 
     if (branchId) {
       const bIdStr = branchId.toString();
       const pObj = product.toObject();
-      const isDisabledForBranch = product.disabledBranches && product.disabledBranches.some(b => b.toString() === bIdStr);
-      const isOutOfStockForBranch = product.outOfStockBranches && product.outOfStockBranches.some(b => b.toString() === bIdStr);
+      const isDisabledForBranch =
+        product.disabledBranches &&
+        product.disabledBranches.some((b) => b.toString() === bIdStr);
+      const isOutOfStockForBranch =
+        product.outOfStockBranches &&
+        product.outOfStockBranches.some((b) => b.toString() === bIdStr);
       return {
         ...pObj,
         isActive: isDisabledForBranch ? false : product.isActive,
@@ -224,31 +243,37 @@ exports.toggleProductStock = async (id, isOutOfStock, branchId) => {
   try {
     let updateQuery = {};
     if (branchId) {
-      updateQuery = isOutOfStock === true
-        ? { $addToSet: { outOfStockBranches: branchId } }
-        : { $pull: { outOfStockBranches: branchId } };
+      updateQuery =
+        isOutOfStock === true
+          ? { $addToSet: { outOfStockBranches: branchId } }
+          : { $pull: { outOfStockBranches: branchId } };
     } else {
       updateQuery = { isOutOfStock };
     }
 
-    const product = await Product.findByIdAndUpdate(
-      id,
-      updateQuery,
-      { returnDocument: 'after', runValidators: true }
-    )
-      .select('_id name price image itemType categoryId productId isActive kitchenLabel isOutOfStock disabledBranches outOfStockBranches')
-      .populate('categoryId', 'name');
-    
+    const product = await Product.findByIdAndUpdate(id, updateQuery, {
+      returnDocument: "after",
+      runValidators: true,
+    })
+      .select(
+        "_id name price image itemType categoryId productId isActive kitchenLabel isOutOfStock disabledBranches outOfStockBranches",
+      )
+      .populate("categoryId", "name");
+
     if (!product) {
-      throw new Error('Product not found.');
+      throw new Error("Product not found.");
     }
     clearPOSMenuCache();
 
     if (branchId) {
       const bIdStr = branchId.toString();
       const pObj = product.toObject();
-      const isDisabledForBranch = product.disabledBranches && product.disabledBranches.some(b => b.toString() === bIdStr);
-      const isOutOfStockForBranch = product.outOfStockBranches && product.outOfStockBranches.some(b => b.toString() === bIdStr);
+      const isDisabledForBranch =
+        product.disabledBranches &&
+        product.disabledBranches.some((b) => b.toString() === bIdStr);
+      const isOutOfStockForBranch =
+        product.outOfStockBranches &&
+        product.outOfStockBranches.some((b) => b.toString() === bIdStr);
       return {
         ...pObj,
         isActive: isDisabledForBranch ? false : product.isActive,
@@ -268,12 +293,12 @@ exports.createProduct = async (productData) => {
     const product = await Product.create(productData);
     clearPOSMenuCache();
     return await Product.findById(product._id)
-      .populate('categoryId')
+      .populate("categoryId")
       .populate({
-        path: 'modifierGroups',
+        path: "modifierGroups",
         populate: {
-          path: 'options.modifierGroups'
-        }
+          path: "options.modifierGroups",
+        },
       });
   } catch (error) {
     logger.error(`Menu Service Error: createProduct - ${error.message}`);
@@ -283,16 +308,19 @@ exports.createProduct = async (productData) => {
 
 exports.updateProduct = async (id, productData) => {
   try {
-    const product = await Product.findByIdAndUpdate(id, productData, { returnDocument: 'after', runValidators: true })
-      .populate('categoryId')
+    const product = await Product.findByIdAndUpdate(id, productData, {
+      returnDocument: "after",
+      runValidators: true,
+    })
+      .populate("categoryId")
       .populate({
-        path: 'modifierGroups',
+        path: "modifierGroups",
         populate: {
-          path: 'options.modifierGroups'
-        }
+          path: "options.modifierGroups",
+        },
       });
     if (!product) {
-      throw new Error('Product not found.');
+      throw new Error("Product not found.");
     }
     clearPOSMenuCache();
     return product;
@@ -306,7 +334,7 @@ exports.deleteProduct = async (id) => {
   try {
     const product = await Product.findByIdAndDelete(id);
     if (!product) {
-      throw new Error('Product not found.');
+      throw new Error("Product not found.");
     }
     clearPOSMenuCache();
     return product;
@@ -316,40 +344,54 @@ exports.deleteProduct = async (id) => {
   }
 };
 
-
-
-exports.toggleCategoryBranchVisibility = async (categoryId, branchId, isHidden) => {
+exports.toggleCategoryBranchVisibility = async (
+  categoryId,
+  branchId,
+  isHidden,
+) => {
   try {
     const update = isHidden
       ? { $addToSet: { disabledBranches: branchId } }
       : { $pull: { disabledBranches: branchId } };
 
-    const category = await Category.findByIdAndUpdate(categoryId, update, { returnDocument: 'after' });
+    const category = await Category.findByIdAndUpdate(categoryId, update, {
+      returnDocument: "after",
+    });
     if (!category) {
-      throw new Error('Category not found.');
+      throw new Error("Category not found.");
     }
     clearPOSMenuCache();
     return category;
   } catch (error) {
-    logger.error(`Menu Service Error: toggleCategoryBranchVisibility - ${error.message}`);
+    logger.error(
+      `Menu Service Error: toggleCategoryBranchVisibility - ${error.message}`,
+    );
     throw error;
   }
 };
 
-exports.toggleProductBranchVisibility = async (productId, branchId, isHidden) => {
+exports.toggleProductBranchVisibility = async (
+  productId,
+  branchId,
+  isHidden,
+) => {
   try {
     const update = isHidden
       ? { $addToSet: { disabledBranches: branchId } }
       : { $pull: { disabledBranches: branchId } };
 
-    const product = await Product.findByIdAndUpdate(productId, update, { returnDocument: 'after' });
+    const product = await Product.findByIdAndUpdate(productId, update, {
+      returnDocument: "after",
+    });
     if (!product) {
-      throw new Error('Product not found.');
+      throw new Error("Product not found.");
     }
     clearPOSMenuCache();
     return product;
   } catch (error) {
-    logger.error(`Menu Service Error: toggleProductBranchVisibility - ${error.message}`);
+    logger.error(
+      `Menu Service Error: toggleProductBranchVisibility - ${error.message}`,
+    );
     throw error;
   }
 };
@@ -365,38 +407,47 @@ exports.getPOSMenuFeed = async (branchId = null) => {
       categoryFilter.disabledBranches = { $ne: branchId };
     }
 
-    const categories = await Category.find(categoryFilter).sort({ displayOrder: 1 }).lean();
-    const activeCategoryIds = categories.map(cat => cat._id);
+    const categories = await Category.find(categoryFilter)
+      .sort({ displayOrder: 1 })
+      .lean();
+    const activeCategoryIds = categories.map((cat) => cat._id);
 
-    const productFilter = { isActive: true, categoryId: { $in: activeCategoryIds } };
+    const productFilter = {
+      isActive: true,
+      categoryId: { $in: activeCategoryIds },
+    };
     if (branchId) {
       productFilter.disabledBranches = { $ne: branchId };
     }
 
     const products = await Product.find(productFilter)
       .populate({
-        path: 'modifierGroups',
+        path: "modifierGroups",
         populate: {
-          path: 'options.modifierGroups'
-        }
+          path: "options.modifierGroups",
+        },
       })
+      .sort({ displayOrder: 1, name: 1 })
       .lean();
-    
+
     const bIdStr = branchId ? branchId.toString() : null;
 
     const feed = {
-      categories: categories.map(cat => ({
+      categories: categories.map((cat) => ({
         id: cat._id.toHexString(),
         name: cat.name,
         slug: cat.slug,
         description: cat.description,
         image: cat.image,
+        displayOrder: cat.displayOrder ?? 0,
         disabledBranches: cat.disabledBranches || [],
       })),
-      menuItems: products.map(prod => {
-        const isOutOfStockForBranch = bIdStr && prod.outOfStockBranches
-          ? prod.outOfStockBranches.some(b => b.toString() === bIdStr) || prod.isOutOfStock
-          : prod.isOutOfStock;
+      menuItems: products.map((prod) => {
+        const isOutOfStockForBranch =
+          bIdStr && prod.outOfStockBranches
+            ? prod.outOfStockBranches.some((b) => b.toString() === bIdStr) ||
+              prod.isOutOfStock
+            : prod.isOutOfStock;
 
         return {
           id: prod._id.toHexString(),
@@ -408,64 +459,67 @@ exports.getPOSMenuFeed = async (branchId = null) => {
           price: prod.price,
           badge: prod.badge,
           isPopular: prod.isPopular,
-          kitchenLabel: prod.kitchenLabel || 'chicken',
+          kitchenLabel: prod.kitchenLabel || "chicken",
+          displayOrder: prod.displayOrder ?? 0,
           itemType: prod.itemType,
           hasVariants: !!prod.hasVariants,
-          variants: (prod.variants || []).map(v => ({
+          variants: (prod.variants || []).map((v) => ({
             sizeCode: v.sizeCode,
             sizeName: v.sizeName,
             price: v.price,
-            isDefault: !!v.isDefault
+            isDefault: !!v.isDefault,
           })),
-          includedToppings: (prod.includedToppings || []).map(it => ({
-            groupId: it.groupId ? it.groupId.toHexString() : '',
-            optionId: it.optionId ? it.optionId.toHexString() : ''
+          includedToppings: (prod.includedToppings || []).map((it) => ({
+            groupId: it.groupId ? it.groupId.toHexString() : "",
+            optionId: it.optionId ? it.optionId.toHexString() : "",
           })),
           isOutOfStock: !!isOutOfStockForBranch,
           disabledBranches: prod.disabledBranches || [],
           outOfStockBranches: prod.outOfStockBranches || [],
-        modifierGroups: prod.modifierGroups.map(g => ({
-          id: g._id.toHexString(),
-          name: g.name,
-          required: g.required,
-          minSelection: g.minSelection,
-          maxSelection: g.maxSelection,
-          displayType: g.displayType,
-          options: g.options.map(opt => ({
-            id: opt._id.toHexString(),
-            name: opt.name,
-            image: opt.image,
-            price: opt.price,
-            isDefault: opt.isDefault,
-            pricesPerSize: (opt.pricesPerSize || []).map(p => ({
-              sizeCode: p.sizeCode,
-              price: p.price
+          modifierGroups: prod.modifierGroups.map((g) => ({
+            id: g._id.toHexString(),
+            name: g.name,
+            required: g.required,
+            minSelection: g.minSelection,
+            maxSelection: g.maxSelection,
+            displayType: g.displayType,
+            options: g.options.map((opt) => ({
+              id: opt._id.toHexString(),
+              name: opt.name,
+              image: opt.image,
+              price: opt.price,
+              isDefault: opt.isDefault,
+              pricesPerSize: (opt.pricesPerSize || []).map((p) => ({
+                sizeCode: p.sizeCode,
+                price: p.price,
+              })),
+              availableForSizes: opt.availableForSizes || [],
+              modifierGroups: opt.modifierGroups
+                ? opt.modifierGroups.map((subG) => ({
+                    id: subG._id.toHexString(),
+                    name: subG.name,
+                    required: subG.required,
+                    minSelection: subG.minSelection,
+                    maxSelection: subG.maxSelection,
+                    displayType: subG.displayType,
+                    options: subG.options.map((subOpt) => ({
+                      id: subOpt._id.toHexString(),
+                      name: subOpt.name,
+                      image: subOpt.image,
+                      price: subOpt.price,
+                      isDefault: subOpt.isDefault,
+                      pricesPerSize: (subOpt.pricesPerSize || []).map((sp) => ({
+                        sizeCode: sp.sizeCode,
+                        price: sp.price,
+                      })),
+                      availableForSizes: subOpt.availableForSizes || [],
+                    })),
+                  }))
+                : [],
             })),
-            availableForSizes: opt.availableForSizes || [],
-            modifierGroups: opt.modifierGroups ? opt.modifierGroups.map(subG => ({
-              id: subG._id.toHexString(),
-              name: subG.name,
-              required: subG.required,
-              minSelection: subG.minSelection,
-              maxSelection: subG.maxSelection,
-              displayType: subG.displayType,
-              options: subG.options.map(subOpt => ({
-                id: subOpt._id.toHexString(),
-                name: subOpt.name,
-                image: subOpt.image,
-                price: subOpt.price,
-                isDefault: subOpt.isDefault,
-                pricesPerSize: (subOpt.pricesPerSize || []).map(sp => ({
-                  sizeCode: sp.sizeCode,
-                  price: sp.price
-                })),
-                availableForSizes: subOpt.availableForSizes || []
-              }))
-            })) : []
-          }))
-        }))
+          })),
         };
-      })
+      }),
     };
 
     if (!branchId) {
@@ -478,51 +532,48 @@ exports.getPOSMenuFeed = async (branchId = null) => {
   }
 };
 
-
-
 exports.uploadImageToCloudinary = (fileBuffer) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: 'rms-menu',
-        resource_type: 'auto',
+        folder: "rms-menu",
+        resource_type: "auto",
       },
       (error, result) => {
         if (error) {
-          logger.error('Cloudinary upload service error:', error);
-          return reject(new Error('Cloudinary upload failed.'));
+          logger.error("Cloudinary upload service error:", error);
+          return reject(new Error("Cloudinary upload failed."));
         }
         resolve({
           url: result.secure_url,
           public_id: result.public_id,
         });
-      }
+      },
     );
 
     uploadStream.end(fileBuffer);
   });
 };
 
-
 const getPublicIdFromUrl = (url) => {
   try {
-    const parts = url.split('/image/upload/');
+    const parts = url.split("/image/upload/");
     if (parts.length < 2) return null;
     const pathAfterUpload = parts[1];
-    
-    const segments = pathAfterUpload.split('/');
-    if (segments[0].startsWith('v') && /^\d+$/.test(segments[0].substring(1))) {
+
+    const segments = pathAfterUpload.split("/");
+    if (segments[0].startsWith("v") && /^\d+$/.test(segments[0].substring(1))) {
       segments.shift();
     }
-    
-    const fullPath = segments.join('/');
-    const dotIndex = fullPath.lastIndexOf('.');
+
+    const fullPath = segments.join("/");
+    const dotIndex = fullPath.lastIndexOf(".");
     if (dotIndex !== -1) {
       return fullPath.substring(0, dotIndex);
     }
     return fullPath;
   } catch (e) {
-    logger.error('Error parsing public ID from URL:', e);
+    logger.error("Error parsing public ID from URL:", e);
     return null;
   }
 };
@@ -531,7 +582,7 @@ exports.deleteImageFromCloudinary = async (imageUrl) => {
   try {
     const publicId = getPublicIdFromUrl(imageUrl);
     if (!publicId) {
-      throw new Error('Invalid Cloudinary URL.');
+      throw new Error("Invalid Cloudinary URL.");
     }
 
     const result = await cloudinary.uploader.destroy(publicId);

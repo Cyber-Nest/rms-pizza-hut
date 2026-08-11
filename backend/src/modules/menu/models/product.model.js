@@ -22,7 +22,7 @@ const productSchema = new mongoose.Schema({
   },
   price: {
     type: Number,
-    required: [true, 'Product price is required'],
+    default: 0,
     min: [0, 'Price cannot be negative'],
   },
   badge: {
@@ -37,7 +37,7 @@ const productSchema = new mongoose.Schema({
   itemType: {
     type: String,
     enum: ['simple', 'combo'],
-    default: 'simple',
+    default: 'combo',
   },
   hasVariants: {
     type: Boolean,
@@ -69,6 +69,10 @@ const productSchema = new mongoose.Schema({
     type: String,
     enum: ['chicken', 'pizza'],
     default: 'chicken',
+  },
+  displayOrder: {
+    type: Number,
+    default: 0,
   },
   productId: {
     type: String,
@@ -116,6 +120,7 @@ productSchema.index({ categoryId: 1 });
 productSchema.index({ isActive: 1 });
 productSchema.index({ name: 1 });
 productSchema.index({ isActive: 1, categoryId: 1 });
+productSchema.index({ categoryId: 1, displayOrder: 1 });
 productSchema.index({ disabledBranches: 1 });
 productSchema.index({ outOfStockBranches: 1 });
 

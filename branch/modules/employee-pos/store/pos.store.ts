@@ -175,7 +175,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   // ── Initial State ────────────────────────────────────────────
   selectedCategory: "all",
   search: "",
-  sortBy: "popular",
+  sortBy: "default",
   orderType: "takeout",
   selectedTable: null,
   selectedCustomer: null,
@@ -286,9 +286,13 @@ export const usePosStore = create<PosState>((set, get) => ({
       };
     } else {
       const catObj = get().categories.find(
-        (c) => c.id === menuItem.categoryId || c.name === menuItem.categoryId
+        (c) => c.id === menuItem.categoryId || c.name === menuItem.categoryId,
       );
-      const categoryName = catObj?.name || (menuItem as any).categoryName || (menuItem as any).category || "";
+      const categoryName =
+        catObj?.name ||
+        (menuItem as any).categoryName ||
+        (menuItem as any).category ||
+        "";
 
       const newItem: CartItem = {
         id: cartItemId,
@@ -840,16 +844,19 @@ export const usePosStore = create<PosState>((set, get) => ({
         params: branchId ? { branchId } : {},
       });
       if (res.data.success) {
-        const allCategory: Category = {
-          id: "all",
-          name: "ALL MENUS",
-          image:
-            "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=150&auto=format&fit=crop&q=60",
-          sortOrder: 0,
-        };
+        const fetchedCategories: Category[] = res.data.data.categories || [];
+        const currentSelected = get().selectedCategory;
+        const exists = fetchedCategories.some((c) => c.id === currentSelected);
+        const defaultCatId = exists && currentSelected !== "all"
+          ? currentSelected
+          : fetchedCategories.length > 0
+          ? fetchedCategories[0].id
+          : "";
+
         set({
-          categories: [allCategory, ...res.data.data.categories],
+          categories: fetchedCategories,
           menuItems: res.data.data.menuItems,
+          selectedCategory: defaultCatId,
         });
       }
     } catch {
