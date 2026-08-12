@@ -24,19 +24,49 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
       if (rawBranch) {
         try {
           const b = JSON.parse(rawBranch);
-          const payload = JSON.stringify({
+          const branchId = b._id || b.id;
+          const branchName = b.name || "Restaurant Store";
+          const branchCode = b.code || "BRANCH";
+
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+          // Default fallback payload (plain JSON with apiUrl included)
+          const fallbackPayload = JSON.stringify({
             type: "BRANCH_PAIRING_QR",
-            branchId: b._id || b.id,
-            branchName: b.name || "Restaurant Store",
-            branchCode: b.code || "BRANCH",
+            branchId,
+            branchName,
+            branchCode,
+            apiUrl,
           });
 
           setBranchInfo({
-            _id: b._id || b.id,
-            name: b.name || "Restaurant Store",
-            code: b.code || "BRANCH",
-            qrCodePayload: payload,
+            _id: branchId,
+            name: branchName,
+            code: branchCode,
+            qrCodePayload: fallbackPayload,
           });
+
+          // Fetch signed HMAC QR token from backend API
+          const token = localStorage.getItem("rms_branch_token");
+
+          fetch(`${apiUrl}/delivery/qr-token/${branchId}`, {
+            credentials: "include",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.success && data.data?.signedToken) {
+                setBranchInfo({
+                  _id: branchId,
+                  name: branchName,
+                  code: branchCode,
+                  qrCodePayload: data.data.signedToken,
+                });
+              }
+            })
+            .catch((err) => {
+              console.warn("Could not fetch signed QR token from backend, using fallback QR payload:", err);
+            });
         } catch (e) {
           console.error("Failed to parse branch info:", e);
         }
