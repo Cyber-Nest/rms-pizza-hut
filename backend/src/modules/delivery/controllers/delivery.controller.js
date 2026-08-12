@@ -18,6 +18,7 @@ const {
 
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "rms_super_secret_jwt_key";
+const { generateSignedQrPayload, verifyQrPayload } = require("../../../shared/utils/qrSigning");
 
 // ─── Helper ───
 const handleError = (res, error, status = 400) => {
@@ -850,11 +851,16 @@ exports.driverLogin = async (req, res) => {
       assignedVehicle = await Vehicle.findById(driver.assignedVehicleId).lean();
     }
 
-    // Trigger status change
-    await triggerDriverStatusChange(driver.restaurantId, {
-      driverId: driver._id.toString(),
-      status: recoveredStatus,
-    });
+    // Generate JWT token for driver session
+    const driverToken = jwt.sign(
+      {
+        _id: driver._id.toString(),
+        driverId: driver.driverId,
+        restaurantId: driver.restaurantId,
+      },
+      JWT_SECRET,
+      { expiresIn: "12h" }
+    );
 
     res.status(200).json({
       success: true,
@@ -867,6 +873,7 @@ exports.driverLogin = async (req, res) => {
         status: recoveredStatus,
         restaurantId: driver.restaurantId,
         assignedVehicle,
+        token: driverToken,
       },
     });
   } catch (error) {
@@ -1811,3 +1818,126 @@ exports.downloadDriverDropPdf = async (req, res) => {
     handleError(res, error, 500);
   }
 };
+
+/**
+ * POST: Verify a signed Store QR token 
+ */
+exports.verifyStoreQr = async (req, res) => {
+  try {
+    const { qrToken } = req.body;
+    if (!qrToken) {
+      return res.status(400).json({
+        success: false,
+        message: "QR token is required.",
+      });
+    }
+
+    // Try to verify as signed HMAC token
+    try {
+      const payload = verifyQrPayload(qrToken);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          branchId: payload.branchId,
+          branchName: payload.branchName,
+          branchCode: payload.branchCode,
+          apiUrl: payload.apiUrl || "",
+          verified: true,
+          method: "signed",
+        },
+      });
+    } catch (signedError) {
+      // Fallback: Try to parse as plain JSON (backward compatibility for old QR codes)
+      try {
+        let parsed = null;
+        const trimmed = qrToken.trim();
+        if (trimmed.startsWith("{")) {
+          parsed = JSON.parse(trimmed);
+        } else {
+          parsed = JSON.parse(decodeURIComponent(trimmed));
+        }
+
+        if (parsed && (parsed.type === "BRANCH_PAIRING_QR" || parsed.branchId)) {
+          logger.warn(
+            `[QR] Plain JSON QR used for branch ${parsed.branchId} — consider upgrading to signed QR`
+          );
+          return res.status(200).json({
+            success: true,
+            data: {
+              branchId: parsed.branchId,
+              branchName: parsed.branchName || parsed.name || "Restaurant Branch",
+              branchCode: parsed.branchCode || parsed.code || "STORE",
+              apiUrl: parsed.apiUrl || "",
+              verified: true,
+              method: "legacy_plain",
+            },
+          });
+        }
+      } catch (plainError) {
+        // Both methods failed
+      }
+
+      return res.status(403).json({
+        success: false,
+        code: "INVALID_QR",
+        message: "Invalid or tampered QR code. Please scan a valid Restaurant Store QR code.",
+      });
+    }
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
+/**
+ * GET: Generate a signed QR token for a branch 
+ */
+exports.generateBranchQrToken = async (req, res) => {
+  try {
+    const branchId = req.params.branchId || req.activeBranchId;
+    if (!branchId) {
+      return res.status(400).json({
+        success: false,
+        message: "Branch ID is required.",
+      });
+    }
+
+    const Branch = require("../../company/models/branch.model");
+    const branch = await Branch.findById(branchId).select("name code").lean();
+    if (!branch) {
+      return res.status(404).json({
+        success: false,
+        message: "Branch not found.",
+      });
+    }
+
+    let apiUrl =
+      process.env.API_PUBLIC_URL ||
+      `${req.protocol}://${req.get("host")}/api`;
+
+    if (!apiUrl.includes("localhost") && !apiUrl.includes("127.0.0.1") && apiUrl.startsWith("http://")) {
+      apiUrl = apiUrl.replace("http://", "https://");
+    }
+
+    const signedToken = generateSignedQrPayload({
+      branchId: String(branchId),
+      branchName: branch.name,
+      branchCode: branch.code,
+      apiUrl,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        signedToken,
+        branchId: String(branchId),
+        branchName: branch.name,
+        branchCode: branch.code,
+        apiUrl,
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
