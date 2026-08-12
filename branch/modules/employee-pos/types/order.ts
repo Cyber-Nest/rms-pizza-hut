@@ -6,6 +6,8 @@ export interface CustomerInfo {
   email?: string;
   address?: string;
   postalCode?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface VehicleInfo {

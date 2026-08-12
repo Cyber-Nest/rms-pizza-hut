@@ -86,7 +86,7 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
       {/* Body */}
       <div className="p-2.5 flex-1 flex flex-col justify-between gap-1.5">
         <div>
-          <h4 className={`text-[11px] font-700 leading-tight transition-colors line-clamp-1 ${isOutOfStock ? "text-neutral-450" : "text-neutral-800 group-hover:text-brand-primary"}`}>
+          <h4 className={`text-[13px] font-900 leading-tight transition-colors line-clamp-1 ${isOutOfStock ? "text-neutral-450" : "text-black group-hover:text-brand-primary"}`}>
             {item.name}
           </h4>
           <p className="text-[9px] text-neutral-400 font-400 leading-snug line-clamp-2 mt-0.5">

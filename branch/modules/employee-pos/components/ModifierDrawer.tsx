@@ -68,25 +68,39 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       setQuantity(editCartItem.quantity);
       setNote(editCartItem.note || "");
 
-      // Rebuild selections from saved modifiers
+      // Rebuild selections from saved modifiers + default included items
       const restoredSelections: Record<string, ModifierOption[]> = {};
       const restoredRemoved: Record<string, string[]> = {};
 
       const restoreGroup = (g: ModifierGroup) => {
         if (!g?.options) return;
+        const sizeCode = defaultSize?.sizeCode;
+        const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
+        const defs = availableOpts.filter((o) => o.isDefault);
+        const includedOpts = availableOpts.filter(
+          (o) => !o.isDefault && isIncludedTopping(g.id, o.id)
+        );
+        const baseSelections = [...defs, ...includedOpts];
+
         const savedForGroup = editCartItem.selectedModifiers.filter(
           (m) => m.groupId === g.id
         );
-        const removedOpts = savedForGroup.filter((m) => m.optionName.startsWith("- NO "));
-        const activeOpts = savedForGroup.filter((m) => !m.optionName.startsWith("- NO "));
+        const removedOptIds = savedForGroup
+          .filter((m) => m.optionName.startsWith("- NO "))
+          .map((m) => m.optionId || g.options.find((o) => `- NO ${o.name}` === m.optionName)?.id)
+          .filter(Boolean) as string[];
 
-        restoredSelections[g.id] = activeOpts
+        const extraOptObjs = savedForGroup
+          .filter((m) => !m.optionName.startsWith("- NO "))
           .map((m) => g.options.find((o) => o.id === m.optionId))
           .filter(Boolean) as ModifierOption[];
 
-        restoredRemoved[g.id] = removedOpts
-          .map((m) => g.options.find((o) => `- NO ${o.name}` === m.optionName)?.id)
-          .filter(Boolean) as string[];
+        const activeSelections = baseSelections
+          .filter((o) => !removedOptIds.includes(o.id))
+          .concat(extraOptObjs.filter((e) => !baseSelections.some((b) => b.id === e.id)));
+
+        restoredSelections[g.id] = activeSelections;
+        restoredRemoved[g.id] = removedOptIds;
 
         // Recurse into child groups
         restoredSelections[g.id].forEach((opt) => {
@@ -304,14 +318,19 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id) ?? false;
       const opts = selections[g.id] ?? [];
       opts.forEach((o) => {
-        mods.push({
-          groupId: g.id,
-          groupName: g.name,
-          optionId: o.id,
-          optionName: o.name,
-          price: getOptionPrice(o, g.id),
-          isRoot,
-        });
+        const isInc = isIncludedTopping(g.id, o.id);
+        const isDef = o.isDefault && getOptionPrice(o, g.id) === 0;
+        // Only save custom additions (not default included recipe toppings)
+        if (!isInc && !isDef) {
+          mods.push({
+            groupId: g.id,
+            groupName: g.name,
+            optionId: o.id,
+            optionName: o.name,
+            price: getOptionPrice(o, g.id),
+            isRoot,
+          });
+        }
       });
 
       // Explicitly removed included toppings
