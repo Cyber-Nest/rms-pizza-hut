@@ -7,6 +7,7 @@ import {
   ModifierOption,
   SelectedModifier,
   ProductVariant,
+  CartItem,
 } from "../types";
 import { usePosStore } from "../store/pos.store";
 
@@ -14,10 +15,12 @@ interface Props {
   item: MenuItem | null;
   isOpen: boolean;
   onClose: () => void;
+  // Edit mode — pass existing cart item to pre-fill
+  editCartItem?: CartItem | null;
 }
 
-export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
-  const { addToCart } = usePosStore();
+export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: Props) {
+  const { addToCart, updateCartItem } = usePosStore();
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState<
     Record<string, ModifierOption[]>
@@ -49,9 +52,7 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
   useEffect(() => {
     if (!item) return;
     isInitialMount.current = true;
-    setQuantity(1);
     setActiveIdx(0);
-    setNote("");
     setRemovedIncluded({});
 
     let defaultSize: ProductVariant | null = null;
@@ -61,46 +62,80 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
     } else {
       setSelectedSize(null);
     }
-    
-    const init: Record<string, ModifierOption[]> = {};
-    const initGroup = (g: ModifierGroup) => {
-      if (!g || !g.options) return;
 
-      // Start with default options (that are available for selected size)
-      const sizeCode = defaultSize?.sizeCode;
-      const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
-      const defs = availableOpts.filter((o) => o.isDefault);
+    // Edit mode: restore previous selections
+    if (editCartItem) {
+      setQuantity(editCartItem.quantity);
+      setNote(editCartItem.note || "");
 
-      // Also include "included toppings" as pre-selected
-      const includedOpts = availableOpts.filter(
-        (o) => !o.isDefault && isIncludedTopping(g.id, o.id)
-      );
+      // Rebuild selections from saved modifiers
+      const restoredSelections: Record<string, ModifierOption[]> = {};
+      const restoredRemoved: Record<string, string[]> = {};
 
-      let selected = [...defs, ...includedOpts];
+      const restoreGroup = (g: ModifierGroup) => {
+        if (!g?.options) return;
+        const savedForGroup = editCartItem.selectedModifiers.filter(
+          (m) => m.groupId === g.id
+        );
+        const removedOpts = savedForGroup.filter((m) => m.optionName.startsWith("- NO "));
+        const activeOpts = savedForGroup.filter((m) => !m.optionName.startsWith("- NO "));
 
-      if (selected.length === 0 && g.required && g.maxSelection === 1 && availableOpts.length > 0) {
-        selected = [availableOpts[0]];
-      }
+        restoredSelections[g.id] = activeOpts
+          .map((m) => g.options.find((o) => o.id === m.optionId))
+          .filter(Boolean) as ModifierOption[];
 
-      // Respect maxSelection
-      if (selected.length > g.maxSelection) {
-        selected = selected.slice(0, g.maxSelection);
-      }
+        restoredRemoved[g.id] = removedOpts
+          .map((m) => g.options.find((o) => `- NO ${o.name}` === m.optionName)?.id)
+          .filter(Boolean) as string[];
 
-      init[g.id] = selected;
-      
-      // Recurse for nested groups of selected options
-      selected.forEach((opt) => {
-        if (opt.modifierGroups) {
-          opt.modifierGroups.forEach(initGroup);
+        // Recurse into child groups
+        restoredSelections[g.id].forEach((opt) => {
+          opt.modifierGroups?.forEach(restoreGroup);
+        });
+      };
+
+      item.modifierGroups?.forEach(restoreGroup);
+      setSelections(restoredSelections);
+      setRemovedIncluded(restoredRemoved);
+
+      // Restore size from name
+      if (item.hasVariants && item.variants && item.variants.length > 0) {
+        const sizeName = editCartItem.name.match(/\(([^)]+)\)/);
+        if (sizeName) {
+          const matched = item.variants.find((v) => v.sizeName === sizeName[1]);
+          if (matched) setSelectedSize(matched);
         }
-      });
-    };
+      }
+    } else {
+      setQuantity(1);
+      setNote("");
+      const init: Record<string, ModifierOption[]> = {};
+      const initGroup = (g: ModifierGroup) => {
+        if (!g || !g.options) return;
+        const sizeCode = defaultSize?.sizeCode;
+        const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
+        const defs = availableOpts.filter((o) => o.isDefault);
+        const includedOpts = availableOpts.filter(
+          (o) => !o.isDefault && isIncludedTopping(g.id, o.id)
+        );
+        let selected = [...defs, ...includedOpts];
+        if (selected.length === 0 && g.required && g.maxSelection === 1 && availableOpts.length > 0) {
+          selected = [availableOpts[0]];
+        }
+        if (selected.length > g.maxSelection) {
+          selected = selected.slice(0, g.maxSelection);
+        }
+        init[g.id] = selected;
+        selected.forEach((opt) => {
+          if (opt.modifierGroups) {
+            opt.modifierGroups.forEach(initGroup);
+          }
+        });
+      };
+      item.modifierGroups?.forEach(initGroup);
+      setSelections(init);
+    }
 
-    item.modifierGroups?.forEach(initGroup);
-    setSelections(init);
-
-    // Mark initial mount done after a tick
     setTimeout(() => { isInitialMount.current = false; }, 100);
   }, [item, isOpen]);
 
@@ -304,7 +339,11 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
         }
       : item;
 
-    addToCart(itemToAdd, mods, quantity, note);
+    if (editCartItem) {
+      updateCartItem(editCartItem.id, itemToAdd, mods, quantity, note);
+    } else {
+      addToCart(itemToAdd, mods, quantity, note);
+    }
     onClose();
   };
 
@@ -525,7 +564,7 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
                   Customise
                 </p>
                 <h3 className="text-[13px] font-700 text-neutral-900 leading-tight">
-                  {item.name}
+                  {editCartItem ? `Edit: ${item.name}` : item.name}
                 </h3>
               </div>
             </div>
@@ -796,11 +835,13 @@ export default function ModifierDrawer({ item, isOpen, onClose }: Props) {
               disabled={!valid()}
               className={`w-full py-3 rounded-xl text-[11px] font-700 flex items-center justify-center gap-2 transition-all active:scale-[0.99] cursor-pointer ${
                 valid()
-                  ? "bg-brand-primary text-white hover:bg-brand-primary-hover shadow-md shadow-brand-primary/20"
+                  ? editCartItem
+                    ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-600/20"
+                    : "bg-brand-primary text-white hover:bg-brand-primary-hover shadow-md shadow-brand-primary/20"
                   : "bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none"
               }`}
             >
-              Add to Cart&nbsp;·&nbsp;${livePrice().toFixed(2)}
+              {editCartItem ? `Update Cart\u00a0·\u00a0$${livePrice().toFixed(2)}` : `Add to Cart\u00a0·\u00a0$${livePrice().toFixed(2)}`}
             </button>
           </div>
         </div>

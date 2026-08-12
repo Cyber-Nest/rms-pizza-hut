@@ -92,6 +92,13 @@ interface PosState {
   removeFromCart: (cartItemId: string) => void;
   increaseQuantity: (cartItemId: string) => void;
   decreaseQuantity: (cartItemId: string) => void;
+  updateCartItem: (
+    originalCartItemId: string,
+    menuItem: MenuItem,
+    selectedModifiers: SelectedModifier[],
+    quantity: number,
+    note: string,
+  ) => void;
   clearCart: () => void;
   calculateTotals: () => void;
   openCheckout: () => void;
@@ -145,11 +152,14 @@ const syncDraftCart = (
   orderType: string,
   customer: CustomerInfo | null,
   totals: { subtotal: number; tax: number; discount: number; total: number },
+  skipDeleteIfEmpty = false,
 ) => {
   if (typeof window === "undefined") return;
   if (cartItems.length === 0) {
-    window.localStorage.removeItem("rms_draft_cart");
-    window.dispatchEvent(new Event("storage"));
+    if (!skipDeleteIfEmpty) {
+      window.localStorage.removeItem("rms_draft_cart");
+      window.dispatchEvent(new Event("storage"));
+    }
     return;
   }
   const draft = {
@@ -171,9 +181,61 @@ const syncDraftCart = (
   window.dispatchEvent(new Event("storage"));
 };
 
+// ── Read draft cart from localStorage at store creation time ──────────────
+// This runs BEFORE any component can call setOrderType/setCustomer (which
+// would wipe localStorage with an empty cart). Doing it here ensures the
+// cart is already populated when those actions fire.
+const getInitialCartState = (): Partial<PosState> => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem("rms_draft_cart");
+    if (!raw) return {};
+    const draft = JSON.parse(raw);
+    if (
+      !draft ||
+      draft.status !== "pending" ||
+      !Array.isArray(draft.items) ||
+      draft.items.length === 0
+    ) return {};
+
+    const restoredItems: CartItem[] = draft.items.map((item: CartItem) => ({
+      ...item,
+      id: item.id || item.menuItemId,
+      selectedModifiers: item.selectedModifiers || [],
+      quantity: item.quantity || 1,
+      totalPrice: item.totalPrice || item.basePrice || 0,
+    }));
+
+    return {
+      cartItems: restoredItems,
+      orderType: (draft.orderType as PosState["orderType"]) || "takeout",
+      selectedCustomer:
+        draft.customer?.name && draft.customer.name !== "No Name"
+          ? draft.customer
+          : null,
+      subtotal: draft.subtotal || 0,
+      tax: draft.tax || 0,
+      discount: draft.discount || 0,
+      total: draft.total || 0,
+    };
+  } catch {
+    return {};
+  }
+};
+
+const getInitialCategoryState = (): string => {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("rms_selected_category");
+      if (saved) return saved;
+    } catch (e) {}
+  }
+  return "all";
+};
+
 export const usePosStore = create<PosState>((set, get) => ({
   // ── Initial State ────────────────────────────────────────────
-  selectedCategory: "all",
+  selectedCategory: getInitialCategoryState(),
   search: "",
   sortBy: "default",
   orderType: "takeout",
@@ -216,8 +278,18 @@ export const usePosStore = create<PosState>((set, get) => ({
   placingOrder: false,
   nextOrderNumber: "",
 
+  // ── Restore cart from localStorage (runs before any component action) ──
+  ...getInitialCartState(),
+
   // ── Menu ────────────────────────────────────────────────────
-  setCategory: (category) => set({ selectedCategory: category }),
+  setCategory: (category) => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("rms_selected_category", category);
+      } catch (e) {}
+    }
+    set({ selectedCategory: category });
+  },
   setSearch: (query) => set({ search: query }),
   setSort: (sort) => set({ sortBy: sort }),
 
@@ -427,6 +499,74 @@ export const usePosStore = create<PosState>((set, get) => ({
       total,
     });
   },
+  updateCartItem: (originalCartItemId, menuItem, selectedModifiers, quantity, note) => {
+    const { cartItems } = get();
+    const originalIndex = cartItems.findIndex((i) => i.id === originalCartItemId);
+    if (originalIndex === -1) return;
+
+    const modifierSum = selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
+    const itemUnitCost = menuItem.price + modifierSum;
+    const newCartItemId = generateCartItemId(menuItem.id, selectedModifiers);
+
+    const catObj = get().categories.find(
+      (c) => c.id === menuItem.categoryId || c.name === menuItem.categoryId,
+    );
+    const categoryName =
+      catObj?.name ||
+      (menuItem as any).categoryName ||
+      (menuItem as any).category ||
+      cartItems[originalIndex].categoryName ||
+      "";
+
+    const updatedItem: CartItem = {
+      id: newCartItemId,
+      menuItemId: menuItem.id,
+      categoryId: menuItem.categoryId,
+      categoryName,
+      name: menuItem.name,
+      image: menuItem.image,
+      basePrice: menuItem.price,
+      selectedModifiers,
+      quantity,
+      totalPrice: roundToTwo(itemUnitCost * quantity),
+      note,
+      kitchenLabel: menuItem.kitchenLabel || cartItems[originalIndex].kitchenLabel || "chicken",
+    };
+
+    // Replace at same position
+    const updatedCartItems = [...cartItems];
+    updatedCartItems.splice(originalIndex, 1, updatedItem);
+
+    // If new id conflicts with another item (different position), merge quantities
+    const conflictIndex = updatedCartItems.findIndex(
+      (i, idx) => i.id === newCartItemId && idx !== originalIndex
+    );
+    let finalCartItems = updatedCartItems;
+    if (conflictIndex > -1) {
+      const merged = {
+        ...updatedCartItems[conflictIndex],
+        quantity: updatedCartItems[conflictIndex].quantity + quantity,
+        totalPrice: roundToTwo(itemUnitCost * (updatedCartItems[conflictIndex].quantity + quantity)),
+      };
+      finalCartItems = updatedCartItems.filter((_, idx) => idx !== originalIndex);
+      finalCartItems[conflictIndex > originalIndex ? conflictIndex - 1 : conflictIndex] = merged;
+    }
+
+    set({ cartItems: finalCartItems });
+    get().calculateTotals();
+    const {
+      cartItems: curItems,
+      orderType: curType,
+      selectedCustomer: curCust,
+      subtotal,
+      tax,
+      discount,
+      total,
+    } = get();
+    syncDraftCart(curItems, curType, curCust, { subtotal, tax, discount, total });
+    toast.success(`${menuItem.name} updated!`);
+  },
+
   clearCart: () => {
     set({
       cartItems: [],
@@ -845,12 +985,21 @@ export const usePosStore = create<PosState>((set, get) => ({
       });
       if (res.data.success) {
         const fetchedCategories: Category[] = res.data.data.categories || [];
-        const currentSelected = get().selectedCategory;
-        const exists = fetchedCategories.some((c) => c.id === currentSelected);
-        const defaultCatId = exists && currentSelected !== "all"
-          ? currentSelected
+        let savedCat = get().selectedCategory;
+        if (typeof window !== "undefined") {
+          try {
+            const localCat = localStorage.getItem("rms_selected_category");
+            if (localCat) savedCat = localCat;
+          } catch (e) {}
+        }
+
+        const exists = fetchedCategories.some(
+          (c) => c.id === savedCat || (c as any)._id === savedCat
+        );
+        const defaultCatId = exists
+          ? savedCat
           : fetchedCategories.length > 0
-          ? fetchedCategories[0].id
+          ? (fetchedCategories[0].id || (fetchedCategories[0] as any)._id)
           : "";
 
         set({

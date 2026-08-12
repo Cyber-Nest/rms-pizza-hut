@@ -364,8 +364,7 @@ export default function ProductsTab({
     loading ||
     uploading ||
     !prodForm.name.trim() ||
-    !prodForm.categoryId ||
-    !prodForm.image.trim();
+    !prodForm.categoryId;
 
   return (
     <>
@@ -465,7 +464,7 @@ export default function ProductsTab({
 
             <div>
               <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
-                Product Image
+                Product Image <span className="normal-case font-500 text-neutral-300">(Optional)</span>
               </label>
               <div className="flex items-center gap-3">
                 {prodForm.image ? (
