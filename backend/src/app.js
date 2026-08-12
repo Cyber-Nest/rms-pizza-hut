@@ -9,12 +9,15 @@ const cookieParser = require("cookie-parser");
 
 const connectDB = require("./config/db");
 const logger = require("./shared/utils/logger");
+const responseTimeMiddleware = require("./shared/middleware/responseTime");
+const { generalLimiter } = require("./shared/middleware/rateLimiter");
 
 const app = express();
 
+// Register Response Time & SLA Monitoring Middleware
+app.use(responseTimeMiddleware);
 
-
-
+// Connect Database
 app.use(async (req, res, next) => {
   try {
     await connectDB();
@@ -29,7 +32,8 @@ app.use(async (req, res, next) => {
 });
 
 app.use(helmet());
-app.use(cookieParser()); 
+app.use(cookieParser());
+app.use(generalLimiter);
 
 
 const allowedOrigins = [
