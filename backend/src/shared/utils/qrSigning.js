@@ -40,7 +40,9 @@ const verifyQrPayload = (signedToken) => {
     throw new Error("QR token is required");
   }
 
-  const parts = signedToken.split(".");
+  const cleanToken = signedToken.trim().replace(/^["']|["']$/g, "").replace(/[\r\n]+/g, "");
+
+  const parts = cleanToken.split(".");
   if (parts.length !== 2) {
     throw new Error("Invalid QR token format");
   }
