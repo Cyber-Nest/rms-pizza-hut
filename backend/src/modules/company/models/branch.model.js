@@ -131,8 +131,6 @@ const branchSchema = new mongoose.Schema(
   }
 );
 
-branchSchema.index({ code: 1 }, { unique: true });
-branchSchema.index({ email: 1 }, { unique: true });
 branchSchema.index({ isActive: 1, isLive: 1 });
 branchSchema.index({ lat: 1, lng: 1 });
 
