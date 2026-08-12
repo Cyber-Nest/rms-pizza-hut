@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, QrCode, Download, Building2, Copy, Check } from "lucide-react";
+import { X, QrCode, Download, Building2, Copy, Check, ShieldCheck, ShieldAlert, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface StoreQrModalProps {
@@ -17,6 +17,8 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
     qrCodePayload: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isSigned, setIsSigned] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && typeof window !== "undefined") {
@@ -27,26 +29,14 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
           const branchId = b._id || b.id;
           const branchName = b.name || "Restaurant Store";
           const branchCode = b.code || "BRANCH";
-
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-          // Default fallback payload (plain JSON with apiUrl included)
-          const fallbackPayload = JSON.stringify({
-            type: "BRANCH_PAIRING_QR",
-            branchId,
-            branchName,
-            branchCode,
-            apiUrl,
-          });
+          // Show branch info with empty QR while fetching signed token
+          setBranchInfo({ _id: branchId, name: branchName, code: branchCode, qrCodePayload: "" });
+          setIsSigned(false);
+          setIsLoading(true);
 
-          setBranchInfo({
-            _id: branchId,
-            name: branchName,
-            code: branchCode,
-            qrCodePayload: fallbackPayload,
-          });
-
-          // Fetch signed HMAC QR token from backend API
+          // Fetch signed HMAC QR token from backend
           const token = localStorage.getItem("rms_branch_token");
 
           fetch(`${apiUrl}/delivery/qr-token/${branchId}`, {
@@ -56,34 +46,49 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
             .then((res) => res.json())
             .then((data) => {
               if (data.success && data.data?.signedToken) {
+                // ✅ Signed HMAC token — secure, tamper-proof
+                setBranchInfo({ _id: branchId, name: branchName, code: branchCode, qrCodePayload: data.data.signedToken });
+                setIsSigned(true);
+              } else {
+                // Fallback: plain JSON with apiUrl (still functional, less secure)
                 setBranchInfo({
-                  _id: branchId,
-                  name: branchName,
-                  code: branchCode,
-                  qrCodePayload: data.data.signedToken,
+                  _id: branchId, name: branchName, code: branchCode,
+                  qrCodePayload: JSON.stringify({ type: "BRANCH_PAIRING_QR", branchId, branchName, branchCode, apiUrl }),
                 });
+                setIsSigned(false);
               }
             })
-            .catch((err) => {
-              console.warn("Could not fetch signed QR token from backend, using fallback QR payload:", err);
-            });
+            .catch(() => {
+              // Network error fallback
+              setBranchInfo({
+                _id: branchId, name: branchName, code: branchCode,
+                qrCodePayload: JSON.stringify({ type: "BRANCH_PAIRING_QR", branchId, branchName, branchCode, apiUrl }),
+              });
+              setIsSigned(false);
+              toast.error("Could not fetch secure QR. Using basic QR.");
+            })
+            .finally(() => setIsLoading(false));
         } catch (e) {
           console.error("Failed to parse branch info:", e);
+          setIsLoading(false);
         }
       }
+    } else {
+      setBranchInfo(null);
+      setIsSigned(false);
+      setIsLoading(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const qrImageUrl = branchInfo?.qrCodePayload
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-        branchInfo.qrCodePayload
-      )}`
-    : "";
+  const qrImageUrl =
+    branchInfo?.qrCodePayload
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(branchInfo.qrCodePayload)}`
+      : "";
 
   const handleDownloadQr = async () => {
-    if (!qrImageUrl) return;
+    if (!qrImageUrl || isLoading) return;
     try {
       const response = await fetch(qrImageUrl);
       const blob = await response.blob();
@@ -102,12 +107,12 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
   };
 
   const handleCopyCode = () => {
-    if (branchInfo?.qrCodePayload) {
-      navigator.clipboard.writeText(branchInfo.qrCodePayload);
-      setCopied(true);
-      toast.success("QR Payload copied to clipboard");
-      setTimeout(() => setCopied(false), 2000);
-    }
+    // Copy only allowed for signed (HMAC) tokens — not plain JSON
+    if (!branchInfo?.qrCodePayload || !isSigned) return;
+    navigator.clipboard.writeText(branchInfo.qrCodePayload);
+    setCopied(true);
+    toast.success("Signed QR token copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -122,12 +127,8 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
               <QrCode size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-900 tracking-wide text-white">
-                Store QR Code
-              </h3>
-              <p className="text-[10.5px] text-neutral-400 font-500">
-                Driver App Pairing QR
-              </p>
+              <h3 className="text-sm font-900 tracking-wide text-white">Store QR Code</h3>
+              <p className="text-[10.5px] text-neutral-400 font-500">Driver App Pairing QR</p>
             </div>
           </div>
           <button
@@ -148,9 +149,37 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
             </span>
           </div>
 
+          {/* Security Status Badge */}
+          {!isLoading && (
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                isSigned
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                  : "bg-amber-50 border-amber-200 text-amber-700"
+              }`}
+            >
+              {isSigned ? (
+                <>
+                  <ShieldCheck size={11} />
+                  <span>HMAC Signed — Tamper-Proof</span>
+                </>
+              ) : (
+                <>
+                  <ShieldAlert size={11} />
+                  <span>Basic QR — Backend Unreachable</span>
+                </>
+              )}
+            </div>
+          )}
+
           {/* QR Code Container */}
           <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 inline-block shadow-inner">
-            {qrImageUrl ? (
+            {isLoading ? (
+              <div className="w-52 h-52 bg-neutral-100 flex flex-col items-center justify-center gap-3 text-neutral-400">
+                <Loader2 size={28} className="animate-spin text-brand-primary" />
+                <span className="text-[10px] font-semibold">Generating Secure QR...</span>
+              </div>
+            ) : qrImageUrl ? (
               <img
                 src={qrImageUrl}
                 alt="Store Pairing QR Code"
@@ -158,7 +187,7 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
               />
             ) : (
               <div className="w-52 h-52 bg-neutral-100 flex items-center justify-center text-neutral-400 text-xs">
-                Generating QR Code...
+                QR Generation Failed
               </div>
             )}
           </div>
@@ -171,18 +200,22 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
           <div className="flex items-center gap-2 pt-2">
             <button
               onClick={handleDownloadQr}
-              className="flex-1 py-3 rounded-xl bg-brand-primary text-white text-xs font-800 hover:bg-brand-primary/90 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md active:scale-95"
+              disabled={isLoading || !qrImageUrl}
+              className="flex-1 py-3 rounded-xl bg-brand-primary text-white text-xs font-800 hover:bg-brand-primary/90 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download size={15} />
               <span>Download QR Image</span>
             </button>
-            <button
-              onClick={handleCopyCode}
-              className="p-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-all cursor-pointer border border-neutral-200"
-              title="Copy QR Data"
-            >
-              {copied ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
-            </button>
+            {/* Copy only shown for signed HMAC tokens — plain JSON copy disabled */}
+            {isSigned && (
+              <button
+                onClick={handleCopyCode}
+                className="p-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-all cursor-pointer border border-neutral-200"
+                title="Copy Signed QR Token"
+              >
+                {copied ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
+              </button>
+            )}
           </div>
         </div>
       </div>
