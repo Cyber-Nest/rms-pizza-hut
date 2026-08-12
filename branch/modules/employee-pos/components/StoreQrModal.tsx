@@ -37,7 +37,12 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
           setIsLoading(true);
 
           // Fetch signed HMAC QR token from backend
-          const token = localStorage.getItem("rms_branch_token");
+          const getCookie = (name: string) =>
+            document.cookie
+              .split("; ")
+              .find((row) => row.startsWith(`${name}=`))
+              ?.split("=")[1] ?? null;
+          const token = getCookie("rms_branch_token");
 
           fetch(`${apiUrl}/delivery/qr-token/${branchId}`, {
             credentials: "include",
@@ -46,7 +51,6 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
             .then((res) => res.json())
             .then((data) => {
               if (data.success && data.data?.signedToken) {
-                // ✅ Signed HMAC token — secure, tamper-proof
                 setBranchInfo({ _id: branchId, name: branchName, code: branchCode, qrCodePayload: data.data.signedToken });
                 setIsSigned(true);
               } else {
@@ -150,7 +154,7 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
           </div>
 
           {/* Security Status Badge */}
-          {!isLoading && (
+          {/* {!isLoading && (
             <div
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                 isSigned
@@ -170,7 +174,7 @@ export default function StoreQrModal({ isOpen, onClose }: StoreQrModalProps) {
                 </>
               )}
             </div>
-          )}
+          )} */}
 
           {/* QR Code Container */}
           <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200 inline-block shadow-inner">
