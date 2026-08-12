@@ -10,7 +10,7 @@ export interface ProductVariant {
 }
 
 export interface MenuItem {
-  _id: string;
+  _id?: string;
   id: string;
   categoryId: string;
   name: string;
