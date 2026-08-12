@@ -287,10 +287,11 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
   assignDriver: async (orderId, driverId) => {
     try {
+      const config = getBranchConfig();
       const res = await axios.post(`${API_URL}/delivery/assign`, {
         orderId,
         driverId,
-      });
+      }, config);
       if (res.data.success) {
         // Re-fetch to sync state across dashboard
         await Promise.all([get().fetchOrders(), get().fetchDrivers()]);
@@ -302,9 +303,10 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
   unassignDriver: async (orderId) => {
     try {
+      const config = getBranchConfig();
       const res = await axios.post(`${API_URL}/delivery/unassign`, {
         orderId,
-      });
+      }, config);
       if (res.data.success) {
         await Promise.all([get().fetchOrders(), get().fetchDrivers()]);
       }
@@ -315,11 +317,12 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
   markDelivered: async (orderId) => {
     try {
+      const config = getBranchConfig();
       // Find assignment for this order first
-      const resTrack = await axios.get(`${API_URL}/delivery/track/${orderId}`);
+      const resTrack = await axios.get(`${API_URL}/delivery/track/${orderId}`, config);
       if (resTrack.data.success && resTrack.data.data.assigned) {
         const assignmentId = resTrack.data.data.assignmentId;
-        const resDeliver = await axios.patch(`${API_URL}/delivery/driver/deliver/${assignmentId}`);
+        const resDeliver = await axios.patch(`${API_URL}/delivery/driver/deliver/${assignmentId}`, {}, config);
         if (resDeliver.data.success) {
           await Promise.all([get().fetchOrders(), get().fetchDrivers()]);
         }
@@ -398,7 +401,8 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
   markDriverAvailable: async (driverId) => {
     try {
-      const res = await axios.post(`${API_URL}/delivery/driver/${driverId}/complete-active`);
+      const config = getBranchConfig();
+      const res = await axios.post(`${API_URL}/delivery/driver/${driverId}/complete-active`, {}, config);
       if (res.data.success) {
         await Promise.all([get().fetchDrivers(), get().fetchOrders()]);
       }

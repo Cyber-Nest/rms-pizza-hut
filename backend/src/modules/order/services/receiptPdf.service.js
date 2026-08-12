@@ -211,6 +211,8 @@ exports.generateReceiptPdf = async (order, res) => {
 
         doc.font("Helvetica-Bold").fontSize(8.5);
         doc.text(item.name || "Item", startX, itemY, { width: 120 });
+        const afterNameY = doc.y;
+
         doc.font("Helvetica").fontSize(8.5);
         doc.text(String(item.quantity || 1), startX + 120, itemY, {
           width: 30,
@@ -220,6 +222,8 @@ exports.generateReceiptPdf = async (order, res) => {
           width: 56,
           align: "right",
         });
+
+        doc.y = Math.max(doc.y, afterNameY);
         doc.moveDown(0.2);
 
         // Modifiers / Sub-items
