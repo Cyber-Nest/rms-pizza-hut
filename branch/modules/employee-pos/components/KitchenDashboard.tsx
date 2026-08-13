@@ -160,10 +160,12 @@ export default function KitchenDashboard() {
         }
       } else {
         const statusChanged = existingOrder.status !== data.status;
+        const makeTableChanged = existingOrder.makeTableStatus !== data.makeTableStatus;
+        const wingsChanged = existingOrder.wingsStatus !== data.wingsStatus;
         const kitchenClearedChanged = !!existingOrder.kitchenCleared !== !!data.kitchenCleared;
         
-        if (!statusChanged && !kitchenClearedChanged) {
-          console.log('Ignoring order-updated event in Kitchen View (no status/kitchen-clear change).');
+        if (!statusChanged && !makeTableChanged && !wingsChanged && !kitchenClearedChanged) {
+          console.log('Ignoring order-updated event in Kitchen View (no status/station change).');
           return;
         }
       }
