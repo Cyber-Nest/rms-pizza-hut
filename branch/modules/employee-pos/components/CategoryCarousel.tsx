@@ -45,10 +45,10 @@ export default function CategoryCarousel() {
               <button
                 key={cat.id}
                 onClick={() => setCategory(cat.id)}
-                className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[80px] pt-2 pb-1.5 px-1 rounded-xl border transition-all duration-150 cursor-pointer active:scale-95 ${
+                className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[82px] pt-2 pb-1.5 px-1 rounded-xl border transition-all duration-150 cursor-pointer active:scale-95 ${
                   active
                     ? 'bg-brand-primary border-brand-primary text-white shadow-sm shadow-brand-primary/20'
-                    : 'bg-white border-neutral-200 text-neutral-600 hover:border-brand-primary/40 hover:bg-orange-50/50'
+                    : 'bg-white border-neutral-200 text-black hover:border-brand-primary/40 hover:bg-orange-50/50'
                 }`}
               >
                 {/* Image / Icon */}
@@ -70,7 +70,7 @@ export default function CategoryCarousel() {
                 </div>
 
                 {/* Label */}
-                <span className={`text-[9px] font-700 uppercase tracking-tight leading-tight text-center line-clamp-2 w-full px-0.5 ${active ? 'text-white' : 'text-neutral-600'}`}>
+                <span className={`text-[10px] font-800 uppercase tracking-tight leading-tight text-center line-clamp-2 w-full px-0.5 ${active ? 'text-white' : 'text-black'}`}>
                   {cat.name}
                 </span>
               </button>
