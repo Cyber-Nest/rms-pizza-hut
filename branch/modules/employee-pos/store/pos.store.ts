@@ -378,7 +378,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         quantity,
         totalPrice: roundToTwo(itemUnitCost * quantity),
         note,
-        kitchenLabel: menuItem.kitchenLabel || "chicken",
+        kitchenLabel: menuItem.kitchenLabel || "make_table",
       };
       updatedCartItems.push(newItem);
     }
@@ -530,7 +530,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       quantity,
       totalPrice: roundToTwo(itemUnitCost * quantity),
       note,
-      kitchenLabel: menuItem.kitchenLabel || cartItems[originalIndex].kitchenLabel || "chicken",
+      kitchenLabel: menuItem.kitchenLabel || cartItems[originalIndex].kitchenLabel || "make_table",
     };
 
     // Replace at same position

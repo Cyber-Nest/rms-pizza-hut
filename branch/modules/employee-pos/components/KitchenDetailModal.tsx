@@ -42,7 +42,7 @@ interface KitchenDetailModalProps {
   order: Order | null;
   onClose: () => void;
   onStatusChange: () => void;
-  categoryFilter?: "all" | "chicken" | "pizza";
+  categoryFilter?: string;
 }
 
 interface GroupedModifier {
@@ -107,9 +107,14 @@ export default function KitchenDetailModal({
   const [cancelling, setCancelling] = useState(false);
 
   const isItemVisible = (item: any) => {
-    if (!categoryFilter || categoryFilter === "all") return true;
-    if (categoryFilter === "pizza") return item.kitchenLabel === "pizza";
-    if (categoryFilter === "chicken") return item.kitchenLabel !== "pizza";
+    if (!categoryFilter || categoryFilter === "all" || categoryFilter === "cut_station") return true;
+    const label = item.kitchenLabel || "make_table";
+    if (categoryFilter === "make_table" || categoryFilter === "pizza") {
+      return label === "make_table" || label === "pizza";
+    }
+    if (categoryFilter === "wings_station" || categoryFilter === "chicken") {
+      return label === "wings_station" || label === "chicken";
+    }
     return true;
   };
 
@@ -179,16 +184,9 @@ export default function KitchenDetailModal({
 
   // Status transitions
   const handleTransition = async (
-    nextStatus: "preparing" | "ready" | "completed",
+    nextStatus: "preparing" | "in_oven" | "ready" | "completed",
   ) => {
     if (isDraft || !localOrder) return;
-
-    // if (nextStatus === "completed" && localOrder.paymentStatus === "unpaid") {
-    //   toast.error(
-    //     "Cannot complete an unpaid order. Please collect payment and mark as Paid first.",
-    //   );
-    //   return;
-    // }
 
     setUpdating(true);
     try {
@@ -216,9 +214,15 @@ export default function KitchenDetailModal({
           localOrder.orderType === "delivery"
             ? "Ready for Delivery"
             : "Ready for Pickup";
-        toast.success(
-          `Order transitioned to ${nextStatus === "preparing" ? "Preparing" : nextStatus === "ready" ? readyText : "Completed"}`,
-        );
+        const statusMsg =
+          nextStatus === "preparing"
+            ? "Preparing"
+            : nextStatus === "in_oven"
+            ? "In the Oven"
+            : nextStatus === "ready"
+            ? readyText
+            : "Completed";
+        toast.success(`Order transitioned to ${statusMsg}`);
 
         // Update local status and history
         const updatedHistory = [...(localOrder.statusHistory || [])];
@@ -237,7 +241,7 @@ export default function KitchenDetailModal({
 
         onStatusChange();
 
-        if (nextStatus === "completed") {
+        if (nextStatus === "completed" || nextStatus === "in_oven") {
           onClose();
         }
       } else {
@@ -711,6 +715,18 @@ export default function KitchenDetailModal({
     }
 
     if (localOrder.status === "preparing") {
+      // If Make Station view, transition to In the Oven
+      if (categoryFilter === "make_table" || categoryFilter === "pizza") {
+        return (
+          <button
+            onClick={() => handleTransition("in_oven")}
+            disabled={updating}
+            className="bg-orange-600 text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-orange-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+          >
+            In the Oven
+          </button>
+        );
+      }
       return (
         <button
           onClick={() => handleTransition("ready")}
@@ -724,6 +740,18 @@ export default function KitchenDetailModal({
       );
     }
 
+    if (localOrder.status === "in_oven") {
+      return (
+        <button
+          onClick={() => handleTransition("completed")}
+          disabled={updating}
+          className="bg-success text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-green-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+        >
+          Complete Order
+        </button>
+      );
+    }
+
     if (localOrder.status === "ready") {
       if (localOrder.orderType === "delivery") {
         if (!localOrder.kitchenCleared) {
@@ -733,7 +761,6 @@ export default function KitchenDetailModal({
               disabled={updating}
               className="bg-brand-primary text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-brand-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
-              {/* Hand over to Driver */}
               Complete Order
             </button>
           );

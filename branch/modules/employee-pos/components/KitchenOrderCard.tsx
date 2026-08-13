@@ -98,6 +98,7 @@ export default function KitchenOrderCard({
   const statusColorMap: Record<string, string> = {
     pending: "bg-brand-primary",
     preparing: "bg-amber-500",
+    in_oven: "bg-orange-600",
     ready: "bg-emerald-500",
     completed: "bg-neutral-400",
     cancelled: "bg-red-500",
@@ -254,6 +255,10 @@ export default function KitchenOrderCard({
           ) : order.status === "preparing" ? (
             <span className="px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-600 text-[9px] font-700 uppercase tracking-wide">
               Preparing
+            </span>
+          ) : order.status === "in_oven" ? (
+            <span className="px-2 py-0.5 rounded-full border border-orange-300 bg-orange-100 text-orange-700 text-[9px] font-800 uppercase tracking-wide">
+              In Oven
             </span>
           ) : (
             <span className="px-2 py-0.5 rounded-full border border-emerald-250 bg-emerald-50 text-emerald-700 text-[9px] font-700 uppercase tracking-wide">

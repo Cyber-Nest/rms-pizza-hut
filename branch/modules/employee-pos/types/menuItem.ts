@@ -25,7 +25,7 @@ export interface MenuItem {
   includedToppings?: { groupId: string; optionId: string }[];
   modifierGroupIds?: string[];
   modifierGroups?: ModifierGroup[];
-  kitchenLabel?: 'chicken' | 'pizza';
+  kitchenLabel?: 'make_table' | 'wings_station' | 'cut_station' | 'chicken' | 'pizza';
   displayOrder?: number;
   isOutOfStock?: boolean;
 }

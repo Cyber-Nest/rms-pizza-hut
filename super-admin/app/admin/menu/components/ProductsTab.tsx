@@ -229,7 +229,7 @@ export default function ProductsTab({
       includedToppings: prod.includedToppings || [],
       badge: prod.badge || null,
       isActive: prod.isActive !== false,
-      kitchenLabel: (prod.kitchenLabel as any) || "pizza",
+      kitchenLabel: (prod.kitchenLabel as any) || "make_table",
       displayOrder: prod.displayOrder ?? 0,
     });
     scrollToTop();
@@ -250,7 +250,7 @@ export default function ProductsTab({
       modifierGroups: [],
       badge: null,
       isActive: true,
-      kitchenLabel: "pizza",
+      kitchenLabel: "make_table",
       displayOrder: 0,
     });
   };
@@ -294,7 +294,7 @@ export default function ProductsTab({
             modifierGroups: [],
             badge: null,
             isActive: true,
-            kitchenLabel: "pizza",
+            kitchenLabel: "make_table",
             displayOrder: 0,
           });
           fetchProducts();
@@ -562,25 +562,25 @@ export default function ProductsTab({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setProdForm({ ...prodForm, kitchenLabel: "pizza" })}
+                  onClick={() => setProdForm({ ...prodForm, kitchenLabel: "make_table" })}
                   className={`flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
-                    prodForm.kitchenLabel === "pizza"
+                    prodForm.kitchenLabel === "make_table" || prodForm.kitchenLabel === "pizza"
                       ? "bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/15"
                       : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
                   }`}
                 >
-                  🍕 Pizza
+                  🍕 Make Table
                 </button>
                 <button
                   type="button"
-                  onClick={() => setProdForm({ ...prodForm, kitchenLabel: "chicken" })}
+                  onClick={() => setProdForm({ ...prodForm, kitchenLabel: "wings_station" })}
                   className={`flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
-                    prodForm.kitchenLabel === "chicken"
+                    prodForm.kitchenLabel === "wings_station" || prodForm.kitchenLabel === "chicken"
                       ? "bg-amber-600 border-amber-600 text-white shadow-md shadow-amber-600/15"
                       : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
                   }`}
                 >
-                  🍗 Chicken
+                  🍗 Wings Station
                 </button>
               </div>
               <p className="text-[8px] text-neutral-400 mt-1.5 leading-normal">
@@ -1026,12 +1026,12 @@ export default function ProductsTab({
                       </span>
                       <span
                         className={`text-[7.5px] font-700 px-1 py-0.2 rounded uppercase border ${
-                          (prod.kitchenLabel || 'chicken') === 'pizza'
+                          prod.kitchenLabel === "make_table" || prod.kitchenLabel === "pizza"
                             ? "bg-orange-100 text-orange-600 border-orange-200"
                             : "bg-yellow-50 text-yellow-700 border-yellow-200"
                         }`}
                       >
-                        {(prod.kitchenLabel || 'chicken') === 'pizza' ? '🍕 Pizza' : '🍗 Chicken'}
+                        {prod.kitchenLabel === "make_table" || prod.kitchenLabel === "pizza" ? "🍕 Make Table" : "🍗 Wings Station"}
                       </span>
                     </div>
 

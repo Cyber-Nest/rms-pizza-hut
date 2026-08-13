@@ -459,7 +459,7 @@ exports.getPOSMenuFeed = async (branchId = null) => {
           price: prod.price,
           badge: prod.badge,
           isPopular: prod.isPopular,
-          kitchenLabel: prod.kitchenLabel || "chicken",
+          kitchenLabel: prod.kitchenLabel || "make_table",
           displayOrder: prod.displayOrder ?? 0,
           itemType: prod.itemType,
           hasVariants: !!prod.hasVariants,

@@ -18,9 +18,9 @@ export default function KitchenDashboard() {
   const [draftCart, setDraftCart] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'preparing' | 'ready'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'preparing' | 'in_oven' | 'ready'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'takeout' | 'drive-through' | 'dine-in' | 'delivery' | 'online'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'chicken' | 'pizza'>('pizza');
+  const [stationFilter, setStationFilter] = useState<'cut_station' | 'make_table' | 'wings_station'>('make_table');
   const [branchMenuItems, setBranchMenuItems] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [startIndex, setStartIndex] = useState(0);
@@ -77,18 +77,18 @@ export default function KitchenDashboard() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
       const res = await axios.get(`${apiUrl}/orders`, {
         params: {
-          status: 'pending,preparing,ready',
+          status: 'pending,preparing,in_oven,ready',
           fields: 'orderNumber,orderSource,orderType,status,createdAt,items,orderTiming,scheduledAt,dueAt,total,paymentStatus,kitchenCleared,branchId,branchName,branchCode',
           excludeKitchenCleared: 'true',
           ...(branchId ? { branchId } : {})
         }
       });
       if (res.data.success) {
-        // Only keep active kitchen orders (pending, preparing, ready)
+        // Only keep active kitchen orders (pending, preparing, in_oven, ready)
         // and exclude future scheduled orders (orders scheduled for a day after today)
         const todayLocalStr = getLocalTodayStr();
         const activeOrders = (res.data.data as Order[]).filter((o) => {
-          const isActive = ['pending', 'preparing', 'ready'].includes(o.status);
+          const isActive = ['pending', 'preparing', 'in_oven', 'ready'].includes(o.status);
           if (!isActive) return false;
           if (o.kitchenCleared) return false;
 
@@ -153,7 +153,7 @@ export default function KitchenDashboard() {
       const existingOrder = ordersRef.current.find((o) => o._id === data._id);
       
       if (!existingOrder) {
-        const isActiveStatus = ['pending', 'preparing', 'ready'].includes(data.status);
+        const isActiveStatus = ['pending', 'preparing', 'in_oven', 'ready'].includes(data.status);
         if (data.kitchenCleared || !isActiveStatus) {
           console.log('Ignoring order-updated event in Kitchen View (order already not active/cleared).');
           return;
@@ -228,6 +228,7 @@ export default function KitchenDashboard() {
     if (order.orderNumber === '#DRAFT') return 'pending';
     if (order.status === 'pending') return 'confirmed';
     if (order.status === 'preparing') return 'preparing';
+    if (order.status === 'in_oven') return 'in_oven';
     if (order.status === 'ready') return 'ready';
     return order.status;
   };
@@ -239,10 +240,11 @@ export default function KitchenDashboard() {
   const countPending = activeDraftCount;
   const countConfirmed = orders.filter((o) => o.status === 'pending').length;
   const countPreparing = orders.filter((o) => o.status === 'preparing').length;
+  const countInOven = orders.filter((o) => o.status === 'in_oven').length;
   const countReady = orders.filter((o) => o.status === 'ready').length;
   
-  // countAll should only include placed orders (confirmed, preparing, ready). Exclude pending draftCart.
-  const countAll = countConfirmed + countPreparing + countReady;
+  // countAll should only include placed orders (confirmed, preparing, in_oven, ready). Exclude pending draftCart.
+  const countAll = countConfirmed + countPreparing + countInOven + countReady;
 
   // Totals for Order Types (Only count active DB orders, exclude pending draftCart)
   const countTakeout = orders.filter((o) => o.orderType === 'takeout' && o.orderSource === 'pos').length;
@@ -254,7 +256,7 @@ export default function KitchenDashboard() {
   // Reset startIndex on filter change
   useEffect(() => {
     setStartIndex(0);
-  }, [statusFilter, typeFilter, categoryFilter]);
+  }, [statusFilter, typeFilter, stationFilter]);
 
   // ── Filter and Sort All Candidates ──────────────────────────
   const filteredOrders = React.useMemo(() => {
@@ -296,90 +298,54 @@ export default function KitchenDashboard() {
       }
     });
 
-    // Kitchen view is pizza-only for this brand.
-    const categoryFiltered: Order[] = [];
+    // Station filtering logic
+    const stationFiltered: Order[] = [];
     candidates.forEach((o) => {
-      const pizzaItems = o.items?.filter((item: any) => item.kitchenLabel === 'pizza') || [];
-      if (pizzaItems.length > 0) {
-        categoryFiltered.push({
-          ...o,
-          items: pizzaItems
+      const items = o.items || [];
+      const hasPizza = items.some((item: any) => {
+        const label = item.kitchenLabel || 'make_table';
+        return label === 'make_table' || label === 'pizza';
+      });
+
+      if (stationFilter === 'cut_station') {
+        // Cut Station: ONLY show order if it contains at least 1 Pizza item AND status is in_oven (or ready/completed)
+        const isCutStationStatus = o.status === 'in_oven' || o.status === 'ready' || o.status === 'completed';
+        if (hasPizza && isCutStationStatus) {
+          stationFiltered.push(o);
+        }
+      } else if (stationFilter === 'make_table') {
+        // Make Station: Show ONLY Pizza items when status is pending or preparing (removes when in_oven)
+        const isMakeTableStatus = o.status === 'pending' || o.status === 'preparing';
+        if (isMakeTableStatus) {
+          const matchingItems = items.filter((item: any) => {
+            const label = item.kitchenLabel || 'make_table';
+            return label === 'make_table' || label === 'pizza';
+          });
+          if (matchingItems.length > 0) {
+            stationFiltered.push({
+              ...o,
+              items: matchingItems
+            });
+          }
+        }
+      } else if (stationFilter === 'wings_station') {
+        // Wings Station: Show ONLY Wings / Chicken items of the order.
+        const matchingItems = items.filter((item: any) => {
+          const label = item.kitchenLabel || 'make_table';
+          return label === 'wings_station' || label === 'chicken';
         });
+        if (matchingItems.length > 0) {
+          stationFiltered.push({
+            ...o,
+            items: matchingItems
+          });
+        }
       }
     });
 
     // Sort strictly by createdAt (oldest first)
-    return categoryFiltered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [orders, draftCart, statusFilter, typeFilter, currentTime]);
-
-  // Category counts (based on status+type filtered orders, before category filter)
-  const categoryCountData = React.useMemo(() => {
-    const candidates: Order[] = [];
-    if (draftCart) {
-      const matchesStatus = statusFilter === 'pending';
-      const matchesType = typeFilter === 'all' || typeFilter === draftCart.orderType;
-      if (matchesStatus && matchesType) candidates.push(draftCart);
-    }
-    orders.forEach((o) => {
-      const mapped = getMappedStatus(o);
-      const matchesStatus = statusFilter === 'all' || statusFilter === mapped;
-      let matchesType = false;
-      if (typeFilter === 'all') matchesType = true;
-      else if (typeFilter === 'online') matchesType = o.orderSource === 'online';
-      else matchesType = o.orderType === typeFilter && o.orderSource === 'pos';
-      
-      let isVisibleTime = true;
-      if (o.orderTiming === 'later' && o.scheduledAt) {
-        const schedTime = new Date(o.scheduledAt).getTime();
-        if (schedTime - currentTime > 45 * 60 * 1000) {
-          isVisibleTime = false;
-        }
-      }
-
-      if (matchesStatus && matchesType && isVisibleTime) candidates.push(o);
-    });
-    const pizzaCount = candidates.filter((o) =>
-      o.items?.some((item: any) => item.kitchenLabel === 'pizza')
-    ).length;
-    const chickenCount = candidates.filter((o) =>
-      o.items?.some((item: any) => item.kitchenLabel !== 'pizza')
-    ).length;
-    return { all: candidates.length, pizza: pizzaCount, chicken: chickenCount };
-  }, [orders, draftCart, statusFilter, typeFilter, currentTime]);
-
-  // Check if Pizza & Chicken kitchen labels are present in branch menu or active orders
-  const hasPizzaMenu = React.useMemo(() => {
-    const inMenu = branchMenuItems.some((item) => item.kitchenLabel === 'pizza');
-    const inOrders = orders.some((o) => o.items?.some((item: any) => item.kitchenLabel === 'pizza'));
-    return inMenu || inOrders;
-  }, [branchMenuItems, orders]);
-
-  const hasChickenMenu = React.useMemo(() => {
-    const inMenu = branchMenuItems.some((item) => item.kitchenLabel !== 'pizza');
-    const inOrders = orders.some((o) => o.items?.some((item: any) => item.kitchenLabel !== 'pizza'));
-    return inMenu || inOrders;
-  }, [branchMenuItems, orders]);
-
-  const availableCatTabs = React.useMemo(() => {
-    const tabs: { id: 'all' | 'chicken' | 'pizza'; label: string }[] = [];
-    if (hasChickenMenu && hasPizzaMenu) {
-      tabs.push({ id: 'all', label: 'All' });
-    }
-    if (hasChickenMenu) {
-      tabs.push({ id: 'chicken', label: 'Chicken' });
-    }
-    if (hasPizzaMenu) {
-      tabs.push({ id: 'pizza', label: 'Pizza' });
-    }
-    return tabs;
-  }, [hasChickenMenu, hasPizzaMenu]);
-
-  // Keep Kitchen View fixed to pizza items only.
-  useEffect(() => {
-    if (categoryFilter !== 'pizza') {
-      setCategoryFilter('pizza');
-    }
-  }, [categoryFilter]);
+    return stationFiltered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [orders, draftCart, statusFilter, typeFilter, stationFilter, currentTime]);
 
   const visibleOrders = filteredOrders.slice(startIndex, startIndex + 4);
 
@@ -398,6 +364,7 @@ export default function KitchenDashboard() {
             { id: "pending", label: "Pending", count: countPending },
             { id: "confirmed", label: "Confirmed", count: countConfirmed },
             { id: "preparing", label: "Preparing", count: countPreparing },
+            { id: "in_oven", label: "In Oven", count: countInOven },
             { id: "ready", label: "Ready", count: countReady },
           ].map((statusTab) => {
             const active = statusFilter === statusTab.id;
@@ -417,15 +384,40 @@ export default function KitchenDashboard() {
           })}
         </div>
 
+        {/* Kitchen Station Segment Bar */}
+        <div className="flex items-center gap-1.5 bg-neutral-100 p-1 rounded-xl border border-neutral-200">
+          {[
+            { id: "cut_station", label: "Cut Station"},
+            { id: "make_table", label: "Make Station"},
+            { id: "wings_station", label: "Wings Station"},
+          ].map((stTab) => {
+            const active = stationFilter === stTab.id;
+            return (
+              <button
+                key={stTab.id}
+                onClick={() => setStationFilter(stTab.id as any)}
+                className={`px-3.5 py-1 rounded-lg text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer flex items-center gap-1.5 ${
+                  active
+                    ? "bg-brand-primary text-white shadow-xs font-900"
+                    : "text-neutral-700 hover:text-brand-primary hover:bg-white"
+                }`}
+              >
+                {/* <span className="text-[12px]">{stTab.icon}</span> */}
+                <span>{stTab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* Order Types Segment Bar */}
         <div className="flex items-center gap-1 bg-neutral-50 p-1 rounded-xl border border-neutral-200">
           {[
             { id: "all", label: "All Types", count: countAll },
             { id: "takeout", label: "Takeout", count: countTakeout },
-            { id: "drive-through", label: "Drive Thru", count: countDriveThrough },
+            // { id: "drive-through", label: "Drive Thru", count: countDriveThrough },
             { id: "dine-in", label: "Dine In", count: countDineIn },
             { id: "delivery", label: "Delivery", count: countDelivery },
-            { id: "online", label: "Online", count: countOnline },
+            // { id: "online", label: "Online", count: countOnline },
           ].map((typeTab) => {
             const active = typeFilter === typeTab.id;
             return (
@@ -512,7 +504,7 @@ export default function KitchenDashboard() {
                   </div>
                   <p className="text-[13px] font-800 text-neutral-850 uppercase tracking-wide">Queue Clear</p>
                   <p className="text-[11px] text-neutral-400 mt-1 max-w-[200px]">
-                    No active orders matching filters.
+                    No active orders.
                   </p>
                 </div>
               )}
@@ -540,7 +532,7 @@ export default function KitchenDashboard() {
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onStatusChange={fetchOrders}
-        categoryFilter={categoryFilter}
+        categoryFilter={stationFilter}
       />
 
       {/* Sidebar Drawer Component */}

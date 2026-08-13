@@ -72,7 +72,7 @@ export interface Order {
   scheduledAt: string | null;
   dueAt?: string | null;
   notes: string;
-  status: "pending" | "preparing" | "ready" | "completed" | "cancelled";
+  status: "pending" | "preparing" | "in_oven" | "ready" | "completed" | "cancelled";
   receptionCompleted?: boolean;
   statusHistory?: Array<{ status: string; changedAt: string; note?: string; userName?: string }>;
   createdAt: string;

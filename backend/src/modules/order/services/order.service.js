@@ -418,8 +418,9 @@ exports.updateOrderStatus = async (
 ) => {
   try {
     const validTransitions = {
-      pending: ["preparing", "ready", "cancelled"],
-      preparing: ["ready", "cancelled"],
+      pending: ["preparing", "in_oven", "ready", "cancelled"],
+      preparing: ["in_oven", "ready", "cancelled"],
+      in_oven: ["ready", "completed", "cancelled"],
       ready: ["completed", "cancelled"],
       completed: [],
       cancelled: [],

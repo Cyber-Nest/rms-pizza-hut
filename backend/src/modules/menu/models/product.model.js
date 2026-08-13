@@ -67,8 +67,8 @@ const productSchema = new mongoose.Schema({
   },
   kitchenLabel: {
     type: String,
-    enum: ['chicken', 'pizza'],
-    default: 'chicken',
+    enum: ['make_table', 'wings_station', 'pizza', 'chicken'],
+    default: 'make_table',
   },
   displayOrder: {
     type: Number,
