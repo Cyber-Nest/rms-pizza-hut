@@ -223,7 +223,7 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
               <span className="px-1.5 py-0.5 bg-brand-primary text-white text-[9px] font-900 rounded uppercase flex-shrink-0">
                 {branchInfo.code}
               </span>
-              <span className="text-[12px] font-800 text-neutral-800 whitespace-nowrap">
+              <span className="text-[12px] font-800 text-black whitespace-nowrap">
                 {branchInfo.name}
               </span>
               {isImpersonated && (
@@ -247,13 +247,13 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-700 transition-all cursor-pointer border ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-800 transition-all cursor-pointer border ${
                     isActive
                       ? 'border-brand-primary/30 bg-brand-primary-light text-brand-primary shadow-xs'
-                      : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-brand-primary/30 hover:bg-brand-primary-light hover:text-brand-primary'
+                      : 'border-neutral-200 bg-neutral-50 text-black hover:border-brand-primary/30 hover:bg-brand-primary-light hover:text-brand-primary'
                   }`}
                 >
-                  <Icon size={14} className={isActive ? 'text-brand-primary' : 'text-neutral-500'} />
+                  <Icon size={14} className={isActive ? 'text-brand-primary' : 'text-black'} />
                   <span>{link.name}</span>
                 </Link>
               );
@@ -265,13 +265,13 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
         {pathname === '/employee/pos' && (
           <div className="flex-1 max-w-sm mx-4 hidden md:block">
             <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search menu items..."
-                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl py-2 pl-9 pr-3 text-[12px] text-neutral-700 placeholder-neutral-400 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 focus:bg-white transition-all"
+                className="w-full bg-neutral-50 border border-neutral-200 rounded-xl py-2 pl-9 pr-3 text-[12px] font-700 text-black placeholder-neutral-500 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/15 focus:bg-white transition-all"
               />
             </div>
           </div>
@@ -301,7 +301,7 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
                 {activeEmployee ? activeEmployee.name.charAt(0) : 'A'}
               </div>
               <div className="hidden sm:flex flex-col text-left">
-                <span className="text-[12px] font-800 text-neutral-900 leading-none">
+                <span className="text-[12px] font-800 text-black leading-none">
                   {activeEmployee ? activeEmployee.name : `${branchInfo.code}`}
                 </span>
                 <span className="text-[9.5px] font-800 text-brand-primary uppercase tracking-wider mt-0.5 leading-none">

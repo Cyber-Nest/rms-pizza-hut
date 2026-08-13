@@ -42,7 +42,7 @@ interface KitchenDetailModalProps {
   order: Order | null;
   onClose: () => void;
   onStatusChange: () => void;
-  categoryFilter?: "all" | "chicken" | "pizza";
+  categoryFilter?: string;
 }
 
 interface GroupedModifier {
@@ -107,9 +107,14 @@ export default function KitchenDetailModal({
   const [cancelling, setCancelling] = useState(false);
 
   const isItemVisible = (item: any) => {
-    if (!categoryFilter || categoryFilter === "all") return true;
-    if (categoryFilter === "pizza") return item.kitchenLabel === "pizza";
-    if (categoryFilter === "chicken") return item.kitchenLabel !== "pizza";
+    if (!categoryFilter || categoryFilter === "all" || categoryFilter === "cut_station") return true;
+    const label = item.kitchenLabel || "make_table";
+    if (categoryFilter === "make_table" || categoryFilter === "pizza") {
+      return label === "make_table" || label === "pizza";
+    }
+    if (categoryFilter === "wings_station" || categoryFilter === "chicken") {
+      return label === "wings_station" || label === "chicken";
+    }
     return true;
   };
 
@@ -179,16 +184,9 @@ export default function KitchenDetailModal({
 
   // Status transitions
   const handleTransition = async (
-    nextStatus: "preparing" | "ready" | "completed",
+    nextStatus: "preparing" | "in_oven" | "ready" | "completed",
   ) => {
     if (isDraft || !localOrder) return;
-
-    // if (nextStatus === "completed" && localOrder.paymentStatus === "unpaid") {
-    //   toast.error(
-    //     "Cannot complete an unpaid order. Please collect payment and mark as Paid first.",
-    //   );
-    //   return;
-    // }
 
     setUpdating(true);
     try {
@@ -208,7 +206,7 @@ export default function KitchenDetailModal({
       const note = `Kitchen updated status to ${nextStatus}`;
       const res = await axios.patch(
         `${apiUrl}/orders/${localOrder._id}/status`,
-        { status: nextStatus, note, userName: activeEmpName },
+        { status: nextStatus, note, userName: activeEmpName, station: categoryFilter },
       );
 
       if (res.data.success) {
@@ -216,9 +214,15 @@ export default function KitchenDetailModal({
           localOrder.orderType === "delivery"
             ? "Ready for Delivery"
             : "Ready for Pickup";
-        toast.success(
-          `Order transitioned to ${nextStatus === "preparing" ? "Preparing" : nextStatus === "ready" ? readyText : "Completed"}`,
-        );
+        const statusMsg =
+          nextStatus === "preparing"
+            ? "Preparing"
+            : nextStatus === "in_oven"
+            ? "In the Oven"
+            : nextStatus === "ready"
+            ? readyText
+            : "Completed";
+        toast.success(`Order transitioned to ${statusMsg}`);
 
         // Update local status and history
         const updatedHistory = [...(localOrder.statusHistory || [])];
@@ -229,15 +233,70 @@ export default function KitchenDetailModal({
           userName: activeEmpName,
         });
 
+        const serverData = res.data.data || {};
+        const newMakeTableStatus =
+          serverData.makeTableStatus ||
+          (categoryFilter === "make_table" || categoryFilter === "pizza"
+            ? nextStatus
+            : localOrder.makeTableStatus);
+
+        const newWingsStatus =
+          serverData.wingsStatus ||
+          (categoryFilter === "wings_station" || categoryFilter === "chicken"
+            ? nextStatus
+            : localOrder.wingsStatus);
+
         setLocalOrder({
           ...localOrder,
-          status: nextStatus,
+          status: serverData.status || nextStatus,
+          makeTableStatus: newMakeTableStatus,
+          wingsStatus: newWingsStatus,
           statusHistory: updatedHistory,
         });
 
         onStatusChange();
 
+        // ── Auto-download receipt on Complete ──────────────────────────────
         if (nextStatus === "completed") {
+          // Determine receipt type based on station
+          // Combo order on Wings Station → wings-only partial receipt
+          // Cut Station (Pizza or Combo) → full receipt
+          // Wings-only order on Wings Station → full receipt (all items are wings)
+          const isComboOrder =
+            !!(localOrder.hasPizza || (localOrder.items || []).some((i: any) => i.kitchenLabel === "make_table")) &&
+            !!(localOrder.hasWings || (localOrder.items || []).some((i: any) => i.kitchenLabel === "wings_station"));
+
+          const wingsOnlyDownload =
+            categoryFilter === "wings_station" && isComboOrder;
+
+          const itemsFilterParam = wingsOnlyDownload ? "wings_only" : "all";
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+          // Fire & forget — don't block close on download
+          try {
+            const pdfRes = await axios.get(
+              `${apiUrl}/orders/${localOrder._id}/pdf?itemsFilter=${itemsFilterParam}`,
+              { responseType: "blob" },
+            );
+            const blob = new Blob([pdfRes.data], { type: "application/pdf" });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            const fileLabel = wingsOnlyDownload ? "wings-receipt" : "invoice";
+            link.setAttribute("download", `${fileLabel}-${localOrder.orderNumber?.replace("#", "")}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success("Receipt downloaded!");
+          } catch {
+            // Silent fail — don't block close even if PDF fails
+            console.warn("Auto-receipt download failed silently.");
+          }
+        }
+        // ──────────────────────────────────────────────────────────────────
+
+        if (nextStatus === "completed" || nextStatus === "in_oven") {
           onClose();
         }
       } else {
@@ -698,7 +757,14 @@ export default function KitchenDetailModal({
       );
     }
 
-    if (localOrder.status === "pending") {
+    const currentStationStatus =
+      categoryFilter === "make_table"
+        ? localOrder.makeTableStatus || localOrder.status
+        : categoryFilter === "wings_station"
+        ? localOrder.wingsStatus || localOrder.status
+        : localOrder.makeTableStatus || localOrder.status;
+
+    if (currentStationStatus === "pending") {
       return (
         <button
           onClick={() => handleTransition("preparing")}
@@ -710,7 +776,18 @@ export default function KitchenDetailModal({
       );
     }
 
-    if (localOrder.status === "preparing") {
+    if (currentStationStatus === "preparing") {
+      if (categoryFilter === "make_table" || categoryFilter === "pizza") {
+        return (
+          <button
+            onClick={() => handleTransition("in_oven")}
+            disabled={updating}
+            className="bg-orange-600 text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-orange-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+          >
+            In the Oven
+          </button>
+        );
+      }
       return (
         <button
           onClick={() => handleTransition("ready")}
@@ -724,22 +801,7 @@ export default function KitchenDetailModal({
       );
     }
 
-    if (localOrder.status === "ready") {
-      if (localOrder.orderType === "delivery") {
-        if (!localOrder.kitchenCleared) {
-          return (
-            <button
-              onClick={handleKitchenClear}
-              disabled={updating}
-              className="bg-brand-primary text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-brand-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
-            >
-              {/* Hand over to Driver */}
-              Complete Order
-            </button>
-          );
-        }
-        return null;
-      }
+    if (currentStationStatus === "in_oven" || currentStationStatus === "ready") {
       return (
         <button
           onClick={() => handleTransition("completed")}

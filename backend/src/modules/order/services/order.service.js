@@ -208,8 +208,41 @@ exports.createOrder = async (orderData) => {
       }
     }
 
+    // Populate accurate kitchenLabels for all items from Product DB model
+    try {
+      const productIds = (orderData.items || []).map((i) => i.productId).filter(Boolean);
+      if (productIds.length > 0) {
+        const dbProducts = await Product.find({ _id: { $in: productIds } }).select("_id kitchenLabel").lean();
+        const prodMap = new Map(dbProducts.map((p) => [p._id.toString(), p.kitchenLabel]));
+
+        orderData.items = (orderData.items || []).map((item) => {
+          const dbLabel = item.productId ? prodMap.get(item.productId.toString()) : undefined;
+          return {
+            ...item,
+            kitchenLabel: dbLabel || item.kitchenLabel || "make_table",
+          };
+        });
+      }
+    } catch (e) {
+      logger.warn(`Could not resolve DB product kitchenLabels in createOrder: ${e.message}`);
+    }
+
+    const hasPizza = (orderData.items || []).some((item) => {
+      const label = item.kitchenLabel || "make_table";
+      return label === "make_table" || label === "pizza";
+    });
+    const hasWings = (orderData.items || []).some((item) => {
+      const label = item.kitchenLabel || "make_table";
+      return label === "wings_station" || label === "chicken";
+    });
+
+    const makeTableStatus = hasPizza ? "pending" : "completed";
+    const wingsStatus = hasWings ? "pending" : "completed";
+
     const order = new Order({
       ...orderData,
+      makeTableStatus,
+      wingsStatus,
       customer:
         orderData.customer &&
         orderData.customer.name &&
@@ -349,7 +382,7 @@ exports.getAllOrders = async (filters = {}) => {
     }
 
     let selectFields =
-      "orderNumber customer subtotal total orderType orderSource paymentStatus status createdAt items orderTiming scheduledAt dueAt receptionCompleted";
+      "orderNumber customer subtotal total orderType orderSource paymentStatus status makeTableStatus wingsStatus createdAt items orderTiming scheduledAt dueAt receptionCompleted";
     if (filters.fields) {
       selectFields = filters.fields.split(",").join(" ");
     }
@@ -415,70 +448,75 @@ exports.updateOrderStatus = async (
   note = "",
   receptionCompleted = undefined,
   userName = "Manager",
+  station = undefined,
 ) => {
   try {
-    const validTransitions = {
-      pending: ["preparing", "ready", "cancelled"],
-      preparing: ["ready", "cancelled"],
-      ready: ["completed", "cancelled"],
-      completed: [],
-      cancelled: [],
-    };
-
     const order = await Order.findById(id);
     if (!order) throw new Error("Order not found.");
 
-    // Handle updates when status is already matching
-    if (order.status === status) {
-      if (receptionCompleted !== undefined) {
-        order.receptionCompleted = receptionCompleted;
+    if (station === "make_table") {
+      order.makeTableStatus = status;
+    } else if (station === "wings_station") {
+      order.wingsStatus = status;
+    } else if (station === "cut_station") {
+      if (status === "completed" || status === "ready") {
+        order.makeTableStatus = "completed";
+      } else {
+        order.makeTableStatus = status;
       }
-      if (note) {
-        order.statusHistory.push({
-          status,
-          changedAt: new Date(),
-          note,
-          userName,
-        });
+    } else {
+      if (status === "in_oven") {
+        order.makeTableStatus = "in_oven";
+      } else if (status === "completed") {
+        order.makeTableStatus = "completed";
+        order.wingsStatus = "completed";
+      } else if (status === "ready") {
+        order.makeTableStatus = "ready";
+        order.wingsStatus = "ready";
+      } else {
+        if (order.makeTableStatus !== "completed" && order.makeTableStatus !== "in_oven" && order.makeTableStatus !== "ready") {
+          order.makeTableStatus = status;
+        }
+        if (order.wingsStatus !== "completed" && order.wingsStatus !== "ready") {
+          order.wingsStatus = status;
+        }
       }
-      await order.save();
-
-      // Trigger real-time notification via Pusher
-      triggerOrderUpdated(order).catch((err) => {
-        logger.error(
-          `Error triggering real-time update Pusher event: ${err.message}`,
-        );
-      });
-
-      logger.info(
-        `Order ${order.orderNumber} updated (status remained ${status}, receptionCompleted set to ${receptionCompleted})`,
-      );
-      return order;
     }
 
-    const allowed = validTransitions[order.status] || [];
-    if (!allowed.includes(status)) {
-      throw new Error(
-        `Cannot transition from "${order.status}" to "${status}".`,
-      );
+    // Recalculate overall order.status
+    const hasPizza = (order.items || []).some((item) => {
+      const label = item.kitchenLabel || "make_table";
+      return label === "make_table" || label === "pizza";
+    });
+    const hasWings = (order.items || []).some((item) => {
+      const label = item.kitchenLabel || "make_table";
+      return label === "wings_station" || label === "chicken";
+    });
+
+    const isMakeDone = !hasPizza || order.makeTableStatus === "completed";
+    const isWingsDone = !hasWings || order.wingsStatus === "completed";
+
+    if (isMakeDone && isWingsDone) {
+      order.status = "completed";
+    } else if (order.makeTableStatus === "in_oven" || order.makeTableStatus === "preparing" || order.wingsStatus === "preparing" || order.wingsStatus === "ready") {
+      order.status = "preparing";
+    } else {
+      order.status = "pending";
     }
 
-    order.status = status;
     if (receptionCompleted !== undefined) {
       order.receptionCompleted = receptionCompleted;
     }
-    order.statusHistory.push({ status, changedAt: new Date(), note, userName });
+
+    order.statusHistory.push({ status: order.status, changedAt: new Date(), note, userName });
     await order.save();
 
-    // Trigger real-time notification via Pusher
     triggerOrderUpdated(order).catch((err) => {
-      logger.error(
-        `Error triggering real-time update Pusher event: ${err.message}`,
-      );
+      logger.error(`Error triggering real-time update Pusher event: ${err.message}`);
     });
 
     logger.info(
-      `Order ${order.orderNumber} status → ${status} (receptionCompleted: ${receptionCompleted})`,
+      `Order ${order.orderNumber} updated via ${station || 'general'}: makeTableStatus=${order.makeTableStatus}, wingsStatus=${order.wingsStatus}, overall=${order.status}`
     );
     return order;
   } catch (error) {

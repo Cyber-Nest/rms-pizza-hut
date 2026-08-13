@@ -77,6 +77,8 @@ const triggerOrderUpdated = async (order) => {
       _id: order._id,
       orderNumber: order.orderNumber,
       status: order.status,
+      makeTableStatus: order.makeTableStatus,
+      wingsStatus: order.wingsStatus,
       orderSource: order.orderSource,
       orderType: order.orderType,
       orderTiming: order.orderTiming,

@@ -156,9 +156,11 @@ exports.downloadReceiptPdf = async (req, res) => {
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+    const itemsFilter = req.query.itemsFilter || "all"; // "wings_only" | "all"
+    const fileLabel = itemsFilter === "wings_only" ? "wings-receipt" : "invoice";
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=invoice-${order.orderNumber}.pdf`);
-    await receiptPdfService.generateReceiptPdf(order, res);
+    res.setHeader('Content-Disposition', `attachment; filename=${fileLabel}-${order.orderNumber}.pdf`);
+    await receiptPdfService.generateReceiptPdf(order, res, itemsFilter);
   } catch (error) {
     handleError(res, error, 500);
   }
@@ -167,20 +169,23 @@ exports.downloadReceiptPdf = async (req, res) => {
 
 exports.updateOrderStatus = async (req, res) => {
   try {
-    const { status, note, receptionCompleted, userName, employeeName } = req.body;
+    const { status, note, receptionCompleted, userName, employeeName, station } = req.body;
     if (!status) return res.status(400).json({ success: false, message: 'Status is required.' });
     const order = await orderService.updateOrderStatus(
       req.params.id,
       status,
       note,
       receptionCompleted,
-      userName || employeeName || 'Manager'
+      userName || employeeName || 'Manager',
+      station
     );
     res.status(200).json({
       success: true,
       data: {
         _id: order._id,
         status: order.status,
+        makeTableStatus: order.makeTableStatus,
+        wingsStatus: order.wingsStatus,
         receptionCompleted: order.receptionCompleted
       }
     });

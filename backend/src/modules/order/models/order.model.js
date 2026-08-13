@@ -34,8 +34,8 @@ const orderItemSchema = new mongoose.Schema(
     note: { type: String, default: "" },
     kitchenLabel: {
       type: String,
-      enum: ["chicken", "pizza"],
-      default: "chicken",
+      enum: ["make_table", "wings_station", "pizza", "chicken"],
+      default: "make_table",
     },
   },
   { _id: false },
@@ -159,7 +159,17 @@ const orderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "preparing", "ready", "completed", "cancelled"],
+      enum: ["pending", "preparing", "in_oven", "ready", "completed", "cancelled"],
+      default: "pending",
+    },
+    makeTableStatus: {
+      type: String,
+      enum: ["pending", "preparing", "in_oven", "ready", "completed"],
+      default: "pending",
+    },
+    wingsStatus: {
+      type: String,
+      enum: ["pending", "preparing", "ready", "completed"],
       default: "pending",
     },
     receptionCompleted: {

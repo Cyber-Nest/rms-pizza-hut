@@ -2,7 +2,7 @@ const PDFDocument = require("pdfkit");
 const logger = require("../../../shared/utils/logger");
 const Branch = require("../../company/models/branch.model");
 
-exports.generateReceiptPdf = async (order, res) => {
+exports.generateReceiptPdf = async (order, res, itemsFilter = "all") => {
   try {
     let branchInfo = {
       name: order.branchName || "Pizza Hut",
@@ -200,9 +200,15 @@ exports.generateReceiptPdf = async (order, res) => {
       .undash();
     doc.moveDown(0.4);
 
-    // 4. Items Loop
-    if (order.items && Array.isArray(order.items)) {
-      order.items.forEach((item) => {
+    // 4. Items Loop (filtered by station if needed)
+    const itemsToRender = (order.items && Array.isArray(order.items))
+      ? (itemsFilter === "wings_only"
+          ? order.items.filter(item => item.kitchenLabel === "wings_station" || item.kitchenLabel === "chicken")
+          : order.items)
+      : [];
+
+    if (itemsToRender.length > 0) {
+      itemsToRender.forEach((item) => {
         const itemY = doc.y;
         const itemTotal =
           (item.totalPrice !== undefined
@@ -263,12 +269,27 @@ exports.generateReceiptPdf = async (order, res) => {
       .undash();
     doc.moveDown(0.4);
 
-    const subtotal = order.subtotal || 0;
-    const discount = order.discount || 0;
-    const tax = order.tax || 0;
-    const taxRate = order.taxRate || 0.05;
-    const deliveryFee = order.deliveryFee || 0;
-    const total = order.total || 0;
+    // Compute totals — for wings_only filter, recalculate from filtered items
+    let subtotal, discount, tax, taxRate, deliveryFee, total;
+    if (itemsFilter === "wings_only" && itemsToRender.length > 0) {
+      const wingsSubtotal = itemsToRender.reduce((sum, item) => {
+        const itemTotal = item.totalPrice !== undefined ? item.totalPrice : (item.basePrice * item.quantity);
+        return sum + (itemTotal || 0);
+      }, 0);
+      taxRate = order.taxRate || 0.05;
+      tax = wingsSubtotal * taxRate;
+      subtotal = wingsSubtotal;
+      discount = 0; // no discount split for partial
+      deliveryFee = 0;
+      total = wingsSubtotal + tax;
+    } else {
+      subtotal = order.subtotal || 0;
+      discount = order.discount || 0;
+      tax = order.tax || 0;
+      taxRate = order.taxRate || 0.05;
+      deliveryFee = order.deliveryFee || 0;
+      total = order.total || 0;
+    }
 
     doc.font("Helvetica").fontSize(8.5);
     let rowY = doc.y;

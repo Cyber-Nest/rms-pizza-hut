@@ -428,7 +428,7 @@ export default function MenuMatrixPage() {
                                       <span className="font-800 text-brand-primary">${prod.price.toFixed(2)}</span>
                                       <span>•</span>
                                       <span className="font-600">
-                                        {prod.kitchenLabel === "pizza" ? "🍕 Pizza" : "🍗 Chicken"}
+                                        {prod.kitchenLabel === "make_table" || prod.kitchenLabel === "pizza" ? "🍕 Make Table" : "🍗 Wings Station"}
                                       </span>
                                     </div>
                                   </div>

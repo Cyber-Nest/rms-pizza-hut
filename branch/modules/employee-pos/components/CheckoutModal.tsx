@@ -34,7 +34,7 @@ const ORDER_TYPE_LABELS: Record<
 > = {
   takeout: { label: "Takeout", icon: <ShoppingBag size={11} /> },
   delivery: { label: "Delivery", icon: <Truck size={11} /> },
-  "drive-through": { label: "Drive Thru", icon: <Car size={11} /> },
+  // "drive-through": { label: "Drive Thru", icon: <Car size={11} /> },
   "dine-in": { label: "Dine In", icon: <Utensils size={11} /> },
 };
 
@@ -289,7 +289,7 @@ export default function CheckoutModal() {
         <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-scale-up">
           {/* ── Header ── */}
           <div className="bg-brand-primary px-5 py-3 flex items-center gap-3 flex-shrink-0">
-            <h2 className="text-[14px] font-800 text-white uppercase tracking-widest">
+            <h2 className="text-[14px] font-900 text-white uppercase tracking-widest">
               Your Order
             </h2>
 
@@ -297,7 +297,7 @@ export default function CheckoutModal() {
             <div className="flex items-center gap-1.5 ml-2">
               {(isThirdParty
                 ? (["takeout", "delivery"] as const)
-                : (["takeout", "delivery", "drive-through", "dine-in"] as const)
+                : (["takeout", "delivery", /* "drive-through", */ "dine-in"] as const)
               ).map((t) => {
                 const entry = ORDER_TYPE_LABELS[t];
                 if (!entry) return null;
@@ -306,10 +306,10 @@ export default function CheckoutModal() {
                   <button
                     key={t}
                     onClick={() => handleOrderTypeChange(t)}
-                    className={`px-3 py-1.5 rounded-full text-[10px] font-700 uppercase tracking-wide transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-full text-[11px] font-900 uppercase tracking-wide transition-all cursor-pointer ${
                       orderType === t
                         ? "bg-white text-brand-primary shadow-sm"
-                        : "bg-white/20 text-white hover:bg-white/30"
+                        : "bg-white/20 text-white font-800 hover:bg-white/30"
                     }`}
                   >
                     {label}
@@ -320,9 +320,9 @@ export default function CheckoutModal() {
 
             <button
               onClick={closeCheckout}
-              className="ml-auto flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full text-[10px] font-700 uppercase transition-all cursor-pointer"
+              className="ml-auto flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3.5 py-1.5 rounded-full text-[11px] font-900 uppercase transition-all cursor-pointer"
             >
-              <X size={12} /> Close
+              <X size={13} strokeWidth={2.5} /> Close
             </button>
           </div>
 

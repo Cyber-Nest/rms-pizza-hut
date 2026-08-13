@@ -61,7 +61,7 @@ export interface Product {
   badge?: "Popular" | "Best Seller" | "New" | null;
   productId?: string;
   isActive?: boolean;
-  kitchenLabel?: "chicken" | "pizza";
+  kitchenLabel?: "make_table" | "wings_station" | "chicken" | "pizza";
   displayOrder?: number;
   disabledBranches?: string[];
 }

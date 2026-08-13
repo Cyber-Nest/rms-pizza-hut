@@ -7,6 +7,7 @@ import { Order } from "../types";
 interface KitchenOrderCardProps {
   order: Order;
   onClick: () => void;
+  stationFilter?: 'cut_station' | 'make_table' | 'wings_station';
 }
 
 interface GroupedModifier {
@@ -54,6 +55,7 @@ const getGroupedModifiers = (modifiers: any[]): GroupedModifier[] => {
 export default function KitchenOrderCard({
   order,
   onClick,
+  stationFilter,
 }: KitchenOrderCardProps) {
   const [elapsedMins, setElapsedMins] = useState(0);
 
@@ -98,6 +100,7 @@ export default function KitchenOrderCard({
   const statusColorMap: Record<string, string> = {
     pending: "bg-brand-primary",
     preparing: "bg-amber-500",
+    in_oven: "bg-orange-600",
     ready: "bg-emerald-500",
     completed: "bg-neutral-400",
     cancelled: "bg-red-500",
@@ -165,9 +168,24 @@ export default function KitchenOrderCard({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
-                    <p className="text-neutral-800 font-700 text-[15px] leading-tight flex-1">
-                      {item.name}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <p className="text-neutral-800 font-700 text-[15px] leading-tight truncate">
+                        {item.name}
+                      </p>
+                      {(item.kitchenLabel === "wings_station" || item.kitchenLabel === "chicken") && (
+                        <span className={`text-[8px] font-800 px-1 py-0.2 rounded border uppercase flex-shrink-0 ${
+                          order.wingsStatus === "completed"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : order.wingsStatus === "ready"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            : order.wingsStatus === "preparing"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}>
+                          Wings: {order.wingsStatus === "completed" ? "Done" : order.wingsStatus === "ready" ? "Ready" : order.wingsStatus === "preparing" ? "Prep" : "Pending"}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[12.5px] font-800 text-neutral-700 flex-shrink-0">
                       ${((item.totalPrice ?? item.basePrice * item.quantity)).toFixed(2)}
                     </span>
@@ -247,17 +265,35 @@ export default function KitchenOrderCard({
             <span className="px-2 py-0.5 rounded-full border border-amber-250 bg-amber-50 text-amber-700 text-[9px] font-700 uppercase tracking-wide">
               POS Drafting
             </span>
-          ) : order.status === "pending" ? (
-            <span className="px-2 py-0.5 rounded-full border border-orange-200 bg-orange-50 text-brand-primary text-[9px] font-700 uppercase tracking-wide animate-pulse">
-              Confirmed
+          ) : stationFilter === "wings_station" ? (
+            (order.wingsStatus === "completed" || order.wingsStatus === "ready" || (order.status === "ready" && !order.makeTableStatus)) ? (
+              <span className="px-2 py-0.5 rounded-full border border-emerald-250 bg-emerald-50 text-emerald-700 text-[9px] font-700 uppercase tracking-wide">
+                {order.orderType === "delivery" ? "Ready Delv" : "Ready Pick"}
+              </span>
+            ) : (order.wingsStatus === "preparing" || order.status === "preparing") ? (
+              <span className="px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-600 text-[9px] font-700 uppercase tracking-wide">
+                Preparing
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full border border-orange-200 bg-orange-50 text-brand-primary text-[9px] font-700 uppercase tracking-wide animate-pulse">
+                Confirmed
+              </span>
+            )
+          ) : (order.makeTableStatus === "in_oven" || order.status === "in_oven") ? (
+            <span className="px-2 py-0.5 rounded-full border border-orange-300 bg-orange-100 text-orange-700 text-[9px] font-800 uppercase tracking-wide">
+              In Oven
             </span>
-          ) : order.status === "preparing" ? (
+          ) : (order.makeTableStatus === "ready" || order.status === "ready") ? (
+            <span className="px-2 py-0.5 rounded-full border border-emerald-250 bg-emerald-50 text-emerald-700 text-[9px] font-700 uppercase tracking-wide">
+              {order.orderType === "delivery" ? "Ready Delv" : "Ready Pick"}
+            </span>
+          ) : (order.makeTableStatus === "preparing" || order.status === "preparing") ? (
             <span className="px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-600 text-[9px] font-700 uppercase tracking-wide">
               Preparing
             </span>
           ) : (
-            <span className="px-2 py-0.5 rounded-full border border-emerald-250 bg-emerald-50 text-emerald-700 text-[9px] font-700 uppercase tracking-wide">
-              {order.orderType === "delivery" ? "Ready Delv" : "Ready Pick"}
+            <span className="px-2 py-0.5 rounded-full border border-orange-200 bg-orange-50 text-brand-primary text-[9px] font-700 uppercase tracking-wide animate-pulse">
+              Confirmed
             </span>
           )}
           <span className="font-800 text-neutral-800 text-[13px]">
