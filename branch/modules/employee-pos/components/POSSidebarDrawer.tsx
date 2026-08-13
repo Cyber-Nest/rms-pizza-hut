@@ -248,7 +248,7 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
                       } else if (item.key === 'reception_view') {
                         window.location.href = '/employee/reception';
                       } else if (item.key === 'delivery') {
-                        window.location.href = '/employee/delivery';
+                        window.open('/employee/delivery', '_blank');
                       } else if (item.key === 'driver_drop') {
                         window.location.href = '/employee/driver-drop';
                       } else if (item.key === 'vehicles') {
