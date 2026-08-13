@@ -162,6 +162,16 @@ const orderSchema = new mongoose.Schema(
       enum: ["pending", "preparing", "in_oven", "ready", "completed", "cancelled"],
       default: "pending",
     },
+    makeTableStatus: {
+      type: String,
+      enum: ["pending", "preparing", "in_oven", "ready", "completed"],
+      default: "pending",
+    },
+    wingsStatus: {
+      type: String,
+      enum: ["pending", "preparing", "ready", "completed"],
+      default: "pending",
+    },
     receptionCompleted: {
       type: Boolean,
       default: false,

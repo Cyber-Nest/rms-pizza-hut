@@ -206,7 +206,7 @@ export default function KitchenDetailModal({
       const note = `Kitchen updated status to ${nextStatus}`;
       const res = await axios.patch(
         `${apiUrl}/orders/${localOrder._id}/status`,
-        { status: nextStatus, note, userName: activeEmpName },
+        { status: nextStatus, note, userName: activeEmpName, station: categoryFilter },
       );
 
       if (res.data.success) {
@@ -233,9 +233,24 @@ export default function KitchenDetailModal({
           userName: activeEmpName,
         });
 
+        const serverData = res.data.data || {};
+        const newMakeTableStatus =
+          serverData.makeTableStatus ||
+          (categoryFilter === "make_table" || categoryFilter === "pizza"
+            ? nextStatus
+            : localOrder.makeTableStatus);
+
+        const newWingsStatus =
+          serverData.wingsStatus ||
+          (categoryFilter === "wings_station" || categoryFilter === "chicken"
+            ? nextStatus
+            : localOrder.wingsStatus);
+
         setLocalOrder({
           ...localOrder,
-          status: nextStatus,
+          status: serverData.status || nextStatus,
+          makeTableStatus: newMakeTableStatus,
+          wingsStatus: newWingsStatus,
           statusHistory: updatedHistory,
         });
 
@@ -702,7 +717,14 @@ export default function KitchenDetailModal({
       );
     }
 
-    if (localOrder.status === "pending") {
+    const currentStationStatus =
+      categoryFilter === "make_table"
+        ? localOrder.makeTableStatus || localOrder.status
+        : categoryFilter === "wings_station"
+        ? localOrder.wingsStatus || localOrder.status
+        : localOrder.makeTableStatus || localOrder.status;
+
+    if (currentStationStatus === "pending") {
       return (
         <button
           onClick={() => handleTransition("preparing")}
@@ -714,8 +736,7 @@ export default function KitchenDetailModal({
       );
     }
 
-    if (localOrder.status === "preparing") {
-      // If Make Station view, transition to In the Oven
+    if (currentStationStatus === "preparing") {
       if (categoryFilter === "make_table" || categoryFilter === "pizza") {
         return (
           <button
@@ -740,33 +761,7 @@ export default function KitchenDetailModal({
       );
     }
 
-    if (localOrder.status === "in_oven") {
-      return (
-        <button
-          onClick={() => handleTransition("completed")}
-          disabled={updating}
-          className="bg-success text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-green-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-        >
-          Complete Order
-        </button>
-      );
-    }
-
-    if (localOrder.status === "ready") {
-      if (localOrder.orderType === "delivery") {
-        if (!localOrder.kitchenCleared) {
-          return (
-            <button
-              onClick={handleKitchenClear}
-              disabled={updating}
-              className="bg-brand-primary text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-brand-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
-            >
-              Complete Order
-            </button>
-          );
-        }
-        return null;
-      }
+    if (currentStationStatus === "in_oven" || currentStationStatus === "ready") {
       return (
         <button
           onClick={() => handleTransition("completed")}

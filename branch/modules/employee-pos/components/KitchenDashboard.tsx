@@ -78,7 +78,7 @@ export default function KitchenDashboard() {
       const res = await axios.get(`${apiUrl}/orders`, {
         params: {
           status: 'pending,preparing,in_oven,ready',
-          fields: 'orderNumber,orderSource,orderType,status,createdAt,items,orderTiming,scheduledAt,dueAt,total,paymentStatus,kitchenCleared,branchId,branchName,branchCode',
+          fields: 'orderNumber,orderSource,orderType,status,makeTableStatus,wingsStatus,createdAt,items,orderTiming,scheduledAt,dueAt,total,paymentStatus,kitchenCleared,branchId,branchName,branchCode',
           excludeKitchenCleared: 'true',
           ...(branchId ? { branchId } : {})
         }
@@ -298,29 +298,45 @@ export default function KitchenDashboard() {
       }
     });
 
+    const getItemKitchenLabel = (item: any): 'make_table' | 'wings_station' => {
+      if (item.kitchenLabel === 'wings_station' || item.kitchenLabel === 'chicken') return 'wings_station';
+      if (item.kitchenLabel === 'make_table' || item.kitchenLabel === 'pizza') return 'make_table';
+      
+      const lowerName = (item.name || '').toLowerCase();
+      if (
+        lowerName.includes('chicken') ||
+        lowerName.includes('wings') ||
+        lowerName.includes('strip') ||
+        lowerName.includes('side') ||
+        lowerName.includes('fries') ||
+        lowerName.includes('drink') ||
+        lowerName.includes('beverage')
+      ) {
+        return 'wings_station';
+      }
+      return 'make_table';
+    };
+
     // Station filtering logic
     const stationFiltered: Order[] = [];
     candidates.forEach((o) => {
       const items = o.items || [];
-      const hasPizza = items.some((item: any) => {
-        const label = item.kitchenLabel || 'make_table';
-        return label === 'make_table' || label === 'pizza';
-      });
+      const hasPizza = items.some((item: any) => getItemKitchenLabel(item) === 'make_table');
+
+      const mtStatus = o.makeTableStatus || (o.status === 'in_oven' ? 'in_oven' : o.status === 'completed' ? 'completed' : o.status === 'preparing' ? 'preparing' : 'pending');
+      const wStatus = o.wingsStatus || (o.status === 'completed' ? 'completed' : o.status === 'ready' ? 'ready' : o.status === 'preparing' ? 'preparing' : 'pending');
 
       if (stationFilter === 'cut_station') {
-        // Cut Station: ONLY show order if it contains at least 1 Pizza item AND status is in_oven (or ready/completed)
-        const isCutStationStatus = o.status === 'in_oven' || o.status === 'ready' || o.status === 'completed';
-        if (hasPizza && isCutStationStatus) {
+        // Cut Station: ONLY show order if it contains Pizza item AND makeTableStatus is "in_oven"
+        const isCutStationActive = mtStatus === 'in_oven' || (statusFilter === 'ready' && mtStatus === 'completed');
+        if (hasPizza && isCutStationActive) {
           stationFiltered.push(o);
         }
       } else if (stationFilter === 'make_table') {
-        // Make Station: Show ONLY Pizza items when status is pending or preparing (removes when in_oven)
-        const isMakeTableStatus = o.status === 'pending' || o.status === 'preparing';
-        if (isMakeTableStatus) {
-          const matchingItems = items.filter((item: any) => {
-            const label = item.kitchenLabel || 'make_table';
-            return label === 'make_table' || label === 'pizza';
-          });
+        // Make Station: Show ONLY Pizza items when makeTableStatus is pending or preparing (removes when in_oven or completed)
+        const isMakeTableActive = mtStatus === 'pending' || mtStatus === 'preparing';
+        if (isMakeTableActive) {
+          const matchingItems = items.filter((item: any) => getItemKitchenLabel(item) === 'make_table');
           if (matchingItems.length > 0) {
             stationFiltered.push({
               ...o,
@@ -329,16 +345,16 @@ export default function KitchenDashboard() {
           }
         }
       } else if (stationFilter === 'wings_station') {
-        // Wings Station: Show ONLY Wings / Chicken items of the order.
-        const matchingItems = items.filter((item: any) => {
-          const label = item.kitchenLabel || 'make_table';
-          return label === 'wings_station' || label === 'chicken';
-        });
-        if (matchingItems.length > 0) {
-          stationFiltered.push({
-            ...o,
-            items: matchingItems
-          });
+        // Wings Station: Show ONLY Wings items when wingsStatus is NOT completed
+        const isWingsActive = wStatus !== 'completed';
+        if (isWingsActive) {
+          const matchingItems = items.filter((item: any) => getItemKitchenLabel(item) === 'wings_station');
+          if (matchingItems.length > 0) {
+            stationFiltered.push({
+              ...o,
+              items: matchingItems
+            });
+          }
         }
       }
     });
@@ -481,6 +497,7 @@ export default function KitchenDashboard() {
                 >
                   <KitchenOrderCard
                     order={order}
+                    stationFilter={stationFilter}
                     onClick={() => handleSelectOrder(order)}
                   />
                 </div>

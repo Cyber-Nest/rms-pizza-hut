@@ -73,6 +73,8 @@ export interface Order {
   dueAt?: string | null;
   notes: string;
   status: "pending" | "preparing" | "in_oven" | "ready" | "completed" | "cancelled";
+  makeTableStatus?: "pending" | "preparing" | "in_oven" | "ready" | "completed";
+  wingsStatus?: "pending" | "preparing" | "ready" | "completed";
   receptionCompleted?: boolean;
   statusHistory?: Array<{ status: string; changedAt: string; note?: string; userName?: string }>;
   createdAt: string;
