@@ -156,9 +156,11 @@ exports.downloadReceiptPdf = async (req, res) => {
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
+    const itemsFilter = req.query.itemsFilter || "all"; // "wings_only" | "all"
+    const fileLabel = itemsFilter === "wings_only" ? "wings-receipt" : "invoice";
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=invoice-${order.orderNumber}.pdf`);
-    await receiptPdfService.generateReceiptPdf(order, res);
+    res.setHeader('Content-Disposition', `attachment; filename=${fileLabel}-${order.orderNumber}.pdf`);
+    await receiptPdfService.generateReceiptPdf(order, res, itemsFilter);
   } catch (error) {
     handleError(res, error, 500);
   }

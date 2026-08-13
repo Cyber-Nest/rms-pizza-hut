@@ -256,6 +256,46 @@ export default function KitchenDetailModal({
 
         onStatusChange();
 
+        // ── Auto-download receipt on Complete ──────────────────────────────
+        if (nextStatus === "completed") {
+          // Determine receipt type based on station
+          // Combo order on Wings Station → wings-only partial receipt
+          // Cut Station (Pizza or Combo) → full receipt
+          // Wings-only order on Wings Station → full receipt (all items are wings)
+          const isComboOrder =
+            !!(localOrder.hasPizza || (localOrder.items || []).some((i: any) => i.kitchenLabel === "make_table")) &&
+            !!(localOrder.hasWings || (localOrder.items || []).some((i: any) => i.kitchenLabel === "wings_station"));
+
+          const wingsOnlyDownload =
+            categoryFilter === "wings_station" && isComboOrder;
+
+          const itemsFilterParam = wingsOnlyDownload ? "wings_only" : "all";
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+          // Fire & forget — don't block close on download
+          try {
+            const pdfRes = await axios.get(
+              `${apiUrl}/orders/${localOrder._id}/pdf?itemsFilter=${itemsFilterParam}`,
+              { responseType: "blob" },
+            );
+            const blob = new Blob([pdfRes.data], { type: "application/pdf" });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            const fileLabel = wingsOnlyDownload ? "wings-receipt" : "invoice";
+            link.setAttribute("download", `${fileLabel}-${localOrder.orderNumber?.replace("#", "")}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success("Receipt downloaded!");
+          } catch {
+            // Silent fail — don't block close even if PDF fails
+            console.warn("Auto-receipt download failed silently.");
+          }
+        }
+        // ──────────────────────────────────────────────────────────────────
+
         if (nextStatus === "completed" || nextStatus === "in_oven") {
           onClose();
         }

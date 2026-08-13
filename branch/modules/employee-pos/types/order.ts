@@ -43,6 +43,8 @@ export interface PromoApplied {
 }
 
 export interface Order {
+  hasPizza: boolean;
+  hasWings: boolean;
   refundedAt: any;
   deliveryFee: number | undefined;
   tip?: number;
