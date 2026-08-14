@@ -175,7 +175,8 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
     expense = [],
     shortageOverage = { cash: 0, card: 0, accountPay: 0 },
     moneyToBeCollected = { cash: 0, card: 0, accountPay: 0 },
-    driverReport = []
+    driverReport = [],
+    accountClosing = null,
   } = data;
 
   return (
@@ -345,6 +346,12 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
                   <td className="py-2 px-4">Debit Card - Sales</td>
                   <td className="py-2 px-4 text-right font-700 text-neutral-900">${salesReceived.debitCardSales.toFixed(2)}</td>
                 </tr>
+                {salesReceived.unpaidSales !== undefined && salesReceived.unpaidSales > 0 && (
+                  <tr className="bg-amber-50/60">
+                    <td className="py-2 px-4 text-amber-800 font-700">Unpaid / Pay Later (Pending)</td>
+                    <td className="py-2 px-4 text-right font-800 text-amber-700">${salesReceived.unpaidSales.toFixed(2)}</td>
+                  </tr>
+                )}
                 <tr className="bg-neutral-50 font-900 text-neutral-900 border-t border-neutral-200/80">
                   <td className="py-2 px-4 uppercase text-[10.5px]">Grand Total</td>
                   <td className="py-2 px-4 text-right text-brand-primary font-900">${salesReceived.grandTotal.toFixed(2)}</td>
@@ -439,6 +446,92 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* ── ACCOUNT CLOSING STATUS (Left Column) ── */}
+          <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
+            <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <FileText size={14} />
+                <span>Account Closing</span>
+              </span>
+              {accountClosing ? (
+                <span className="flex items-center gap-1 text-[9.5px] bg-emerald-500 text-white px-2 py-0.5 rounded font-800">
+                  <CheckCircle size={10} /> Day Closed
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[9.5px] bg-amber-400 text-amber-900 px-2 py-0.5 rounded font-800">
+                  <XCircle size={10} /> Not Closed
+                </span>
+              )}
+            </div>
+
+            {accountClosing ? (
+              <div>
+                {/* Mini summary rows */}
+                <table className="w-full text-left text-[12px]">
+                  <thead>
+                    <tr className="bg-neutral-100 text-neutral-600 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200">
+                      <th className="py-2 px-4">Description</th>
+                      <th className="py-2 px-4 text-right">System</th>
+                      <th className="py-2 px-4 text-right">Entered</th>
+                      <th className="py-2 px-4 text-right">Diff</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-200/60 font-650 text-neutral-800">
+                    <tr className="hover:bg-neutral-50/60">
+                      <td className="py-2 px-4 font-700 text-neutral-700">Cash</td>
+                      <td className="py-2 px-4 text-right text-neutral-500">${Number(accountClosing.systemCash || 0).toFixed(2)}</td>
+                      <td className="py-2 px-4 text-right font-800 text-emerald-700">${Number(accountClosing.enteredCash || 0).toFixed(2)}</td>
+                      <td className={`py-2 px-4 text-right font-900 ${
+                        Number(accountClosing.cashShortage || 0) > 0.005 ? 'text-emerald-600' :
+                        Number(accountClosing.cashShortage || 0) < -0.005 ? 'text-rose-600' : 'text-neutral-500'
+                      }`}>
+                        {Number(accountClosing.cashShortage || 0) >= 0 ? '+' : ''}{Number(accountClosing.cashShortage || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-neutral-50/60">
+                      <td className="py-2 px-4 font-700 text-neutral-700">Card (Total)</td>
+                      <td className="py-2 px-4 text-right text-neutral-500">${Number(accountClosing.systemCard || 0).toFixed(2)}</td>
+                      <td className="py-2 px-4 text-right font-800 text-purple-700">${Number(accountClosing.enteredTotalCard || 0).toFixed(2)}</td>
+                      <td className={`py-2 px-4 text-right font-900 ${
+                        Number(accountClosing.cardShortage || 0) > 0.005 ? 'text-emerald-600' :
+                        Number(accountClosing.cardShortage || 0) < -0.005 ? 'text-rose-600' : 'text-neutral-500'
+                      }`}>
+                        {Number(accountClosing.cardShortage || 0) >= 0 ? '+' : ''}{Number(accountClosing.cardShortage || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="bg-neutral-900 text-white font-900">
+                      <td className="py-2.5 px-4 uppercase text-[10.5px] tracking-wide">Grand Total</td>
+                      <td className="py-2.5 px-4 text-right text-neutral-300">${(Number(accountClosing.systemCash || 0) + Number(accountClosing.systemCard || 0)).toFixed(2)}</td>
+                      <td className="py-2.5 px-4 text-right text-emerald-400">${Number(accountClosing.enteredGrandTotal || 0).toFixed(2)}</td>
+                      <td className={`py-2.5 px-4 text-right font-900 ${
+                        Number(accountClosing.grandShortage || 0) > 0.005 ? 'text-emerald-400' :
+                        Number(accountClosing.grandShortage || 0) < -0.005 ? 'text-rose-400' : 'text-neutral-300'
+                      }`}>
+                        {Number(accountClosing.grandShortage || 0) >= 0 ? '+' : ''}{Number(accountClosing.grandShortage || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="px-4 py-2.5 flex justify-between items-center bg-neutral-50 border-t border-neutral-200">
+                  <span className="text-[10px] text-neutral-500 font-650">Closed by: {accountClosing.closedBy || 'Manager'}</span>
+                  <a href="/employee/account-closing" className="flex items-center gap-1 text-[10.5px] font-800 text-brand-primary hover:underline">
+                    <FileText size={12} /> View Details
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 flex flex-col items-center gap-2.5 text-center">
+                <p className="text-neutral-400 font-600 text-[11.5px]">Day not closed yet for this date.</p>
+                <a
+                  href="/employee/account-closing"
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-primary hover:bg-[#b9142d] text-white text-[11px] font-800 uppercase rounded-full transition-all"
+                >
+                  <FileText size={12} /> Close Day
+                </a>
+              </div>
+            )}
           </div>
 
         </div>

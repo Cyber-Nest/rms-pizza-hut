@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   X, LogOut, LayoutDashboard, KeyRound, Clock, ShoppingBag, 
   Receipt, ArrowLeftRight, Wallet, Users, UtensilsCrossed, 
-  Settings, UserCheck, Lock, Bell, BarChart3, Power, ChefHat, TrendingUp, Truck, Car, QrCode, ShieldCheck, User
+  Settings, UserCheck, Lock, Bell, BarChart3, Power, ChefHat, TrendingUp, Truck, Car, QrCode, ShieldCheck, User, FileCheck
 } from 'lucide-react';
 import CheckInOutModal from './CheckInOutModal';
 import StoreQrModal from './StoreQrModal';
@@ -97,6 +97,7 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
     { key: 'reception_view', label: 'Reception View', icon: TrendingUp },
     { key: 'delivery', label: 'Delivery', icon: Truck },
     { key: 'driver_drop', label: 'Driver Drop', icon: Receipt },
+    { key: 'account_closing', label: 'Account Closing', icon: FileCheck },
     { key: 'vehicles', label: 'Vehicle Number', icon: Car },
     { key: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
     { key: 'expense_payout', label: 'Expense/Payout', icon: Wallet },
@@ -271,6 +272,8 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
                         window.location.href = '/employee/reception';
                       } else if (item.key === 'driver_drop') {
                         window.location.href = '/employee/driver-drop';
+                      } else if (item.key === 'account_closing') {
+                        window.location.href = '/employee/account-closing';
                       } else if (item.key === 'vehicles') {
                         window.location.href = '/employee/vehicles';
                       } else if (item.key === 'customers') {
