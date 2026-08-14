@@ -5,6 +5,7 @@ const Category = require("../../menu/models/category.model");
 const Expense = require("../../expense/models/expense.model");
 const Deposit = require("../models/deposit.model");
 const DriverDropSettlement = require("../../delivery/models/DriverDropSettlement.model");
+const AccountClosing = require("../models/AccountClosing.model");
 const logger = require("../../../shared/utils/logger");
 const {
   getLocalDateStr,
@@ -210,13 +211,21 @@ exports.createOrder = async (orderData) => {
 
     // Populate accurate kitchenLabels for all items from Product DB model
     try {
-      const productIds = (orderData.items || []).map((i) => i.productId).filter(Boolean);
+      const productIds = (orderData.items || [])
+        .map((i) => i.productId)
+        .filter(Boolean);
       if (productIds.length > 0) {
-        const dbProducts = await Product.find({ _id: { $in: productIds } }).select("_id kitchenLabel").lean();
-        const prodMap = new Map(dbProducts.map((p) => [p._id.toString(), p.kitchenLabel]));
+        const dbProducts = await Product.find({ _id: { $in: productIds } })
+          .select("_id kitchenLabel")
+          .lean();
+        const prodMap = new Map(
+          dbProducts.map((p) => [p._id.toString(), p.kitchenLabel]),
+        );
 
         orderData.items = (orderData.items || []).map((item) => {
-          const dbLabel = item.productId ? prodMap.get(item.productId.toString()) : undefined;
+          const dbLabel = item.productId
+            ? prodMap.get(item.productId.toString())
+            : undefined;
           return {
             ...item,
             kitchenLabel: dbLabel || item.kitchenLabel || "make_table",
@@ -224,7 +233,9 @@ exports.createOrder = async (orderData) => {
         });
       }
     } catch (e) {
-      logger.warn(`Could not resolve DB product kitchenLabels in createOrder: ${e.message}`);
+      logger.warn(
+        `Could not resolve DB product kitchenLabels in createOrder: ${e.message}`,
+      );
     }
 
     const hasPizza = (orderData.items || []).some((item) => {
@@ -474,10 +485,17 @@ exports.updateOrderStatus = async (
         order.makeTableStatus = "ready";
         order.wingsStatus = "ready";
       } else {
-        if (order.makeTableStatus !== "completed" && order.makeTableStatus !== "in_oven" && order.makeTableStatus !== "ready") {
+        if (
+          order.makeTableStatus !== "completed" &&
+          order.makeTableStatus !== "in_oven" &&
+          order.makeTableStatus !== "ready"
+        ) {
           order.makeTableStatus = status;
         }
-        if (order.wingsStatus !== "completed" && order.wingsStatus !== "ready") {
+        if (
+          order.wingsStatus !== "completed" &&
+          order.wingsStatus !== "ready"
+        ) {
           order.wingsStatus = status;
         }
       }
@@ -504,7 +522,12 @@ exports.updateOrderStatus = async (
       } else {
         order.status = "completed";
       }
-    } else if (order.makeTableStatus === "in_oven" || order.makeTableStatus === "preparing" || order.wingsStatus === "preparing" || order.wingsStatus === "ready") {
+    } else if (
+      order.makeTableStatus === "in_oven" ||
+      order.makeTableStatus === "preparing" ||
+      order.wingsStatus === "preparing" ||
+      order.wingsStatus === "ready"
+    ) {
       order.status = "preparing";
     } else {
       order.status = "pending";
@@ -514,15 +537,22 @@ exports.updateOrderStatus = async (
       order.receptionCompleted = receptionCompleted;
     }
 
-    order.statusHistory.push({ status: order.status, changedAt: new Date(), note, userName });
+    order.statusHistory.push({
+      status: order.status,
+      changedAt: new Date(),
+      note,
+      userName,
+    });
     await order.save();
 
     triggerOrderUpdated(order).catch((err) => {
-      logger.error(`Error triggering real-time update Pusher event: ${err.message}`);
+      logger.error(
+        `Error triggering real-time update Pusher event: ${err.message}`,
+      );
     });
 
     logger.info(
-      `Order ${order.orderNumber} updated via ${station || 'general'}: makeTableStatus=${order.makeTableStatus}, wingsStatus=${order.wingsStatus}, overall=${order.status}`
+      `Order ${order.orderNumber} updated via ${station || "general"}: makeTableStatus=${order.makeTableStatus}, wingsStatus=${order.wingsStatus}, overall=${order.status}`,
     );
     return order;
   } catch (error) {
@@ -608,15 +638,25 @@ exports.markOrderPaid = async (id, payments) => {
 };
 
 // ── Cancel Order ──────────────────────────────────────────────
-exports.cancelOrder = async (id, { reason = "", userName = "Manager" } = {}) => {
+exports.cancelOrder = async (
+  id,
+  { reason = "", userName = "Manager" } = {},
+) => {
   try {
-    const noteText = reason ? `Order Cancelled: ${reason.trim()}` : "Order Cancelled";
+    const noteText = reason
+      ? `Order Cancelled: ${reason.trim()}`
+      : "Order Cancelled";
     const order = await Order.findOneAndUpdate(
       { _id: id, status: { $nin: ["completed", "cancelled"] } },
       {
         $set: { status: "cancelled", cancelReason: reason.trim() },
         $push: {
-          statusHistory: { status: "cancelled", note: noteText, userName, changedAt: new Date() },
+          statusHistory: {
+            status: "cancelled",
+            note: noteText,
+            userName,
+            changedAt: new Date(),
+          },
         },
       },
       { new: true },
@@ -632,7 +672,9 @@ exports.cancelOrder = async (id, { reason = "", userName = "Manager" } = {}) => 
       logger.error(`Error triggering cancel Pusher event: ${err.message}`);
     });
 
-    logger.info(`Order ${order.orderNumber} cancelled by ${userName}. Reason: ${reason}`);
+    logger.info(
+      `Order ${order.orderNumber} cancelled by ${userName}. Reason: ${reason}`,
+    );
     return order;
   } catch (error) {
     logger.error(`Order Service Error: cancelOrder - ${error.message}`);
@@ -641,7 +683,10 @@ exports.cancelOrder = async (id, { reason = "", userName = "Manager" } = {}) => 
 };
 
 // ── Refund Order ────────────
-exports.refundOrder = async (id, { reason = "", userName = "Manager" } = {}) => {
+exports.refundOrder = async (
+  id,
+  { reason = "", userName = "Manager" } = {},
+) => {
   try {
     const order = await Order.findById(id);
     if (!order) throw new Error("Order not found.");
@@ -652,7 +697,9 @@ exports.refundOrder = async (id, { reason = "", userName = "Manager" } = {}) => 
       order.placedBy === "POS SYSTEM" ||
       !["online", "doordash", "skip", "ubereats"].includes(order.orderSource);
     if (!isPos) {
-      throw new Error("Refund is only allowed for orders placed via POS System.");
+      throw new Error(
+        "Refund is only allowed for orders placed via POS System.",
+      );
     }
 
     if (order.paymentStatus === "refunded") {
@@ -680,7 +727,9 @@ exports.refundOrder = async (id, { reason = "", userName = "Manager" } = {}) => 
 
     // Real-time update via Pusher
     triggerOrderUpdated(order).catch((err) => {
-      logger.error(`Error triggering order refund Pusher event: ${err.message}`);
+      logger.error(
+        `Error triggering order refund Pusher event: ${err.message}`,
+      );
     });
 
     logger.info(`Order ${order.orderNumber} refunded by ${userName}`);
@@ -821,17 +870,31 @@ exports.getSalesSummary = async (filters = {}) => {
     }
 
     try {
-      const legacyExpenses = await Expense.find({ expenseDate: { $type: "date" } }).lean();
+      const legacyExpenses = await Expense.find({
+        expenseDate: { $type: "date" },
+      }).lean();
       for (const exp of legacyExpenses) {
         const dt = new Date(exp.expenseDate);
-        if (dt.getUTCHours() === 0 && dt.getUTCMinutes() === 0 && dt.getUTCSeconds() === 0) {
+        if (
+          dt.getUTCHours() === 0 &&
+          dt.getUTCMinutes() === 0 &&
+          dt.getUTCSeconds() === 0
+        ) {
           const updatedDate = new Date(dt.getTime() + 12 * 3600 * 1000);
-          await Expense.updateOne({ _id: exp._id }, { $set: { expenseDate: updatedDate } });
+          await Expense.updateOne(
+            { _id: exp._id },
+            { $set: { expenseDate: updatedDate } },
+          );
         }
       }
     } catch (e) {}
 
     const dropQuery = {
+      ...(filters.branchId ? { branchId: filters.branchId } : {}),
+      date: targetDateStr,
+    };
+
+    const closingQuery = {
       ...(filters.branchId ? { branchId: filters.branchId } : {}),
       date: targetDateStr,
     };
@@ -842,6 +905,7 @@ exports.getSalesSummary = async (filters = {}) => {
       expensesList,
       { categoryMap: productCategoryMap },
       driverSettlements,
+      accountClosing,
     ] = await Promise.all([
       Order.find(query)
         .select(
@@ -857,6 +921,9 @@ exports.getSalesSummary = async (filters = {}) => {
       DriverDropSettlement.find(dropQuery)
         .lean()
         .catch(() => []),
+      AccountClosing.findOne(closingQuery)
+        .lean()
+        .catch(() => null),
     ]);
 
     //Completed & Cancelled & Refunded Orders
@@ -894,6 +961,7 @@ exports.getSalesSummary = async (filters = {}) => {
     let interacTotal = 0;
     let creditCardTotal = 0;
     let debitCardTotal = 0;
+    let unpaidTotal = 0;
     let totalTips = 0;
 
     for (const order of orders) {
@@ -925,7 +993,9 @@ exports.getSalesSummary = async (filters = {}) => {
         else if (order.orderSource === "ubereats") ubereatsTotal += order.total;
         else posTotal += order.total;
 
-        if (order.paymentStatus === "paid") {
+        if (order.paymentStatus === "unpaid") {
+          unpaidTotal += order.total || 0;
+        } else if (order.paymentStatus === "paid") {
           if (order.payments && order.payments.length > 0) {
             for (const p of order.payments) {
               if (
@@ -994,7 +1064,8 @@ exports.getSalesSummary = async (filters = {}) => {
       totalDriverCashPayout += ds.netCashPayoutToDriver || 0;
     });
 
-    const adjustedExpectedCash = cashTotal - totalCashExpense - totalDriverCashPayout;
+    const adjustedExpectedCash =
+      cashTotal - totalCashExpense - totalDriverCashPayout;
     const adjustedPosTotal = posTotal;
 
     let shortageOverageCash = 0;
@@ -1054,6 +1125,7 @@ exports.getSalesSummary = async (filters = {}) => {
         cash: round2(cashTotal),
         creditCardSales: round2(creditCardTotal),
         debitCardSales: round2(debitCardTotal),
+        unpaidSales: round2(unpaidTotal),
         grandTotal: round2(grandTotal),
         tips: round2(totalTips),
         finalAmount: round2(grandTotal),
@@ -1127,6 +1199,7 @@ exports.getSalesSummary = async (filters = {}) => {
             accountPayAmount: round2(deposit.accountPayAmount),
           }
         : null,
+      accountClosing: accountClosing || null,
     };
   } catch (error) {
     logger.error(`Order Service Error: getSalesSummary - ${error.message}`);
@@ -2376,7 +2449,11 @@ exports.getMonthlySalesSummary = async ({
         if (o.promoCode) {
           const codeKey = String(o.promoCode).toUpperCase();
           if (!promoMap.has(codeKey)) {
-            promoMap.set(codeKey, { code: codeKey, count: 0, totalDiscount: 0 });
+            promoMap.set(codeKey, {
+              code: codeKey,
+              count: 0,
+              totalDiscount: 0,
+            });
           }
           const pData = promoMap.get(codeKey);
           pData.count += 1;
@@ -2582,6 +2659,265 @@ exports.getMonthlySalesSummary = async ({
     logger.error(
       `Order Service Error: getMonthlySalesSummary - ${error.message}`,
     );
+    throw error;
+  }
+};
+
+// ── Get Account Closing Data (System + Existing Closing if any) ──
+exports.getAccountClosingData = async (filters = {}) => {
+  try {
+    let targetDateStr = filters.date
+      ? String(filters.date).split("T")[0]
+      : getLocalDateStr();
+    const start = getLocalStartOfDay(targetDateStr);
+    const end = getLocalEndOfDay(targetDateStr);
+
+    const baseFilter = filters.branchId ? { branchId: filters.branchId } : {};
+    const dateFilter = buildDateFilter(start, end, baseFilter);
+
+    const expQuery = {};
+    if (filters.branchId) {
+      if (mongoose.Types.ObjectId.isValid(filters.branchId)) {
+        expQuery.$or = [
+          { branchId: new mongoose.Types.ObjectId(filters.branchId) },
+          { branchId: filters.branchId },
+        ];
+      } else {
+        expQuery.branchId = filters.branchId;
+      }
+    }
+    if (start && end) expQuery.expenseDate = { $gte: start, $lte: end };
+
+    const dropQuery = {
+      ...(filters.branchId ? { branchId: filters.branchId } : {}),
+      date: targetDateStr,
+    };
+
+    const closingQuery = {
+      ...(filters.branchId ? { branchId: filters.branchId } : {}),
+      date: targetDateStr,
+    };
+
+    const [orders, expensesList, driverSettlements, existingClosing] =
+      await Promise.all([
+        Order.find(dateFilter)
+          .select(
+            "status paymentStatus total subtotal tax discount tip orderType orderSource payments paymentMethod",
+          )
+          .lean(),
+        Expense.find(expQuery)
+          .select("paymentMode amount")
+          .lean()
+          .catch(() => []),
+        DriverDropSettlement.find(dropQuery)
+          .lean()
+          .catch(() => []),
+        AccountClosing.findOne(closingQuery)
+          .lean()
+          .catch(() => null),
+      ]);
+
+    // ── Calculate system figures from orders ──
+    let systemCash = 0;
+    let systemCard = 0;
+    let systemAccountPay = 0;
+    let systemGrandTotal = 0;
+    let systemTips = 0;
+    let systemDeliveryTotal = 0;
+    let systemTaxTotal = 0;
+    let systemDiscountTotal = 0;
+
+    for (const order of orders) {
+      if (order.status === "cancelled" || order.paymentStatus === "refunded")
+        continue;
+      systemGrandTotal += order.total || 0;
+      systemTips += order.tip || 0;
+      systemTaxTotal += order.tax || 0;
+      systemDiscountTotal += order.discount || 0;
+      if (order.orderType === "delivery")
+        systemDeliveryTotal += order.total || 0;
+
+      if (order.paymentStatus === "paid") {
+        if (order.payments && order.payments.length > 0) {
+          for (const p of order.payments) {
+            if (
+              ["online", "doordash", "skip", "ubereats"].includes(
+                order.orderSource,
+              ) ||
+              p.method === "stripe"
+            ) {
+              systemAccountPay += p.amount;
+            } else if (p.method === "cash") {
+              systemCash += p.amount;
+            } else {
+              systemCard += p.amount;
+            }
+          }
+        } else {
+          if (
+            ["online", "doordash", "skip", "ubereats"].includes(
+              order.orderSource,
+            ) ||
+            order.paymentMethod === "stripe"
+          ) {
+            systemAccountPay += order.total;
+          } else {
+            systemCash += order.total;
+          }
+        }
+      }
+    }
+
+    // Deduct expenses and driver payouts from expected cash
+    let totalExpensePayout = 0;
+    for (const e of expensesList || []) {
+      if (e.paymentMode !== "card") totalExpensePayout += e.amount || 0;
+    }
+
+    let totalDriverPayout = 0;
+    for (const ds of driverSettlements || []) {
+      totalDriverPayout += ds.netCashPayoutToDriver || 0;
+    }
+
+    const adjustedSystemCash = round2(
+      systemCash - totalExpensePayout - totalDriverPayout,
+    );
+
+    // Driver breakdown for display
+    const driverReport = (driverSettlements || []).map((ds) => ({
+      driverName: ds.driverName,
+      deliveryCount: ds.totalOrders,
+      totalSales: round2(ds.totalSales),
+      cashSales: round2(ds.cashSales),
+      cardSales: round2(ds.terminalSales),
+      prepaidSales: round2(ds.prepaidSales),
+      totalTips: round2(ds.totalTipsEarned),
+      driverEarning: round2(ds.totalDriverEarning),
+      expectedPayout: round2(ds.netCashPayoutToDriver),
+    }));
+
+    return {
+      date: targetDateStr,
+      systemData: {
+        cash: adjustedSystemCash,
+        card: round2(systemCard),
+        accountPay: round2(systemAccountPay),
+        grandTotal: round2(systemGrandTotal),
+        tips: round2(systemTips),
+        deliveryTotal: round2(systemDeliveryTotal),
+        taxTotal: round2(systemTaxTotal),
+        discountTotal: round2(systemDiscountTotal),
+        totalDriverPayout: round2(totalDriverPayout),
+        totalExpensePayout: round2(totalExpensePayout),
+      },
+      driverReport,
+      existingClosing: existingClosing || null,
+      isClosed: !!existingClosing,
+    };
+  } catch (error) {
+    logger.error(
+      `Order Service Error: getAccountClosingData - ${error.message}`,
+    );
+    throw error;
+  }
+};
+
+// ── Save / Update Account Closing ──
+exports.saveAccountClosing = async (data) => {
+  try {
+    const {
+      date,
+      branchId,
+      enteredCash = 0,
+      enteredVisa = 0,
+      enteredMastercard = 0,
+      enteredInterac = 0,
+      enteredAmex = 0,
+      enteredGiftCard = 0,
+      enteredOther = 0,
+      enteredCheck = 0,
+      systemCash = 0,
+      systemCard = 0,
+      systemGrandTotal = 0,
+      systemAccountPay = 0,
+      systemTips = 0,
+      systemDeliveryTotal = 0,
+      systemTaxTotal = 0,
+      systemDiscountTotal = 0,
+      totalDriverPayout = 0,
+      totalExpensePayout = 0,
+      comments = "",
+      closedBy = "Manager",
+    } = data;
+
+    if (!date) throw new Error("Date is required.");
+    if (!branchId) throw new Error("BranchId is required.");
+
+    const enteredTotalCard = round2(
+      Number(enteredVisa) +
+        Number(enteredMastercard) +
+        Number(enteredInterac) +
+        Number(enteredGiftCard)
+    );
+    const enteredGrandTotal = round2(Number(enteredCash) + enteredTotalCard);
+    const expectedNetDeposit = round2(Number(systemCash) + Number(systemCard));
+    const cashShortage = round2(Number(enteredCash) - Number(systemCash));
+    const cardShortage = round2(enteredTotalCard - Number(systemCard));
+    const grandShortage = round2(enteredGrandTotal - expectedNetDeposit);
+
+    const targetDateStr = String(date).split("T")[0];
+
+    // Auto-sync Deposit for Sales Summary
+    await Deposit.findOneAndUpdate(
+      { date: targetDateStr, ...(branchId ? { branchId } : {}) },
+      {
+        cashAmount: round2(enteredCash),
+        cardAmount: enteredTotalCard,
+        accountPayAmount: round2(systemAccountPay),
+        ...(branchId ? { branchId } : {}),
+      },
+      { upsert: true, new: true }
+    ).catch((e) => logger.warn(`Auto-deposit sync warning: ${e.message}`));
+
+    const query = { date: String(date).split("T")[0], branchId };
+    const closing = await AccountClosing.findOneAndUpdate(
+      query,
+      {
+        ...query,
+        systemCash: round2(systemCash),
+        systemCard: round2(systemCard),
+        systemAccountPay: round2(systemAccountPay),
+        systemGrandTotal: round2(systemGrandTotal),
+        systemTips: round2(systemTips),
+        systemDeliveryTotal: round2(systemDeliveryTotal),
+        systemTaxTotal: round2(systemTaxTotal),
+        systemDiscountTotal: round2(systemDiscountTotal),
+        enteredCash: round2(enteredCash),
+        enteredVisa: round2(enteredVisa),
+        enteredMastercard: round2(enteredMastercard),
+        enteredInterac: round2(enteredInterac),
+        enteredAmex: round2(enteredAmex),
+        enteredGiftCard: round2(enteredGiftCard),
+        enteredOther: round2(enteredOther),
+        enteredCheck: round2(enteredCheck),
+        enteredTotalCard,
+        enteredGrandTotal,
+        cashShortage,
+        cardShortage,
+        grandShortage,
+        totalDriverPayout: round2(totalDriverPayout),
+        totalExpensePayout: round2(totalExpensePayout),
+        comments,
+        closedBy,
+        status: "closed",
+      },
+      { upsert: true, new: true, returnDocument: "after" },
+    );
+
+    logger.info(`Account closing saved for ${date} by ${closedBy}`);
+    return closing;
+  } catch (error) {
+    logger.error(`Order Service Error: saveAccountClosing - ${error.message}`);
     throw error;
   }
 };
