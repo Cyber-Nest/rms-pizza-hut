@@ -809,6 +809,9 @@ exports.generateSalesSummaryReceiptPdf = async (
     drawRow("Account Pay :", fmt(payments.accountPay));
     drawRow("Credit Card - Sales :", fmt(payments.creditCardSales));
     drawRow("Debit Card - Sales :", fmt(payments.debitCardSales));
+    if (payments.unpaidSales && payments.unpaidSales > 0) {
+      drawRow("Unpaid / Pay Later :", fmt(payments.unpaidSales));
+    }
     doc.moveDown(0.2);
     drawRow("GRAND TOTAL :", fmt(payments.grandTotal), true);
     drawRow("Credit Card - Tips :", fmt(payments.tips));
