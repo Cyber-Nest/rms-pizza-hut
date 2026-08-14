@@ -497,7 +497,13 @@ exports.updateOrderStatus = async (
     const isWingsDone = !hasWings || order.wingsStatus === "completed";
 
     if (isMakeDone && isWingsDone) {
-      order.status = "completed";
+      // Delivery orders: kitchen "done" means "ready" (driver still needs to deliver)
+      // Takeout / Dine-in: kitchen "done" means truly "completed"
+      if (order.orderType === "delivery") {
+        order.status = "ready";
+      } else {
+        order.status = "completed";
+      }
     } else if (order.makeTableStatus === "in_oven" || order.makeTableStatus === "preparing" || order.wingsStatus === "preparing" || order.wingsStatus === "ready") {
       order.status = "preparing";
     } else {
