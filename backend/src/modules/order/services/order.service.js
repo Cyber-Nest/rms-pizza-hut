@@ -1548,6 +1548,71 @@ exports.getUniqueCustomers = async (filters = {}) => {
   }
 };
 
+exports.searchCustomer = async ({ query, branchId } = {}) => {
+  try {
+    if (!query || query.trim().length < 3) {
+      return null;
+    }
+
+    const cleanQuery = query.trim();
+    const isPhone = /^\d+$/.test(cleanQuery);
+
+    const searchConditions = [];
+    if (isPhone) {
+      // Phone lookup: prefix match on indexed customer.phone field
+      searchConditions.push({
+        "customer.phone": { $regex: `^${cleanQuery}`, $options: "i" },
+      });
+    } else {
+      // Email lookup: exact or prefix match on indexed customer.email field
+      searchConditions.push({
+        "customer.email": { $regex: `^${escapeRegex(cleanQuery)}`, $options: "i" },
+      });
+      // Also allow partial name search if it looks like a name
+      searchConditions.push({
+        "customer.name": { $regex: escapeRegex(cleanQuery), $options: "i" },
+      });
+    }
+
+    const matchQuery = {
+      $or: searchConditions,
+      "customer.name": { $exists: true, $nin: ["", null, "No Name"] },
+    };
+
+    if (branchId) {
+      matchQuery.branchId = new mongoose.Types.ObjectId(branchId);
+    }
+
+    // Find the most recent order for this customer — index ensures this is fast
+    const order = await Order.findOne(matchQuery)
+      .sort({ createdAt: -1 })
+      .select("customer createdAt")
+      .lean();
+
+    if (!order || !order.customer) return null;
+
+    const c = order.customer;
+    const nameParts = (c.name || "").trim().split(/\s+/);
+    return {
+      firstName: nameParts[0] || "",
+      lastName: nameParts.slice(1).join(" ") || "",
+      phone: c.phone || "",
+      email: c.email || "",
+      address: c.address || "",
+      postalCode: c.postalCode || "",
+      lastOrderDate: order.createdAt,
+    };
+  } catch (error) {
+    logger.error(`Order Service Error: searchCustomer - ${error.message}`);
+    throw error;
+  }
+};
+
+// Utility: escape special regex characters for safe use in $regex queries
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 exports.getReportsSummary = async (filters = {}) => {
   try {
     let start = null;

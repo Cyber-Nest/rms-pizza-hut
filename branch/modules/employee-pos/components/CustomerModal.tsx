@@ -99,49 +99,7 @@ interface AddressSuggestion {
   lng: number;
 }
 
-const MOCK_CUSTOMERS = [
-  {
-    firstName: "Yogesh",
-    lastName: "Kumar",
-    phone: "9999999999",
-    email: "yogesh@gmail.com",
-    address: "789 Cyber Nest Street, Toronto, ON",
-    postalCode: "M5V 2T6",
-  },
-  {
-    firstName: "John",
-    lastName: "Doe",
-    phone: "1234567890",
-    email: "john@example.com",
-    address: "123 Main Street, Vancouver, BC",
-    postalCode: "V6B 2W9",
-  },
-  {
-    firstName: "Jane",
-    lastName: "Smith",
-    phone: "9876543210",
-    email: "jane@example.com",
-    address: "456 Queen Road, Montreal, QC",
-    postalCode: "H3B 3A7",
-  },
-  {
-    firstName: "Rahul",
-    lastName: "Sharma",
-    phone: "9876543211",
-    email: "rahul@sharma.com",
-    address: "12-B Gandhi Colony, New Delhi",
-    postalCode: "110001",
-  },
-];
 
-const MOCK_ADDRESSES = [
-  "123 Main Street, Toronto, ON",
-  "456 Queen Road, Vancouver, BC",
-  "789 Cyber Nest Street, Richmond Hill, ON",
-  "12 Gandhi Road, New Delhi, DL",
-  "555 University Avenue, Toronto, ON",
-  "777 Blue Jays Way, Toronto, ON",
-];
 
 const KEYBOARD_ROWS = [
   ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace"],
@@ -161,6 +119,9 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
     AddressSuggestion[]
   >([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const searchAbortRef = React.useRef<AbortController | null>(null);
   const [selectedCoords, setSelectedCoords] = useState<{
     lat: number;
     lng: number;
@@ -374,29 +335,78 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
     onClose();
   };
 
-  const handleSearch = () => {
-    const query = watchSearchQuery;
-    if (!query) {
-      toast.error("Please enter a phone number or email address to search.");
+  // Validate & smart-sanitize the search field on every keystroke
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    setSearchError(null);
+
+    // If purely digits → phone mode: cap at 10
+    const digitsOnly = val.replace(/\D/g, "");
+    if (/^\d*$/.test(val)) {
+      val = digitsOnly.slice(0, 10);
+    }
+
+    setValue("searchQuery", val);
+  };
+
+  const handleSearch = async (queryOverride?: string) => {
+    const query = (queryOverride ?? watchSearchQuery ?? "").trim();
+    setSearchError(null);
+
+    if (!query || query.length < 3) {
+      setSearchError("Enter at least 3 characters.");
       return;
     }
-    const cleanQuery = query.trim().toLowerCase();
-    const found = MOCK_CUSTOMERS.find((c) => {
-      return (
-        c.phone.toLowerCase().includes(cleanQuery) ||
-        c.email.toLowerCase().includes(cleanQuery)
+
+    const isPhone = /^\d+$/.test(query);
+    const hasAt = query.includes("@");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    if (isPhone && query.length !== 10) {
+      setSearchError("Phone number must be exactly 10 digits.");
+      return;
+    }
+
+    if (hasAt && !emailRegex.test(query)) {
+      setSearchError("Enter a valid email address (e.g. john@email.com).");
+      return;
+    }
+
+    // Cancel any previous in-flight request
+    if (searchAbortRef.current) searchAbortRef.current.abort();
+    const abort = new AbortController();
+    searchAbortRef.current = abort;
+
+    setIsSearchingCustomer(true);
+    try {
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const res = await fetch(
+        `${apiUrl}/orders/customers/search?query=${encodeURIComponent(query)}`,
+        { signal: abort.signal, credentials: "include" },
       );
-    });
-    if (found) {
-      setValue("phone", found.phone);
-      setValue("email", found.email);
-      setValue("firstName", found.firstName);
-      setValue("lastName", found.lastName);
-      setValue("address", found.address);
-      setValue("postalCode", found.postalCode);
-      toast.success(`Customer loaded: ${found.firstName} ${found.lastName}`);
-    } else {
-      toast.error("No customer found matching the query.");
+      if (abort.signal.aborted) return;
+      const json = await res.json();
+      if (json.success && json.data) {
+        const found = json.data;
+        setValue("phone", found.phone || "");
+        setValue("email", found.email || "");
+        setValue("firstName", found.firstName || "");
+        setValue("lastName", found.lastName || "");
+        setValue("address", found.address || "");
+        setValue("postalCode", found.postalCode || "");
+        toast.success(
+          ` Customer loaded: ${found.firstName} ${found.lastName}`.trim(),
+        );
+      } else {
+        toast.error("No customer found in our database.");
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        toast.error("Search failed. Please try again.");
+      }
+    } finally {
+      if (!abort.signal.aborted) setIsSearchingCustomer(false);
     }
   };
 
@@ -503,20 +513,68 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
 
                 <div className="grid grid-cols-2 gap-x-3.5 gap-y-2">
                   {/* Combined Search Input */}
-                  <div className="relative col-span-2">
-                    <input
-                      {...registerWithFocus("searchQuery")}
-                      onKeyDown={handleSearchKeyDown}
-                      placeholder="Search by phone number or email"
-                      className="w-full bg-white border border-neutral-200 rounded-full pl-4 pr-9 py-2 text-[11px] font-500 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSearch}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-brand-primary rounded-full cursor-pointer transition-all"
-                    >
-                      <Search size={11} />
-                    </button>
+                  <div className="col-span-2 space-y-1">
+                    <div className="relative">
+                      <input
+                        {...registerWithFocus("searchQuery")}
+                        onKeyDown={handleSearchKeyDown}
+                        onChange={handleSearchChange}
+                        placeholder="Phone (10 digits) or email address"
+                        inputMode="text"
+                        className={`w-full bg-white border rounded-full pl-4 pr-9 py-2 text-[11px] font-500 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-2 transition-all ${
+                          searchError
+                            ? "border-red-400 focus:border-red-400 focus:ring-red-200/50"
+                            : "border-neutral-200 focus:border-brand-primary focus:ring-brand-primary/10"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSearch()}
+                        disabled={isSearchingCustomer}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-brand-primary rounded-full cursor-pointer transition-all disabled:opacity-60"
+                      >
+                        {isSearchingCustomer ? (
+                          <svg
+                            className="animate-spin w-3 h-3 text-brand-primary"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                        ) : (
+                          <Search size={11} />
+                        )}
+                      </button>
+                    </div>
+                    {/* Inline validation hint */}
+                    {searchError && (
+                      <p className="text-[10px] font-600 text-red-500 pl-3 flex items-center gap-1">
+                        <span className="text-red-400">⚠</span> {searchError}
+                      </p>
+                    )}
+                    {/* Live character hint */}
+                    {!searchError && watchSearchQuery && (
+                      <p className="text-[10px] font-500 text-neutral-400 pl-3">
+                        {/^\d*$/.test(watchSearchQuery)
+                          ? `${watchSearchQuery.length}/10 digits`
+                          : watchSearchQuery.includes("@")
+                            ? "Email format detected"
+                            : "Name search"}
+                      </p>
+                    )}
                   </div>
 
                   {/* Enter Phone  & Email */}
