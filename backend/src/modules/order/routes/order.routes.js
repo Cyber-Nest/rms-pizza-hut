@@ -12,7 +12,9 @@ router.get("/item-sales-summary", orderController.getItemSalesSummary);
 router.get("/hourly-sales-summary", orderController.getHourlySalesSummary);
 router.get("/monthly-sales-summary", orderController.getMonthlySalesSummary);
 router.get("/dashboard-metrics", orderController.getDashboardMetrics);
+router.get("/customers/search", orderController.searchCustomer);
 router.get("/customers", orderController.getUniqueCustomers);
+
 router.post("/sales-summary/deposit", orderController.saveDeposit);
 router.get("/account-closing", orderController.getAccountClosing);
 router.post("/account-closing/deposit", orderController.saveTerminalDeposit);

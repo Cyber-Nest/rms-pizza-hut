@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { Search, Calendar, X, Edit, Eye, Users, Mail, Phone, MapPin, CalendarRange } from 'lucide-react';
+import { Search, X, Edit, Eye, Users, Mail, Phone, MapPin, CalendarRange } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PosNavbar from './PosNavbar';
 import POSSidebarDrawer from './POSSidebarDrawer';
@@ -25,7 +25,6 @@ export default function CustomersDashboard() {
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,12 +94,6 @@ export default function CustomersDashboard() {
   // ── Filtered Customers (Date and Keyword Search) ──
   const filteredCustomers = useMemo(() => {
     return customersList.filter((c) => {
-      // Date Filter (Last Order Date matches selected date)
-      if (selectedDate) {
-        const cDateStr = getLocalDateStr(c.lastOrderDate);
-        if (cDateStr !== selectedDate) return false;
-      }
-
       // Keyword Search Filter
       if (searchKeyword.trim()) {
         const kw = searchKeyword.toLowerCase().trim();
@@ -119,7 +112,7 @@ export default function CustomersDashboard() {
 
       return true;
     });
-  }, [customersList, selectedDate, searchKeyword]);
+  }, [customersList, searchKeyword]);
 
   // ── Pagination Calculations ──
   const totalEntries = filteredCustomers.length;
@@ -143,7 +136,6 @@ export default function CustomersDashboard() {
 
   const handleClearFilters = () => {
     setSearchKeyword('');
-    setSelectedDate('');
     setCurrentPage(1);
     toast.success('Filters cleared');
   };
@@ -163,20 +155,6 @@ export default function CustomersDashboard() {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Date Picker Input */}
-          <div className="relative">
-            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => {
-                setSelectedDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3 py-1.5 text-[12px] font-600 text-neutral-700 hover:border-neutral-355 focus:outline-none focus:border-brand-primary cursor-pointer transition-all"
-            />
-          </div>
-
           {/* Keyword Search Input */}
           <div className="relative w-[220px] sm:w-[280px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -201,7 +179,7 @@ export default function CustomersDashboard() {
           </div>
 
           {/* Clear Filters Button */}
-          {(searchKeyword || selectedDate) && (
+          {searchKeyword && (
             <button
               onClick={handleClearFilters}
               className="flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-600 text-neutral-500 hover:text-neutral-800 transition-all cursor-pointer"

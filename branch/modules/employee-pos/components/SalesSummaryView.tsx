@@ -280,7 +280,7 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
           </div>
 
           {/* 1.5. PROMO CODE & DISCOUNT SUMMARY */}
-          <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
+          {/* <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
             <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
               <span>Promo Code & Discount Summary</span>
               <Tag size={14} />
@@ -315,7 +315,7 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
                 </tr>
               </tbody>
             </table>
-          </div>
+          </div> */}
 
           {/* 2. SALES RECEIVED (Left Table) */}
           <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">

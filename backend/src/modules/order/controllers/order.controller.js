@@ -170,6 +170,26 @@ exports.getUniqueCustomers = async (req, res) => {
   }
 };
 
+exports.searchCustomer = async (req, res) => {
+  try {
+    const { query, branchId } = req.query;
+    if (!query || query.trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Query must be at least 3 characters.",
+      });
+    }
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const customer = await orderService.searchCustomer({
+      query: query.trim(),
+      branchId: activeBranchId,
+    });
+    res.status(200).json({ success: true, data: customer });
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
 exports.getOrderById = async (req, res) => {
   try {
     const order = await orderService.getOrderById(req.params.id);
