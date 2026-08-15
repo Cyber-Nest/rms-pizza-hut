@@ -494,6 +494,11 @@ exports.getPOSMenuFeed = async (branchId = null) => {
                 price: p.price,
               })),
               availableForSizes: opt.availableForSizes || [],
+              productId: opt.productId ? opt.productId.toHexString() : null,
+              includedToppings: (opt.includedToppings || []).map((it) => ({
+                groupId: it.groupId ? it.groupId.toHexString() : "",
+                optionId: it.optionId ? it.optionId.toHexString() : "",
+              })),
               modifierGroups: opt.modifierGroups
                 ? opt.modifierGroups.map((subG) => ({
                     id: subG._id.toHexString(),
@@ -513,6 +518,11 @@ exports.getPOSMenuFeed = async (branchId = null) => {
                         price: sp.price,
                       })),
                       availableForSizes: subOpt.availableForSizes || [],
+                      productId: subOpt.productId ? subOpt.productId.toHexString() : null,
+                      includedToppings: (subOpt.includedToppings || []).map((it) => ({
+                        groupId: it.groupId ? it.groupId.toHexString() : "",
+                        optionId: it.optionId ? it.optionId.toHexString() : "",
+                      })),
                     })),
                   }))
                 : [],

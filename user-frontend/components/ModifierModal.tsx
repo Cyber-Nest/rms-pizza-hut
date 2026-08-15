@@ -29,6 +29,32 @@ export default function ModifierModal({
   const [activeIdx, setActiveIdx] = useState(0);
   const [note, setNote] = useState("");
 
+  // Check if an option is an included topping for this product OR for any active selected deal option
+  const isIncludedTopping = (
+    groupId: string,
+    optionId: string,
+    currentSelections?: Record<string, ModifierOption[]>
+  ) => {
+    const selSource = currentSelections || selections;
+    for (const gId of Object.keys(selSource)) {
+      const selectedOpts = selSource[gId] || [];
+      for (const opt of selectedOpts) {
+        if (opt.includedToppings && opt.includedToppings.length > 0) {
+          if (
+            opt.includedToppings.some(
+              (it: { groupId: string; optionId: string; }) =>
+                (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
+                (it.optionId === optionId || (it.optionId as any)?._id === optionId)
+            )
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
   // Reset/Initialize default selections when item opens
   useEffect(() => {
     if (!item) return;
@@ -40,12 +66,18 @@ export default function ModifierModal({
     const initGroup = (g: ModifierGroup) => {
       if (!g || !g.options) return;
       const defs = g.options.filter((o) => o.isDefault);
-      const selected =
-        defs.length > 0
-          ? defs
-          : g.required && g.maxSelection === 1 && g.options.length > 0
-            ? [g.options[0]]
-            : [];
+      const includedOpts = g.options.filter(
+        (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init)
+      );
+      let selected = [...defs, ...includedOpts];
+      if (
+        selected.length === 0 &&
+        g.required &&
+        g.maxSelection === 1 &&
+        g.options.length > 0
+      ) {
+        selected = [g.options[0]];
+      }
       init[g.id] = selected;
 
       // Recurse nested groups
@@ -137,20 +169,25 @@ export default function ModifierModal({
 
     const newSelections = { ...selections, [g.id]: next };
 
-    // Initialize defaults for sub-groups of newly selected options
+    // Initialize defaults and recipe toppings for sub-groups of newly selected options
     const initNested = (o: ModifierOption) => {
       if (o.modifierGroups) {
         o.modifierGroups.forEach((subG) => {
           if (newSelections[subG.id] === undefined) {
             const defs = subG.options.filter((so) => so.isDefault);
-            newSelections[subG.id] =
-              defs.length > 0
-                ? defs
-                : subG.required &&
-                    subG.maxSelection === 1 &&
-                    subG.options.length > 0
-                  ? [subG.options[0]]
-                  : [];
+            const includedOpts = subG.options.filter(
+              (so) => !so.isDefault && isIncludedTopping(subG.id, so.id, newSelections)
+            );
+            let selected = [...defs, ...includedOpts];
+            if (
+              selected.length === 0 &&
+              subG.required &&
+              subG.maxSelection === 1 &&
+              subG.options.length > 0
+            ) {
+              selected = [subG.options[0]];
+            }
+            newSelections[subG.id] = selected;
             newSelections[subG.id].forEach(initNested);
           }
         });

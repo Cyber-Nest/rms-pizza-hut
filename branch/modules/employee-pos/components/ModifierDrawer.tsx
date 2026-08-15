@@ -40,12 +40,43 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
     return opt.availableForSizes.includes(sizeCode);
   };
 
-  // Check if an option is an included topping for this product
-  const isIncludedTopping = (groupId: string, optionId: string) => {
-    if (!item?.includedToppings || item.includedToppings.length === 0) return false;
-    return item.includedToppings.some(
-      (it) => it.groupId === groupId && it.optionId === optionId
-    );
+  // Check if an option is an included topping for this product OR for any active selected deal option
+  const isIncludedTopping = (
+    groupId: string,
+    optionId: string,
+    currentSelections?: Record<string, ModifierOption[]>
+  ) => {
+    // 1. Check root product level
+    if (item?.includedToppings && item.includedToppings.length > 0) {
+      if (
+        item.includedToppings.some(
+          (it) => it.groupId === groupId && it.optionId === optionId
+        )
+      ) {
+        return true;
+      }
+    }
+
+    // 2. Check active parent deal selections
+    const selSource = currentSelections || selections;
+    for (const gId of Object.keys(selSource)) {
+      const selectedOpts = selSource[gId] || [];
+      for (const opt of selectedOpts) {
+        if (opt.includedToppings && opt.includedToppings.length > 0) {
+          if (
+            opt.includedToppings.some(
+              (it) =>
+                (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
+                (it.optionId === optionId || (it.optionId as any)?._id === optionId)
+            )
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
   };
 
   // Recursively initialize default selections for groups and default size
@@ -78,7 +109,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
         const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
         const defs = availableOpts.filter((o) => o.isDefault);
         const includedOpts = availableOpts.filter(
-          (o) => !o.isDefault && isIncludedTopping(g.id, o.id)
+          (o) => !o.isDefault && isIncludedTopping(g.id, o.id, restoredSelections)
         );
         const baseSelections = [...defs, ...includedOpts];
 
@@ -130,7 +161,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
         const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
         const defs = availableOpts.filter((o) => o.isDefault);
         const includedOpts = availableOpts.filter(
-          (o) => !o.isDefault && isIncludedTopping(g.id, o.id)
+          (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init)
         );
         let selected = [...defs, ...includedOpts];
         if (selected.length === 0 && g.required && g.maxSelection === 1 && availableOpts.length > 0) {
@@ -184,12 +215,28 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
   );
 
   const isLargeGroup = useMemo(() => {
-    if (!activeGroup || !activeGroup.options) return false;
-    const count = activeGroup.options.filter((opt) =>
-      isOptionAvailableForSize(opt, selectedSize?.sizeCode),
-    ).length;
-    return count > 6;
-  }, [activeGroup, selectedSize]);
+    if (!activeGroup) return false;
+    let totalOptions = 0;
+
+    const countOptionsInGroup = (g: ModifierGroup) => {
+      if (!g || !g.options) return;
+      const validOpts = g.options.filter((opt) =>
+        isOptionAvailableForSize(opt, selectedSize?.sizeCode),
+      );
+      totalOptions += validOpts.length;
+
+      // Count options in nested groups of selected options in group g
+      const selOpts = selections[g.id] ?? [];
+      selOpts.forEach((opt) => {
+        if (opt.modifierGroups) {
+          opt.modifierGroups.forEach(countOptionsInGroup);
+        }
+      });
+    };
+
+    countOptionsInGroup(activeGroup);
+    return totalOptions > 6;
+  }, [activeGroup, selections, selectedSize]);
 
   // Helper to resolve option price based on active size (free for included toppings)
   const getOptionPrice = (opt: ModifierOption, groupId?: string) => {
@@ -269,18 +316,23 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
     const newSelections = { ...selections, [g.id]: next };
     const newRemoved = { ...removedIncluded, [g.id]: nextRemoved };
 
-    // Recursively initialize default sub-groups for new selections if not present
+    // Recursively initialize default sub-groups and included recipe toppings for new selections
     const initNested = (o: ModifierOption) => {
       if (o.modifierGroups) {
         o.modifierGroups.forEach((subG) => {
           if (newSelections[subG.id] === undefined) {
             const defs = subG.options.filter((so) => so.isDefault);
-            newSelections[subG.id] =
-              defs.length > 0
-                ? defs
-                : subG.required && subG.maxSelection === 1 && subG.options.length > 0
-                ? [subG.options[0]]
-                : [];
+            const includedOpts = subG.options.filter(
+              (so) => !so.isDefault && isIncludedTopping(subG.id, so.id, newSelections)
+            );
+            let selected = [...defs, ...includedOpts];
+            if (selected.length === 0 && subG.required && subG.maxSelection === 1 && subG.options.length > 0) {
+              selected = [subG.options[0]];
+            }
+            if (selected.length > subG.maxSelection) {
+              selected = selected.slice(0, subG.maxSelection);
+            }
+            newSelections[subG.id] = selected;
             newSelections[subG.id].forEach(initNested);
           }
         });
@@ -409,7 +461,9 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
         {/* Options Grid */}
         <div
           className={`grid gap-2.5 ${
-            g.options.filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode)).length > 10
+            isLargeGroup
+              ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+              : g.options.filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode)).length > 10
               ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"
               : g.options.filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode)).length > 4
               ? "grid-cols-2 sm:grid-cols-3"
@@ -430,7 +484,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                   <button
                     type="button"
                     onClick={() => toggle(g, opt)}
-                    className={`relative flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] w-full ${
+                    className={`relative flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] w-full ${
                       isRemoved
                         ? "border-red-300 bg-red-50/60 ring-1 ring-red-300"
                         : sel
@@ -482,9 +536,9 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                       </div>
                     )}
 
-                    <div className="flex-1 min-w-0 pr-4">
+                    <div className="flex-1 min-w-0 pr-1">
                       <p
-                        className={`text-[10px] font-600 truncate ${
+                        className={`text-[10px] font-600 leading-tight ${
                           isRemoved ? "text-red-700 line-through opacity-80" : "text-neutral-800"
                         }`}
                       >
@@ -563,7 +617,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       {/* Drawer */}
       <div
         className={`relative w-full bg-white rounded-l-2xl overflow-hidden shadow-2xl flex z-10 animate-drawer-slide-in transition-all duration-300 ${
-          isLargeGroup ? "max-w-[95vw] lg:max-w-6xl" : "max-w-3xl"
+          isLargeGroup ? "max-w-[95vw] lg:max-w-[92vw] xl:max-w-7xl" : "max-w-3xl"
         }`}
       >
         {/* ── LEFT */}

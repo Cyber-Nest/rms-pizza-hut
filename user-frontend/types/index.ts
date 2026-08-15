@@ -31,6 +31,8 @@ export interface ModifierOption {
   price: number;
   isDefault?: boolean;
   modifierGroups?: ModifierGroup[];
+  productId?: string;
+  includedToppings?: { groupId: string; optionId: string }[];
 }
 
 export interface ModifierGroup {
