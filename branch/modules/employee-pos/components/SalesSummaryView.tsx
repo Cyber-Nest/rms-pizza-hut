@@ -466,72 +466,79 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
               )}
             </div>
 
-            {accountClosing ? (
-              <div>
-                {/* Mini summary rows */}
-                <table className="w-full text-left text-[12px]">
-                  <thead>
-                    <tr className="bg-neutral-100 text-neutral-600 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200">
-                      <th className="py-2 px-4">Description</th>
-                      <th className="py-2 px-4 text-right">System</th>
-                      <th className="py-2 px-4 text-right">Entered</th>
-                      <th className="py-2 px-4 text-right">Diff</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-200/60 font-650 text-neutral-800">
-                    <tr className="hover:bg-neutral-50/60">
-                      <td className="py-2 px-4 font-700 text-neutral-700">Cash</td>
-                      <td className="py-2 px-4 text-right text-neutral-500">${Number(accountClosing.systemCash || 0).toFixed(2)}</td>
-                      <td className="py-2 px-4 text-right font-800 text-emerald-700">${Number(accountClosing.enteredCash || 0).toFixed(2)}</td>
-                      <td className={`py-2 px-4 text-right font-900 ${
-                        Number(accountClosing.cashShortage || 0) > 0.005 ? 'text-emerald-600' :
-                        Number(accountClosing.cashShortage || 0) < -0.005 ? 'text-rose-600' : 'text-neutral-500'
+            {(() => {
+              // Calculate live settlement figures if accountClosing doc is open or not closed
+              const sysGrand = accountClosing ? Number(accountClosing.systemGrandTotal || 0) : Number(financials.grandTotal || 0);
+              const drvPayout = accountClosing 
+                ? Number(accountClosing.totalDriverPayout || 0)
+                : driverReport.reduce((acc: number, d: any) => acc + Number(d.expectedPayout || d.payout || 0), 0);
+              const storeExp = accountClosing 
+                ? Number(accountClosing.totalExpensePayout || 0)
+                : Number(expense?.amount || 0);
+              const expNetDep = accountClosing 
+                ? Number(accountClosing.systemCash || 0) + Number(accountClosing.systemCard || 0)
+                : Math.max(0, sysGrand - drvPayout - storeExp);
+              const totDep = accountClosing
+                ? Number(accountClosing.enteredGrandTotal || 0)
+                : data.deposit ? (Number(data.deposit.cashAmount || 0) + Number(data.deposit.cardAmount || 0)) : 0;
+              const dueBal = accountClosing
+                ? Number(accountClosing.grandShortage || 0)
+                : totDep - expNetDep;
+              const isClosed = accountClosing?.status === 'closed';
+
+              return (
+                <div className="p-4 space-y-3">
+                  {/* Financial Settlement 5 Blocks */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-2">
+                      <p className="text-[8.5px] font-800 uppercase text-neutral-500 mb-0.5">System Grand Total</p>
+                      <p className="text-xs font-900 font-mono text-neutral-900">${sysGrand.toFixed(2)}</p>
+                    </div>
+
+                    <div className="bg-rose-50 border border-rose-200 rounded-lg p-2">
+                      <p className="text-[8.5px] font-800 uppercase text-rose-700 mb-0.5">Driver Payout</p>
+                      <p className="text-xs font-900 font-mono text-rose-700">-${drvPayout.toFixed(2)}</p>
+                    </div>
+
+                    <div className="bg-rose-50 border border-rose-200 rounded-lg p-2">
+                      <p className="text-[8.5px] font-800 uppercase text-rose-700 mb-0.5">Store Expenses</p>
+                      <p className="text-xs font-900 font-mono text-rose-700">-${storeExp.toFixed(2)}</p>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                      <p className="text-[8.5px] font-800 uppercase text-blue-700 mb-0.5">Expected Net Deposit</p>
+                      <p className="text-xs font-900 font-mono text-blue-900">${expNetDep.toFixed(2)}</p>
+                    </div>
+
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 col-span-2 sm:col-span-1">
+                      <p className="text-[8.5px] font-800 uppercase text-emerald-700 mb-0.5">Total Deposited</p>
+                      <p className="text-xs font-900 font-mono text-emerald-900">${totDep.toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  {/* Shortage / Settlement Status */}
+                  <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10.5px] font-800 text-neutral-600 uppercase">Shortage / Due Balance:</span>
+                      <span className={`text-xs font-900 font-mono px-2.5 py-0.5 rounded-md border ${
+                        dueBal >= -0.005
+                          ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                          : 'bg-rose-100 border-rose-300 text-rose-800'
                       }`}>
-                        {Number(accountClosing.cashShortage || 0) >= 0 ? '+' : ''}{Number(accountClosing.cashShortage || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-neutral-50/60">
-                      <td className="py-2 px-4 font-700 text-neutral-700">Card (Total)</td>
-                      <td className="py-2 px-4 text-right text-neutral-500">${Number(accountClosing.systemCard || 0).toFixed(2)}</td>
-                      <td className="py-2 px-4 text-right font-800 text-purple-700">${Number(accountClosing.enteredTotalCard || 0).toFixed(2)}</td>
-                      <td className={`py-2 px-4 text-right font-900 ${
-                        Number(accountClosing.cardShortage || 0) > 0.005 ? 'text-emerald-600' :
-                        Number(accountClosing.cardShortage || 0) < -0.005 ? 'text-rose-600' : 'text-neutral-500'
-                      }`}>
-                        {Number(accountClosing.cardShortage || 0) >= 0 ? '+' : ''}{Number(accountClosing.cardShortage || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="bg-neutral-900 text-white font-900">
-                      <td className="py-2.5 px-4 uppercase text-[10.5px] tracking-wide">Grand Total</td>
-                      <td className="py-2.5 px-4 text-right text-neutral-300">${(Number(accountClosing.systemCash || 0) + Number(accountClosing.systemCard || 0)).toFixed(2)}</td>
-                      <td className="py-2.5 px-4 text-right text-emerald-400">${Number(accountClosing.enteredGrandTotal || 0).toFixed(2)}</td>
-                      <td className={`py-2.5 px-4 text-right font-900 ${
-                        Number(accountClosing.grandShortage || 0) > 0.005 ? 'text-emerald-400' :
-                        Number(accountClosing.grandShortage || 0) < -0.005 ? 'text-rose-400' : 'text-neutral-300'
-                      }`}>
-                        {Number(accountClosing.grandShortage || 0) >= 0 ? '+' : ''}{Number(accountClosing.grandShortage || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div className="px-4 py-2.5 flex justify-between items-center bg-neutral-50 border-t border-neutral-200">
-                  <span className="text-[10px] text-neutral-500 font-650">Closed by: {accountClosing.closedBy || 'Manager'}</span>
-                  <a href="/employee/account-closing" className="flex items-center gap-1 text-[10.5px] font-800 text-brand-primary hover:underline">
-                    <FileText size={12} /> View Details
-                  </a>
+                        {dueBal >= 0 ? '+' : ''}${dueBal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <a href="/employee/account-closing" className="flex items-center gap-1 text-[10.5px] font-800 text-brand-primary hover:underline">
+                      <FileText size={12} /> View Details
+                    </a>
+                  </div>
+                  {/* {isClosed && (
+                    <p className="text-[9.5px] text-neutral-400 font-600">Closed by: {accountClosing.closedBy || 'Manager'}</p>
+                  )} */}
                 </div>
-              </div>
-            ) : (
-              <div className="p-4 flex flex-col items-center gap-2.5 text-center">
-                <p className="text-neutral-400 font-600 text-[11.5px]">Day not closed yet for this date.</p>
-                <a
-                  href="/employee/account-closing"
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-primary hover:bg-[#b9142d] text-white text-[11px] font-800 uppercase rounded-full transition-all"
-                >
-                  <FileText size={12} /> Close Day
-                </a>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
         </div>

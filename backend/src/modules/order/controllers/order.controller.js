@@ -536,7 +536,7 @@ exports.getAccountClosing = async (req, res) => {
   }
 };
 
-exports.saveAccountClosing = async (req, res) => {
+exports.saveTerminalDeposit = async (req, res) => {
   try {
     const branchId =
       req.body.branchId || req.branch?.branchId || req.branch?._id;
@@ -544,7 +544,43 @@ exports.saveAccountClosing = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "branchId is required." });
-    const closing = await orderService.saveAccountClosing({
+    const closing = await orderService.saveTerminalDeposit({
+      ...req.body,
+      branchId,
+    });
+    res.status(200).json({ success: true, data: closing });
+  } catch (error) {
+    handleError(res, error, 400);
+  }
+};
+
+exports.voidTerminalDeposit = async (req, res) => {
+  try {
+    const branchId =
+      req.body.branchId || req.branch?.branchId || req.branch?._id;
+    if (!branchId)
+      return res
+        .status(400)
+        .json({ success: false, message: "branchId is required." });
+    const closing = await orderService.voidTerminalDeposit({
+      ...req.body,
+      branchId,
+    });
+    res.status(200).json({ success: true, data: closing });
+  } catch (error) {
+    handleError(res, error, 400);
+  }
+};
+
+exports.finalizeAccountClosing = async (req, res) => {
+  try {
+    const branchId =
+      req.body.branchId || req.branch?.branchId || req.branch?._id;
+    if (!branchId)
+      return res
+        .status(400)
+        .json({ success: false, message: "branchId is required." });
+    const closing = await orderService.finalizeAccountClosing({
       ...req.body,
       branchId,
     });

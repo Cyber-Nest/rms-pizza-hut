@@ -14,7 +14,7 @@ const accountClosingSchema = new mongoose.Schema(
       index: true,
     },
 
-    // ── System Calculated (from Orders) ──
+    // ── System Calculated (from Orders & Paidouts) ──
     systemCash: { type: Number, default: 0 },
     systemCard: { type: Number, default: 0 },
     systemAccountPay: { type: Number, default: 0 },
@@ -23,37 +23,46 @@ const accountClosingSchema = new mongoose.Schema(
     systemDeliveryTotal: { type: Number, default: 0 },
     systemTaxTotal: { type: Number, default: 0 },
     systemDiscountTotal: { type: Number, default: 0 },
+    totalDriverPayout: { type: Number, default: 0 },
+    totalExpensePayout: { type: Number, default: 0 },
 
-    // ── Manager Entered (from physical terminal/cash count) ──
+    // ── Terminal Deposits List (Multiple Deposits Entry per Day) ──
+    terminalDeposits: [
+      {
+        cash: { type: Number, default: 0 },
+        interac: { type: Number, default: 0 },
+        visa: { type: Number, default: 0 },
+        mastercard: { type: Number, default: 0 },
+        giftCard: { type: Number, default: 0 },
+        totalDeposit: { type: Number, default: 0 },
+        comments: { type: String, default: "" },
+        time: { type: String, default: "" },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // ── Cumulative Totals across all Deposits ──
     enteredCash: { type: Number, default: 0 },
+    enteredInterac: { type: Number, default: 0 },
     enteredVisa: { type: Number, default: 0 },
     enteredMastercard: { type: Number, default: 0 },
-    enteredInterac: { type: Number, default: 0 },
-    enteredAmex: { type: Number, default: 0 },
     enteredGiftCard: { type: Number, default: 0 },
-    enteredOther: { type: Number, default: 0 },
-    enteredCheck: { type: Number, default: 0 },
-
-    // ── Computed at save time ──
     enteredTotalCard: { type: Number, default: 0 },   // sum of all card types
     enteredGrandTotal: { type: Number, default: 0 },  // cash + all cards
 
     // ── Shortage / Overage ──
-    cashShortage: { type: Number, default: 0 },       // enteredCash - systemCash (negative = shortage)
-    cardShortage: { type: Number, default: 0 },       // enteredCard - systemCard
-    grandShortage: { type: Number, default: 0 },      // enteredGrandTotal - systemGrandTotal
+    cashShortage: { type: Number, default: 0 },       // enteredCash - systemCash
+    cardShortage: { type: Number, default: 0 },       // enteredTotalCard - systemCard
+    grandShortage: { type: Number, default: 0 },      // enteredGrandTotal - (systemCash + systemCard)
 
-    // ── Paidouts ──
-    totalDriverPayout: { type: Number, default: 0 },
-    totalExpensePayout: { type: Number, default: 0 },
-
-    // ── Meta ──
+    // ── Status & Locking ──
     comments: { type: String, default: "" },
     closedBy: { type: String, default: "Manager" },
+    closedAt: { type: Date },
     status: {
       type: String,
       enum: ["open", "closed"],
-      default: "closed",
+      default: "open",
     },
   },
   {

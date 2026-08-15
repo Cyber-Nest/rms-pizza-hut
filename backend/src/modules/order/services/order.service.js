@@ -2663,156 +2663,200 @@ exports.getMonthlySalesSummary = async ({
   }
 };
 
-// ── Get Account Closing Data (System + Existing Closing if any) ──
-exports.getAccountClosingData = async (filters = {}) => {
-  try {
-    let targetDateStr = filters.date
-      ? String(filters.date).split("T")[0]
-      : getLocalDateStr();
-    const start = getLocalStartOfDay(targetDateStr);
-    const end = getLocalEndOfDay(targetDateStr);
+// ── Helper to calculate dynamic day system totals ──
+const calculateDaySystemTotals = async (targetDateStr, branchId) => {
+  const start = getLocalStartOfDay(targetDateStr);
+  const end = getLocalEndOfDay(targetDateStr);
+  const baseFilter = branchId ? { branchId } : {};
+  const dateFilter = buildDateFilter(start, end, baseFilter);
 
-    const baseFilter = filters.branchId ? { branchId: filters.branchId } : {};
-    const dateFilter = buildDateFilter(start, end, baseFilter);
+  const expQuery = {};
+  if (branchId) {
+    if (mongoose.Types.ObjectId.isValid(branchId)) {
+      expQuery.$or = [
+        { branchId: new mongoose.Types.ObjectId(branchId) },
+        { branchId },
+      ];
+    } else {
+      expQuery.branchId = branchId;
+    }
+  }
+  if (start && end) expQuery.expenseDate = { $gte: start, $lte: end };
 
-    const expQuery = {};
-    if (filters.branchId) {
-      if (mongoose.Types.ObjectId.isValid(filters.branchId)) {
-        expQuery.$or = [
-          { branchId: new mongoose.Types.ObjectId(filters.branchId) },
-          { branchId: filters.branchId },
-        ];
+  const dropQuery = {
+    ...(branchId ? { branchId } : {}),
+    date: targetDateStr,
+  };
+
+  const [orders, expensesList, driverSettlements] = await Promise.all([
+    Order.find(dateFilter)
+      .select(
+        "status paymentStatus total subtotal tax discount tip orderType orderSource payments paymentMethod",
+      )
+      .lean(),
+    Expense.find(expQuery)
+      .select("paymentMode amount category description expenseType employeeName createdAt")
+      .lean()
+      .catch(() => []),
+    DriverDropSettlement.find(dropQuery)
+      .lean()
+      .catch(() => []),
+  ]);
+
+  let systemCash = 0;
+  let systemCard = 0;
+  let systemAccountPay = 0;
+  let systemGrandTotal = 0;
+  let systemTips = 0;
+  let systemDeliveryTotal = 0;
+  let systemTaxTotal = 0;
+  let systemDiscountTotal = 0;
+
+  for (const order of orders) {
+    if (order.status === "cancelled" || order.paymentStatus === "refunded")
+      continue;
+    systemGrandTotal += order.total || 0;
+    systemTips += order.tip || 0;
+    systemTaxTotal += order.tax || 0;
+    systemDiscountTotal += order.discount || 0;
+    if (order.orderType === "delivery")
+      systemDeliveryTotal += order.total || 0;
+
+    const isOnlinePrepaid =
+      ["online", "doordash", "skip", "ubereats"].includes(
+        order.orderSource,
+      ) || order.paymentMethod === "stripe";
+
+    if (isOnlinePrepaid) {
+      systemAccountPay += order.total || 0;
+    } else if (order.payments && order.payments.length > 0) {
+      for (const p of order.payments) {
+        if (
+          ["online", "doordash", "skip", "ubereats"].includes(
+            order.orderSource,
+          ) ||
+          p.method === "stripe"
+        ) {
+          systemAccountPay += p.amount || 0;
+        } else if (p.method === "cash") {
+          systemCash += p.amount || 0;
+        } else {
+          systemCard += p.amount || 0;
+        }
+      }
+    } else {
+      if (order.paymentMethod === "cash") {
+        systemCash += order.total || 0;
       } else {
-        expQuery.branchId = filters.branchId;
+        systemCard += order.total || 0;
       }
     }
-    if (start && end) expQuery.expenseDate = { $gte: start, $lte: end };
+  }
 
-    const dropQuery = {
-      ...(filters.branchId ? { branchId: filters.branchId } : {}),
-      date: targetDateStr,
-    };
+  let totalExpensePayout = 0;
+  for (const e of expensesList || []) {
+    if (e.paymentMode !== "card") totalExpensePayout += e.amount || 0;
+  }
+
+  let totalDriverPayout = 0;
+  for (const ds of driverSettlements || []) {
+    totalDriverPayout += ds.netCashPayoutToDriver || 0;
+  }
+
+  const adjustedSystemCash = round2(
+    systemCash - totalExpensePayout - totalDriverPayout,
+  );
+  const expectedNetDeposit = round2(adjustedSystemCash + systemCard);
+
+  const driverReport = (driverSettlements || []).map((ds) => ({
+    driverName: ds.driverName,
+    deliveryCount: ds.totalOrders,
+    totalSales: round2(ds.totalSales),
+    cashSales: round2(ds.cashSales),
+    cardSales: round2(ds.terminalSales),
+    prepaidSales: round2(ds.prepaidSales),
+    totalTips: round2(ds.totalTipsEarned),
+    driverEarning: round2(ds.totalDriverEarning),
+    expectedPayout: round2(ds.netCashPayoutToDriver),
+  }));
+
+  const expenseReport = (expensesList || []).map((exp) => ({
+    id: exp._id,
+    expenseType: exp.expenseType || "store",
+    employeeName: exp.employeeName || "Manager",
+    typeLabel: exp.expenseType === "employee" ? `EMPLOYEE (${(exp.employeeName || "MANAGER").toUpperCase()})` : "STORE",
+    category: exp.category || "General",
+    description: exp.description || "-",
+    paymentMode: exp.paymentMode || "cash",
+    amount: round2(exp.amount || 0),
+    time: exp.createdAt
+      ? new Date(exp.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "",
+  }));
+
+  return {
+    systemCash: adjustedSystemCash,
+    rawSystemCash: round2(systemCash),
+    systemCard: round2(systemCard),
+    systemAccountPay: round2(systemAccountPay),
+    systemGrandTotal: round2(systemGrandTotal),
+    systemTips: round2(systemTips),
+    systemDeliveryTotal: round2(systemDeliveryTotal),
+    systemTaxTotal: round2(systemTaxTotal),
+    systemDiscountTotal: round2(systemDiscountTotal),
+    totalDriverPayout: round2(totalDriverPayout),
+    totalExpensePayout: round2(totalExpensePayout),
+    expectedNetDeposit,
+    driverReport,
+    expenseReport,
+  };
+};
+
+// ── Get Account Closing Data ──
+exports.getAccountClosingData = async (filters = {}) => {
+  try {
+    const targetDateStr = filters.date
+      ? String(filters.date).split("T")[0]
+      : new Date().toISOString().split("T")[0];
 
     const closingQuery = {
       ...(filters.branchId ? { branchId: filters.branchId } : {}),
       date: targetDateStr,
     };
 
-    const [orders, expensesList, driverSettlements, existingClosing] =
-      await Promise.all([
-        Order.find(dateFilter)
-          .select(
-            "status paymentStatus total subtotal tax discount tip orderType orderSource payments paymentMethod",
-          )
-          .lean(),
-        Expense.find(expQuery)
-          .select("paymentMode amount")
-          .lean()
-          .catch(() => []),
-        DriverDropSettlement.find(dropQuery)
-          .lean()
-          .catch(() => []),
-        AccountClosing.findOne(closingQuery)
-          .lean()
-          .catch(() => null),
-      ]);
+    const totals = await calculateDaySystemTotals(targetDateStr, filters.branchId);
+    let existingClosing = await AccountClosing.findOne(closingQuery).lean().catch(() => null);
 
-    // ── Calculate system figures from orders ──
-    let systemCash = 0;
-    let systemCard = 0;
-    let systemAccountPay = 0;
-    let systemGrandTotal = 0;
-    let systemTips = 0;
-    let systemDeliveryTotal = 0;
-    let systemTaxTotal = 0;
-    let systemDiscountTotal = 0;
-
-    for (const order of orders) {
-      if (order.status === "cancelled" || order.paymentStatus === "refunded")
-        continue;
-      systemGrandTotal += order.total || 0;
-      systemTips += order.tip || 0;
-      systemTaxTotal += order.tax || 0;
-      systemDiscountTotal += order.discount || 0;
-      if (order.orderType === "delivery")
-        systemDeliveryTotal += order.total || 0;
-
-      if (order.paymentStatus === "paid") {
-        if (order.payments && order.payments.length > 0) {
-          for (const p of order.payments) {
-            if (
-              ["online", "doordash", "skip", "ubereats"].includes(
-                order.orderSource,
-              ) ||
-              p.method === "stripe"
-            ) {
-              systemAccountPay += p.amount;
-            } else if (p.method === "cash") {
-              systemCash += p.amount;
-            } else {
-              systemCard += p.amount;
-            }
-          }
-        } else {
-          if (
-            ["online", "doordash", "skip", "ubereats"].includes(
-              order.orderSource,
-            ) ||
-            order.paymentMethod === "stripe"
-          ) {
-            systemAccountPay += order.total;
-          } else {
-            systemCash += order.total;
-          }
-        }
+    if (existingClosing) {
+      // Keep existing closing's cumulative calculations up to date
+      const closingDoc = await AccountClosing.findOne(closingQuery);
+      if (closingDoc) {
+        existingClosing = await updateCumulativeClosing(closingDoc, filters.branchId, targetDateStr);
       }
     }
-
-    // Deduct expenses and driver payouts from expected cash
-    let totalExpensePayout = 0;
-    for (const e of expensesList || []) {
-      if (e.paymentMode !== "card") totalExpensePayout += e.amount || 0;
-    }
-
-    let totalDriverPayout = 0;
-    for (const ds of driverSettlements || []) {
-      totalDriverPayout += ds.netCashPayoutToDriver || 0;
-    }
-
-    const adjustedSystemCash = round2(
-      systemCash - totalExpensePayout - totalDriverPayout,
-    );
-
-    // Driver breakdown for display
-    const driverReport = (driverSettlements || []).map((ds) => ({
-      driverName: ds.driverName,
-      deliveryCount: ds.totalOrders,
-      totalSales: round2(ds.totalSales),
-      cashSales: round2(ds.cashSales),
-      cardSales: round2(ds.terminalSales),
-      prepaidSales: round2(ds.prepaidSales),
-      totalTips: round2(ds.totalTipsEarned),
-      driverEarning: round2(ds.totalDriverEarning),
-      expectedPayout: round2(ds.netCashPayoutToDriver),
-    }));
 
     return {
       date: targetDateStr,
       systemData: {
-        cash: adjustedSystemCash,
-        card: round2(systemCard),
-        accountPay: round2(systemAccountPay),
-        grandTotal: round2(systemGrandTotal),
-        tips: round2(systemTips),
-        deliveryTotal: round2(systemDeliveryTotal),
-        taxTotal: round2(systemTaxTotal),
-        discountTotal: round2(systemDiscountTotal),
-        totalDriverPayout: round2(totalDriverPayout),
-        totalExpensePayout: round2(totalExpensePayout),
+        cash: totals.systemCash,
+        card: totals.systemCard,
+        accountPay: totals.systemAccountPay,
+        grandTotal: totals.systemGrandTotal,
+        tips: totals.systemTips,
+        deliveryTotal: totals.systemDeliveryTotal,
+        taxTotal: totals.systemTaxTotal,
+        discountTotal: totals.systemDiscountTotal,
+        totalDriverPayout: totals.totalDriverPayout,
+        totalExpensePayout: totals.totalExpensePayout,
+        expectedNetDeposit: totals.expectedNetDeposit,
       },
-      driverReport,
+      driverReport: totals.driverReport,
+      expenseReport: totals.expenseReport,
       existingClosing: existingClosing || null,
-      isClosed: !!existingClosing,
+      isClosed: existingClosing ? existingClosing.status === "closed" : false,
     };
   } catch (error) {
     logger.error(
@@ -2822,102 +2866,244 @@ exports.getAccountClosingData = async (filters = {}) => {
   }
 };
 
-// ── Save / Update Account Closing ──
-exports.saveAccountClosing = async (data) => {
+// ── Helper to recalculate & sync cumulative totals ──
+const updateCumulativeClosing = async (closing, branchId, dateStr) => {
+  const totals = await calculateDaySystemTotals(dateStr, branchId);
+
+  closing.systemCash = totals.systemCash;
+  closing.systemCard = totals.systemCard;
+  closing.systemAccountPay = totals.systemAccountPay;
+  closing.systemGrandTotal = totals.systemGrandTotal;
+  closing.totalDriverPayout = totals.totalDriverPayout;
+  closing.totalExpensePayout = totals.totalExpensePayout;
+
+  const deposits = closing.terminalDeposits || [];
+  let enteredCash = 0;
+  let enteredInterac = 0;
+  let enteredVisa = 0;
+  let enteredMastercard = 0;
+  let enteredGiftCard = 0;
+
+  for (const d of deposits) {
+    enteredCash += d.cash || 0;
+    enteredInterac += d.interac || 0;
+    enteredVisa += d.visa || 0;
+    enteredMastercard += d.mastercard || 0;
+    enteredGiftCard += d.giftCard || 0;
+  }
+
+  enteredCash = round2(enteredCash);
+  enteredInterac = round2(enteredInterac);
+  enteredVisa = round2(enteredVisa);
+  enteredMastercard = round2(enteredMastercard);
+  enteredGiftCard = round2(enteredGiftCard);
+
+  const enteredTotalCard = round2(
+    enteredInterac + enteredVisa + enteredMastercard + enteredGiftCard,
+  );
+  const enteredGrandTotal = round2(enteredCash + enteredTotalCard);
+
+  const cashShortage = round2(enteredCash - totals.systemCash);
+  const cardShortage = round2(enteredTotalCard - totals.systemCard);
+  const grandShortage = round2(enteredGrandTotal - totals.expectedNetDeposit);
+
+  closing.enteredCash = enteredCash;
+  closing.enteredInterac = enteredInterac;
+  closing.enteredVisa = enteredVisa;
+  closing.enteredMastercard = enteredMastercard;
+  closing.enteredGiftCard = enteredGiftCard;
+  closing.enteredTotalCard = enteredTotalCard;
+  closing.enteredGrandTotal = enteredGrandTotal;
+  closing.cashShortage = cashShortage;
+  closing.cardShortage = cardShortage;
+  closing.grandShortage = grandShortage;
+
+  await closing.save();
+
+  // Auto-sync Deposit model for Sales Summary
+  await Deposit.findOneAndUpdate(
+    { date: dateStr, ...(branchId ? { branchId } : {}) },
+    {
+      cashAmount: enteredCash,
+      cardAmount: enteredTotalCard,
+      accountPayAmount: round2(totals.systemAccountPay),
+      ...(branchId ? { branchId } : {}),
+    },
+    { upsert: true, new: true },
+  ).catch((e) => logger.warn(`Auto-deposit sync warning: ${e.message}`));
+
+  return closing;
+};
+
+// ── Save or Update a Terminal Deposit ──
+exports.saveTerminalDeposit = async (data) => {
   try {
     const {
       date,
       branchId,
-      enteredCash = 0,
-      enteredVisa = 0,
-      enteredMastercard = 0,
-      enteredInterac = 0,
-      enteredAmex = 0,
-      enteredGiftCard = 0,
-      enteredOther = 0,
-      enteredCheck = 0,
-      systemCash = 0,
-      systemCard = 0,
-      systemGrandTotal = 0,
-      systemAccountPay = 0,
-      systemTips = 0,
-      systemDeliveryTotal = 0,
-      systemTaxTotal = 0,
-      systemDiscountTotal = 0,
-      totalDriverPayout = 0,
-      totalExpensePayout = 0,
+      depositId = null,
+      cash = 0,
+      interac = 0,
+      visa = 0,
+      mastercard = 0,
+      giftCard = 0,
       comments = "",
-      closedBy = "Manager",
+      time = "",
     } = data;
 
     if (!date) throw new Error("Date is required.");
     if (!branchId) throw new Error("BranchId is required.");
 
-    const enteredTotalCard = round2(
-      Number(enteredVisa) +
-        Number(enteredMastercard) +
-        Number(enteredInterac) +
-        Number(enteredGiftCard)
+    const targetDateStr = String(date).split("T")[0];
+    const totalDeposit = round2(
+      Number(cash) +
+        Number(interac) +
+        Number(visa) +
+        Number(mastercard) +
+        Number(giftCard),
     );
-    const enteredGrandTotal = round2(Number(enteredCash) + enteredTotalCard);
-    const expectedNetDeposit = round2(Number(systemCash) + Number(systemCard));
-    const cashShortage = round2(Number(enteredCash) - Number(systemCash));
-    const cardShortage = round2(enteredTotalCard - Number(systemCard));
-    const grandShortage = round2(enteredGrandTotal - expectedNetDeposit);
+
+    if (totalDeposit <= 0)
+      throw new Error("Deposit total must be greater than 0");
+
+    let closing = await AccountClosing.findOne({
+      date: targetDateStr,
+      branchId,
+    });
+
+    if (!closing) {
+      const totals = await calculateDaySystemTotals(targetDateStr, branchId);
+      closing = new AccountClosing({
+        branchId,
+        date: targetDateStr,
+        systemCash: totals.systemCash,
+        systemCard: totals.systemCard,
+        systemGrandTotal: totals.systemGrandTotal,
+        systemAccountPay: totals.systemAccountPay,
+        status: "open",
+        terminalDeposits: [],
+      });
+    }
+
+    if (closing.status === "closed") {
+      throw new Error(
+        "Day account is already closed. Re-open required to make changes.",
+      );
+    }
+
+    if (depositId) {
+      // Update existing deposit entry
+      const existing = closing.terminalDeposits.id(depositId);
+      if (!existing) throw new Error("Deposit entry not found.");
+      existing.cash = round2(cash);
+      existing.interac = round2(interac);
+      existing.visa = round2(visa);
+      existing.mastercard = round2(mastercard);
+      existing.giftCard = round2(giftCard);
+      existing.totalDeposit = totalDeposit;
+      existing.comments = comments;
+      if (time) existing.time = time;
+    } else {
+      // Add new deposit entry
+      closing.terminalDeposits.push({
+        cash: round2(cash),
+        interac: round2(interac),
+        visa: round2(visa),
+        mastercard: round2(mastercard),
+        giftCard: round2(giftCard),
+        totalDeposit,
+        comments,
+        time:
+          time ||
+          new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+      });
+    }
+
+    const updated = await updateCumulativeClosing(
+      closing,
+      branchId,
+      targetDateStr,
+    );
+    logger.info(
+      `Terminal deposit saved for ${targetDateStr} (Total: $${totalDeposit})`,
+    );
+    return updated;
+  } catch (error) {
+    logger.error(`Order Service Error: saveTerminalDeposit - ${error.message}`);
+    throw error;
+  }
+};
+
+// ── Void / Delete a Terminal Deposit ──
+exports.voidTerminalDeposit = async (data) => {
+  try {
+    const { date, branchId, depositId } = data;
+    if (!date) throw new Error("Date is required.");
+    if (!branchId) throw new Error("BranchId is required.");
+    if (!depositId) throw new Error("DepositId is required.");
 
     const targetDateStr = String(date).split("T")[0];
+    const closing = await AccountClosing.findOne({
+      date: targetDateStr,
+      branchId,
+    });
+    if (!closing) throw new Error("Account closing record not found.");
+    if (closing.status === "closed")
+      throw new Error("Day account is already closed.");
 
-    // Auto-sync Deposit for Sales Summary
-    await Deposit.findOneAndUpdate(
-      { date: targetDateStr, ...(branchId ? { branchId } : {}) },
-      {
-        cashAmount: round2(enteredCash),
-        cardAmount: enteredTotalCard,
-        accountPayAmount: round2(systemAccountPay),
-        ...(branchId ? { branchId } : {}),
-      },
-      { upsert: true, new: true }
-    ).catch((e) => logger.warn(`Auto-deposit sync warning: ${e.message}`));
-
-    const query = { date: String(date).split("T")[0], branchId };
-    const closing = await AccountClosing.findOneAndUpdate(
-      query,
-      {
-        ...query,
-        systemCash: round2(systemCash),
-        systemCard: round2(systemCard),
-        systemAccountPay: round2(systemAccountPay),
-        systemGrandTotal: round2(systemGrandTotal),
-        systemTips: round2(systemTips),
-        systemDeliveryTotal: round2(systemDeliveryTotal),
-        systemTaxTotal: round2(systemTaxTotal),
-        systemDiscountTotal: round2(systemDiscountTotal),
-        enteredCash: round2(enteredCash),
-        enteredVisa: round2(enteredVisa),
-        enteredMastercard: round2(enteredMastercard),
-        enteredInterac: round2(enteredInterac),
-        enteredAmex: round2(enteredAmex),
-        enteredGiftCard: round2(enteredGiftCard),
-        enteredOther: round2(enteredOther),
-        enteredCheck: round2(enteredCheck),
-        enteredTotalCard,
-        enteredGrandTotal,
-        cashShortage,
-        cardShortage,
-        grandShortage,
-        totalDriverPayout: round2(totalDriverPayout),
-        totalExpensePayout: round2(totalExpensePayout),
-        comments,
-        closedBy,
-        status: "closed",
-      },
-      { upsert: true, new: true, returnDocument: "after" },
+    closing.terminalDeposits.pull(depositId);
+    const updated = await updateCumulativeClosing(
+      closing,
+      branchId,
+      targetDateStr,
     );
-
-    logger.info(`Account closing saved for ${date} by ${closedBy}`);
-    return closing;
+    logger.info(`Terminal deposit ${depositId} voided for ${targetDateStr}`);
+    return updated;
   } catch (error) {
-    logger.error(`Order Service Error: saveAccountClosing - ${error.message}`);
+    logger.error(`Order Service Error: voidTerminalDeposit - ${error.message}`);
+    throw error;
+  }
+};
+
+// ── Finalize Day Closing (Lock Day) ──
+exports.finalizeAccountClosing = async (data) => {
+  try {
+    const { date, branchId, closedBy = "Manager" } = data;
+    if (!date) throw new Error("Date is required.");
+    if (!branchId) throw new Error("BranchId is required.");
+
+    const targetDateStr = String(date).split("T")[0];
+    let closing = await AccountClosing.findOne({
+      date: targetDateStr,
+      branchId,
+    });
+    if (!closing) throw new Error("No deposits found to finalize.");
+
+    // Update cumulative totals & live system figures before final check
+    closing = await updateCumulativeClosing(closing, branchId, targetDateStr);
+
+    if (closing.grandShortage < -0.005) {
+      throw new Error(
+        `Cannot close day: Shortage of $${Math.abs(closing.grandShortage).toFixed(2)} remaining.`,
+      );
+    }
+
+    closing.status = "closed";
+    closing.closedBy = closedBy;
+    closing.closedAt = new Date();
+
+    const updated = await closing.save();
+    logger.info(
+      `Day account finalized/closed for ${targetDateStr} by ${closedBy}`,
+    );
+    return updated;
+  } catch (error) {
+    logger.error(
+      `Order Service Error: finalizeAccountClosing - ${error.message}`,
+    );
     throw error;
   }
 };
