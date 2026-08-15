@@ -26,6 +26,15 @@ const modifierOptionSchema = new mongoose.Schema({
   availableForSizes: [{
     type: String,
   }],
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    default: null,
+  },
+  includedToppings: [{
+    groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'ModifierGroup' },
+    optionId: { type: mongoose.Schema.Types.ObjectId },
+  }],
   modifierGroups: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ModifierGroup'

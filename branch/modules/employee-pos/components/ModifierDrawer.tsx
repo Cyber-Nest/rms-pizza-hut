@@ -40,12 +40,43 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
     return opt.availableForSizes.includes(sizeCode);
   };
 
-  // Check if an option is an included topping for this product
-  const isIncludedTopping = (groupId: string, optionId: string) => {
-    if (!item?.includedToppings || item.includedToppings.length === 0) return false;
-    return item.includedToppings.some(
-      (it) => it.groupId === groupId && it.optionId === optionId
-    );
+  // Check if an option is an included topping for this product OR for any active selected deal option
+  const isIncludedTopping = (
+    groupId: string,
+    optionId: string,
+    currentSelections?: Record<string, ModifierOption[]>
+  ) => {
+    // 1. Check root product level
+    if (item?.includedToppings && item.includedToppings.length > 0) {
+      if (
+        item.includedToppings.some(
+          (it) => it.groupId === groupId && it.optionId === optionId
+        )
+      ) {
+        return true;
+      }
+    }
+
+    // 2. Check active parent deal selections
+    const selSource = currentSelections || selections;
+    for (const gId of Object.keys(selSource)) {
+      const selectedOpts = selSource[gId] || [];
+      for (const opt of selectedOpts) {
+        if (opt.includedToppings && opt.includedToppings.length > 0) {
+          if (
+            opt.includedToppings.some(
+              (it) =>
+                (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
+                (it.optionId === optionId || (it.optionId as any)?._id === optionId)
+            )
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
   };
 
   // Recursively initialize default selections for groups and default size
@@ -78,7 +109,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
         const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
         const defs = availableOpts.filter((o) => o.isDefault);
         const includedOpts = availableOpts.filter(
-          (o) => !o.isDefault && isIncludedTopping(g.id, o.id)
+          (o) => !o.isDefault && isIncludedTopping(g.id, o.id, restoredSelections)
         );
         const baseSelections = [...defs, ...includedOpts];
 
@@ -130,7 +161,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
         const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
         const defs = availableOpts.filter((o) => o.isDefault);
         const includedOpts = availableOpts.filter(
-          (o) => !o.isDefault && isIncludedTopping(g.id, o.id)
+          (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init)
         );
         let selected = [...defs, ...includedOpts];
         if (selected.length === 0 && g.required && g.maxSelection === 1 && availableOpts.length > 0) {
@@ -269,18 +300,23 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
     const newSelections = { ...selections, [g.id]: next };
     const newRemoved = { ...removedIncluded, [g.id]: nextRemoved };
 
-    // Recursively initialize default sub-groups for new selections if not present
+    // Recursively initialize default sub-groups and included recipe toppings for new selections
     const initNested = (o: ModifierOption) => {
       if (o.modifierGroups) {
         o.modifierGroups.forEach((subG) => {
           if (newSelections[subG.id] === undefined) {
             const defs = subG.options.filter((so) => so.isDefault);
-            newSelections[subG.id] =
-              defs.length > 0
-                ? defs
-                : subG.required && subG.maxSelection === 1 && subG.options.length > 0
-                ? [subG.options[0]]
-                : [];
+            const includedOpts = subG.options.filter(
+              (so) => !so.isDefault && isIncludedTopping(subG.id, so.id, newSelections)
+            );
+            let selected = [...defs, ...includedOpts];
+            if (selected.length === 0 && subG.required && subG.maxSelection === 1 && subG.options.length > 0) {
+              selected = [subG.options[0]];
+            }
+            if (selected.length > subG.maxSelection) {
+              selected = selected.slice(0, subG.maxSelection);
+            }
+            newSelections[subG.id] = selected;
             newSelections[subG.id].forEach(initNested);
           }
         });

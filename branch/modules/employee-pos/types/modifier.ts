@@ -12,6 +12,8 @@ export interface ModifierOption {
   pricesPerSize?: OptionSizePrice[];
   availableForSizes?: string[];
   modifierGroups?: ModifierGroup[];
+  productId?: string;
+  includedToppings?: { groupId: string; optionId: string }[];
 }
 
 export interface ModifierGroup {

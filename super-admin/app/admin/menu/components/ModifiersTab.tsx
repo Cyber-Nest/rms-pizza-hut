@@ -16,17 +16,21 @@ import {
   Copy,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { ModifierGroup, ModifierOption } from "../types";
+import { ModifierGroup, ModifierOption, Product, Category } from "../types";
 import { API_URL, compressImage, getAuthConfig } from "../utils";
 
 interface ModifiersTabProps {
   modifiers: ModifierGroup[];
+  products?: Product[];
+  categories?: Category[];
   fetchModifiers: () => void;
   showToast: (text: string, type?: "success" | "error") => void;
 }
 
 export default function ModifiersTab({
   modifiers,
+  products = [],
+  categories = [],
   fetchModifiers,
   showToast,
 }: ModifiersTabProps) {
@@ -35,11 +39,20 @@ export default function ModifiersTab({
   const [loading, setLoading] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
+  // Link products modal state
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkCatFilter, setLinkCatFilter] = useState("all");
+  const [selectedProdIds, setSelectedProdIds] = useState<string[]>([]);
+
   // Group & sort modifiers so copies always appear directly underneath their original group
   const sortedModifiers = React.useMemo(() => {
     const list = [...modifiers];
     const getBase = (n: string) =>
-      n.replace(/\s*\([^)]*copy[^)]*\)/gi, "").trim().toLowerCase();
+      n
+        .replace(/\s*\([^)]*copy[^)]*\)/gi, "")
+        .trim()
+        .toLowerCase();
 
     const result: ModifierGroup[] = [];
     const addedIds = new Set<string>();
@@ -87,7 +100,7 @@ export default function ModifiersTab({
     const q = searchQuery.toLowerCase().trim();
     const groupNameMatch = group.name.toLowerCase().includes(q);
     const optionMatch = group.options.some((opt) =>
-      opt.name.toLowerCase().includes(q)
+      opt.name.toLowerCase().includes(q),
     );
     return groupNameMatch || optionMatch;
   });
@@ -97,9 +110,9 @@ export default function ModifiersTab({
   const [expandedOptionIdx, setExpandedOptionIdx] = useState<number | null>(
     null,
   );
-  const [expandedSizePricingIdx, setExpandedSizePricingIdx] = useState<number | null>(
-    null,
-  );
+  const [expandedSizePricingIdx, setExpandedSizePricingIdx] = useState<
+    number | null
+  >(null);
   const [editMod, setEditMod] = useState<ModifierGroup | null>(null);
 
   const SIZE_PRESETS = [
@@ -107,7 +120,7 @@ export default function ModifiersTab({
     { code: "small", label: '9" Small' },
     { code: "medium", label: '12" Medium' },
     { code: "large", label: '14" Large' },
-    { code: "xl", label: 'XL Panormous' },
+    { code: "xl", label: "XL Panormous" },
   ];
 
   const [modForm, setModForm] = useState<{
@@ -124,7 +137,15 @@ export default function ModifiersTab({
     maxSelection: 1,
     displayType: "radio",
     options: [
-      { name: "", price: 0, isDefault: false, image: "", pricesPerSize: [], availableForSizes: [], modifierGroups: [] },
+      {
+        name: "",
+        price: 0,
+        isDefault: false,
+        image: "",
+        pricesPerSize: [],
+        availableForSizes: [],
+        modifierGroups: [],
+      },
     ],
   });
 
@@ -164,7 +185,11 @@ export default function ModifiersTab({
 
         if (oldImage) {
           try {
-            await axios.post(`${API_URL}/upload/delete`, { url: oldImage }, getAuthConfig());
+            await axios.post(
+              `${API_URL}/upload/delete`,
+              { url: oldImage },
+              getAuthConfig(),
+            );
           } catch (delErr) {
             console.error("Failed to delete old option image:", delErr);
           }
@@ -220,6 +245,8 @@ export default function ModifiersTab({
         image: o.image || "",
         pricesPerSize: o.pricesPerSize || [],
         availableForSizes: o.availableForSizes || [],
+        productId: o.productId || (o as any).productId || undefined,
+        includedToppings: o.includedToppings || [],
         modifierGroups:
           o.modifierGroups?.map((g: any) =>
             typeof g === "string" ? g : g.id || g._id,
@@ -245,7 +272,11 @@ export default function ModifiersTab({
           isDefault: o.isDefault,
           image: o.image || "",
           pricesPerSize: o.pricesPerSize ? [...o.pricesPerSize] : [],
-          availableForSizes: o.availableForSizes ? [...o.availableForSizes] : [],
+          availableForSizes: o.availableForSizes
+            ? [...o.availableForSizes]
+            : [],
+          productId: o.productId || (o as any).productId || undefined,
+          includedToppings: o.includedToppings ? [...o.includedToppings] : [],
           modifierGroups:
             o.modifierGroups?.map((g: any) =>
               typeof g === "string" ? g : g.id || g._id,
@@ -253,7 +284,11 @@ export default function ModifiersTab({
         })),
       };
 
-      const res = await axios.post(`${API_URL}/modifiers`, payload, getAuthConfig());
+      const res = await axios.post(
+        `${API_URL}/modifiers`,
+        payload,
+        getAuthConfig(),
+      );
       if (res.data.success) {
         showToast(`Duplicated "${group.name}" as "${group.name} (Copy)"!`);
         fetchModifiers();
@@ -278,7 +313,14 @@ export default function ModifiersTab({
       maxSelection: 1,
       displayType: "radio",
       options: [
-        { name: "", price: 0, isDefault: false, image: "", availableForSizes: [], modifierGroups: [] },
+        {
+          name: "",
+          price: 0,
+          isDefault: false,
+          image: "",
+          availableForSizes: [],
+          modifierGroups: [],
+        },
       ],
     });
     setExpandedOptionIdx(null);
@@ -289,7 +331,14 @@ export default function ModifiersTab({
       ...modForm,
       options: [
         ...modForm.options,
-        { name: "", price: 0, isDefault: false, image: "", availableForSizes: [], modifierGroups: [] },
+        {
+          name: "",
+          price: 0,
+          isDefault: false,
+          image: "",
+          availableForSizes: [],
+          modifierGroups: [],
+        },
       ],
     });
   };
@@ -331,6 +380,55 @@ export default function ModifiersTab({
     setModForm({ ...modForm, options: newOptions });
   };
 
+  const handleImportProductsAsOptions = () => {
+    if (selectedProdIds.length === 0) {
+      showToast("Select at least one product to import", "error");
+      return;
+    }
+
+    const newOptions = [...modForm.options];
+    let importedCount = 0;
+
+    selectedProdIds.forEach((pId) => {
+      const prod = products.find((p) => (p.id || p._id) === pId);
+      if (!prod) return;
+
+      const exists = newOptions.some(
+        (o) =>
+          o.productId === pId ||
+          o.name.toLowerCase().trim() === prod.name.toLowerCase().trim(),
+      );
+      if (exists) return;
+
+      const optObj: ModifierOption = {
+        name: prod.name,
+        price: 0,
+        isDefault: false,
+        image: prod.image || "",
+        productId: prod.id || prod._id,
+        includedToppings: prod.includedToppings || [],
+        modifierGroups: (prod.modifierGroups || []).map((g: any) =>
+          typeof g === "string" ? g : g.id || g._id,
+        ),
+        availableForSizes: [],
+        pricesPerSize: [],
+      };
+
+      if (newOptions.length === 1 && !newOptions[0].name.trim()) {
+        newOptions[0] = optObj;
+      } else {
+        newOptions.push(optObj);
+      }
+      importedCount++;
+    });
+
+    setModForm({ ...modForm, options: newOptions });
+    setIsLinkModalOpen(false);
+    setSelectedProdIds([]);
+    setLinkSearch("");
+    showToast(`Imported ${importedCount} product(s) as options!`);
+  };
+
   const handleModSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modForm.name) {
@@ -355,6 +453,8 @@ export default function ModifiersTab({
           pricesPerSize: o.pricesPerSize || [],
           availableForSizes: o.availableForSizes || [],
           modifierGroups: o.modifierGroups || [],
+          productId: o.productId || null,
+          includedToppings: o.includedToppings || [],
         };
         const optId = o.id || o._id;
         if (optId) {
@@ -369,14 +469,22 @@ export default function ModifiersTab({
       };
       if (editMod) {
         const id = editMod.id || editMod._id;
-        const res = await axios.put(`${API_URL}/modifiers/${id}`, payload, getAuthConfig());
+        const res = await axios.put(
+          `${API_URL}/modifiers/${id}`,
+          payload,
+          getAuthConfig(),
+        );
         if (res.data.success) {
           showToast("Modifier Group updated!");
           cancelEditModifier();
           fetchModifiers();
         }
       } else {
-        const res = await axios.post(`${API_URL}/modifiers`, payload, getAuthConfig());
+        const res = await axios.post(
+          `${API_URL}/modifiers`,
+          payload,
+          getAuthConfig(),
+        );
         if (res.data.success) {
           showToast("Modifier Group created!");
           setModForm({
@@ -403,7 +511,10 @@ export default function ModifiersTab({
   const executeDeleteModifier = async (id: string) => {
     const modToDelete = modifiers.find((m) => m.id === id || m._id === id);
     try {
-      const res = await axios.delete(`${API_URL}/modifiers/${id}`, getAuthConfig());
+      const res = await axios.delete(
+        `${API_URL}/modifiers/${id}`,
+        getAuthConfig(),
+      );
       if (res.data.success) {
         showToast("Modifier group deleted!");
         if (editMod && (editMod.id === id || editMod._id === id))
@@ -414,9 +525,13 @@ export default function ModifiersTab({
           for (const opt of modToDelete.options) {
             if (opt.image) {
               try {
-                await axios.post(`${API_URL}/upload/delete`, {
-                  url: opt.image,
-                }, getAuthConfig());
+                await axios.post(
+                  `${API_URL}/upload/delete`,
+                  {
+                    url: opt.image,
+                  },
+                  getAuthConfig(),
+                );
               } catch (delErr) {
                 console.error(
                   "Failed to delete modifier option image:",
@@ -436,28 +551,33 @@ export default function ModifiersTab({
   };
 
   const handleDeleteModifier = (id: string) => {
-    toast((t) => (
-      <div className="flex flex-col gap-2 p-1 text-xs">
-        <p className="font-700 text-neutral-900">Are you sure you want to delete this modifier group?</p>
-        <div className="flex items-center justify-end gap-2 mt-1">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="px-2.5 py-1 font-600 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => {
-              toast.dismiss(t.id);
-              executeDeleteModifier(id);
-            }}
-            className="px-2.5 py-1 font-700 bg-red-600 hover:bg-red-700 text-white rounded-lg cursor-pointer shadow-sm"
-          >
-            Delete Modifier Group
-          </button>
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-2 p-1 text-xs">
+          <p className="font-700 text-neutral-900">
+            Are you sure you want to delete this modifier group?
+          </p>
+          <div className="flex items-center justify-end gap-2 mt-1">
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-2.5 py-1 font-600 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                executeDeleteModifier(id);
+              }}
+              className="px-2.5 py-1 font-700 bg-red-600 hover:bg-red-700 text-white rounded-lg cursor-pointer shadow-sm"
+            >
+              Delete Modifier Group
+            </button>
+          </div>
         </div>
-      </div>
-    ), { duration: 5000, position: "top-center" });
+      ),
+      { duration: 5000, position: "top-center" },
+    );
   };
 
   const isModifierButtonDisabled =
@@ -579,13 +699,27 @@ export default function ModifiersTab({
               <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider">
                 Group Options
               </label>
-              <button
-                type="button"
-                onClick={handleAddModOption}
-                className="text-[9px] text-brand-primary font-700 uppercase tracking-wider hover:opacity-80 flex items-center gap-1 cursor-pointer"
-              >
-                <Plus size={10} /> Add Option
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedProdIds([]);
+                    setLinkSearch("");
+                    setLinkCatFilter("all");
+                    setIsLinkModalOpen(true);
+                  }}
+                  className="text-[9px] text-blue-600 font-700 uppercase tracking-wider hover:opacity-80 flex items-center gap-1 cursor-pointer bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 shadow-sm"
+                >
+                  <Plus size={10} /> Link Products
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddModOption}
+                  className="text-[9px] text-brand-primary font-700 uppercase tracking-wider hover:opacity-80 flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={10} /> Add Option
+                </button>
+              </div>
             </div>
 
             {modForm.options.map((opt, index) => (
@@ -800,7 +934,9 @@ export default function ModifiersTab({
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {SIZE_PRESETS.map((preset) => {
-                        const isChecked = (opt.availableForSizes || []).includes(preset.code);
+                        const isChecked = (
+                          opt.availableForSizes || []
+                        ).includes(preset.code);
                         return (
                           <label
                             key={preset.code}
@@ -818,7 +954,11 @@ export default function ModifiersTab({
                                 const nextList = e.target.checked
                                   ? [...curList, preset.code]
                                   : curList.filter((c) => c !== preset.code);
-                                handleModOptionChange(index, "availableForSizes" as any, nextList);
+                                handleModOptionChange(
+                                  index,
+                                  "availableForSizes" as any,
+                                  nextList,
+                                );
                               }}
                               className="rounded border-neutral-300 text-emerald-500 focus:ring-emerald-400 w-3 h-3"
                             />
@@ -839,7 +979,10 @@ export default function ModifiersTab({
                       Link Nested Modifier Groups
                     </p>
                     <div className="relative">
-                      <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                      <Search
+                        size={11}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                      />
                       <input
                         type="text"
                         value={nestedSearchQuery}
@@ -867,13 +1010,16 @@ export default function ModifiersTab({
                       <div className="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
                         {modifiers
                           .filter((m) => {
-                            const isNotSelf = (m.id || m._id) !== (editMod?.id || editMod?._id);
+                            const isNotSelf =
+                              (m.id || m._id) !== (editMod?.id || editMod?._id);
                             if (!isNotSelf) return false;
                             if (!nestedSearchQuery.trim()) return true;
                             const q = nestedSearchQuery.toLowerCase().trim();
                             return (
                               m.name.toLowerCase().includes(q) ||
-                              m.options.some((opt) => opt.name.toLowerCase().includes(q))
+                              m.options.some((opt) =>
+                                opt.name.toLowerCase().includes(q),
+                              )
                             );
                           })
                           .map((m) => {
@@ -966,13 +1112,19 @@ export default function ModifiersTab({
               </h3>
             </div>
             <span className="text-[9px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full font-700">
-              {searchQuery ? `${filteredModifiers.length} / ${modifiers.length}` : `${modifiers.length}`} Groups
+              {searchQuery
+                ? `${filteredModifiers.length} / ${modifiers.length}`
+                : `${modifiers.length}`}{" "}
+              Groups
             </span>
           </div>
 
           {/* Search Input Bar */}
           <div className="relative w-full sm:w-64">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
+            />
             <input
               type="text"
               value={searchQuery}
@@ -1036,74 +1188,299 @@ export default function ModifiersTab({
                       </span>
                     </div>
 
-                  <div className="flex flex-wrap gap-2.5 pt-2">
-                    {group.options.map((opt) => {
-                      const isMatchedOption = searchQuery.trim() && opt.name.toLowerCase().includes(searchQuery.toLowerCase().trim());
-                      return (
-                        <span
-                          key={opt.id || opt._id}
-                          className={`text-[9.5px] pl-1.5 pr-2.5 py-1 rounded-xl border flex items-center gap-2 ${
-                            isMatchedOption
-                              ? "border-amber-400 bg-amber-50 text-amber-900 font-700 shadow-xs"
-                              : opt.isDefault
-                              ? "border-brand-primary bg-orange-50 text-brand-primary font-600"
-                              : "border-neutral-200 bg-white text-neutral-600"
-                          }`}
-                        >
-                          {opt.image && (
-                            <img
-                              src={opt.image}
-                              alt={opt.name}
-                              className="w-5.5 h-5.5 rounded object-cover border border-neutral-200"
-                            />
-                          )}
-                          <span>{opt.name}</span>
-                          {opt.price > 0 && (
-                            <span className="font-700 text-[8px] opacity-75">
-                              (+${opt.price.toFixed(2)})
-                            </span>
-                          )}
-                        </span>
-                      );
-                    })}
+                    <div className="flex flex-wrap gap-2.5 pt-2">
+                      {group.options.map((opt) => {
+                        const isMatchedOption =
+                          searchQuery.trim() &&
+                          opt.name
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase().trim());
+                        return (
+                          <span
+                            key={opt.id || opt._id}
+                            className={`text-[9.5px] pl-1.5 pr-2.5 py-1 rounded-xl border flex items-center gap-2 ${
+                              isMatchedOption
+                                ? "border-amber-400 bg-amber-50 text-amber-900 font-700 shadow-xs"
+                                : opt.isDefault
+                                  ? "border-brand-primary bg-orange-50 text-brand-primary font-600"
+                                  : "border-neutral-200 bg-white text-neutral-600"
+                            }`}
+                          >
+                            {opt.image && (
+                              <img
+                                src={opt.image}
+                                alt={opt.name}
+                                className="w-5.5 h-5.5 rounded object-cover border border-neutral-200"
+                              />
+                            )}
+                            <span>{opt.name}</span>
+                            {opt.price > 0 && (
+                              <span className="font-700 text-[8px] opacity-75">
+                                (+${opt.price.toFixed(2)})
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => duplicateModifierGroup(group)}
+                      disabled={duplicatingId === (group.id || group._id)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 transition-all cursor-pointer mt-1"
+                      title="Duplicate / Copy Modifier Group"
+                    >
+                      {duplicatingId === (group.id || group._id) ? (
+                        <Loader2
+                          size={12}
+                          className="animate-spin text-blue-600"
+                        />
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => startEditModifier(group)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 text-brand-primary hover:bg-orange-100 transition-all cursor-pointer mt-1"
+                      title="Edit Modifier Group"
+                    >
+                      <Edit size={12} />
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleDeleteModifier((group.id || group._id) as string)
+                      }
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-all cursor-pointer mt-1"
+                      title="Delete Modifier Group"
+                    >
+                      <Trash size={12} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => duplicateModifierGroup(group)}
-                    disabled={duplicatingId === (group.id || group._id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50 transition-all cursor-pointer mt-1"
-                    title="Duplicate / Copy Modifier Group"
-                  >
-                    {duplicatingId === (group.id || group._id) ? (
-                      <Loader2 size={12} className="animate-spin text-blue-600" />
-                    ) : (
-                      <Copy size={12} />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => startEditModifier(group)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-orange-50 text-brand-primary hover:bg-orange-100 transition-all cursor-pointer mt-1"
-                    title="Edit Modifier Group"
-                  >
-                    <Edit size={12} />
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleDeleteModifier((group.id || group._id) as string)
-                    }
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-all cursor-pointer mt-1"
-                    title="Delete Modifier Group"
-                  >
-                    <Trash size={12} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Link Products Modal */}
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col border border-neutral-200">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100 flex-shrink-0">
+              <div>
+                <h3 className="text-[13px] font-800 text-neutral-800 uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="text-brand-primary" size={16} />
+                  Link Existing Products as Options
+                </h3>
+                <p className="text-[9.5px] text-neutral-400 font-500 mt-0.5">
+                  Select products (Pizzas, Sides, Wings, Beverages, etc.) to
+                  automatically import their names, images, crusts/toppings, and
+                  included recipe toppings as modifier options!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLinkModalOpen(false)}
+                className="w-7 h-7 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-500 flex items-center justify-center cursor-pointer transition-all"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Search & Category Filter */}
+            <div className="space-y-2 flex-shrink-0">
+              <div className="relative">
+                <Search
+                  size={12}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
+                />
+                <input
+                  type="text"
+                  value={linkSearch}
+                  onChange={(e) => setLinkSearch(e.target.value)}
+                  placeholder="Search products by name..."
+                  className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-xl py-2 pl-8 pr-8 text-[11px] focus:outline-none focus:border-brand-primary"
+                />
+                {linkSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLinkSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex flex-wrap gap-1.5 pt-1 overflow-x-auto pb-1 max-h-16">
+                <button
+                  type="button"
+                  onClick={() => setLinkCatFilter("all")}
+                  className={`px-2.5 py-1 rounded-lg text-[9.5px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
+                    linkCatFilter === "all"
+                      ? "bg-brand-primary border-brand-primary text-white"
+                      : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                  }`}
+                >
+                  All ({products.length})
+                </button>
+                {categories.map((c) => {
+                  const cid = (c.id || c._id) as string;
+                  const count = products.filter((p) => {
+                    const pCid =
+                      typeof p.categoryId === "object"
+                        ? p.categoryId?.id || p.categoryId?._id
+                        : p.categoryId;
+                    return pCid === cid;
+                  }).length;
+                  return (
+                    <button
+                      key={cid}
+                      type="button"
+                      onClick={() => setLinkCatFilter(cid)}
+                      className={`px-2.5 py-1 rounded-lg text-[9.5px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
+                        linkCatFilter === cid
+                          ? "bg-brand-primary border-brand-primary text-white"
+                          : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                      }`}
+                    >
+                      {c.name} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Products Grid */}
+            <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {products
+                  .filter((p) => {
+                    const pCid =
+                      typeof p.categoryId === "object"
+                        ? p.categoryId?.id || p.categoryId?._id
+                        : p.categoryId;
+                    if (linkCatFilter !== "all" && pCid !== linkCatFilter)
+                      return false;
+                    if (!linkSearch.trim()) return true;
+                    const q = linkSearch.toLowerCase().trim();
+                    return (
+                      p.name.toLowerCase().includes(q) ||
+                      (p.description && p.description.toLowerCase().includes(q))
+                    );
+                  })
+                  .map((p) => {
+                    const pid = (p.id || p._id) as string;
+                    const isSelected = selectedProdIds.includes(pid);
+                    const alreadyInForm = modForm.options.some(
+                      (o) =>
+                        o.productId === pid ||
+                        o.name.toLowerCase().trim() ===
+                          p.name.toLowerCase().trim(),
+                    );
+
+                    return (
+                      <button
+                        key={pid}
+                        type="button"
+                        onClick={() => {
+                          if (alreadyInForm) return;
+                          setSelectedProdIds((prev) =>
+                            isSelected
+                              ? prev.filter((id) => id !== pid)
+                              : [...prev, pid],
+                          );
+                        }}
+                        className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          alreadyInForm
+                            ? "bg-neutral-100 border-neutral-200 opacity-60 cursor-not-allowed"
+                            : isSelected
+                              ? "bg-orange-50 border-brand-primary ring-1 ring-brand-primary"
+                              : "bg-white border-neutral-200 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                            isSelected || alreadyInForm
+                              ? "bg-brand-primary border-brand-primary text-white"
+                              : "border-neutral-300 bg-white"
+                          }`}
+                        >
+                          {(isSelected || alreadyInForm) && (
+                            <Check size={10} strokeWidth={3} />
+                          )}
+                        </div>
+
+                        {p.image ? (
+                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-neutral-200 bg-neutral-100 flex-shrink-0">
+                            <img
+                              src={p.image}
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-neutral-100 border border-neutral-200 flex flex-col items-center justify-center text-neutral-400 flex-shrink-0">
+                            <ImageIcon size={14} />
+                          </div>
+                        )}
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10.5px] font-700 text-neutral-800 truncate">
+                            {p.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {alreadyInForm ? (
+                              <span className="text-[8px] font-700 text-neutral-500 uppercase bg-neutral-200 px-1.5 py-0.5 rounded">
+                                Already Added
+                              </span>
+                            ) : (
+                              <>
+                                <span className="text-[8.5px] font-600 text-neutral-400">
+                                  ${p.price ? p.price.toFixed(2) : "0.00"}
+                                </span>
+                                {p.includedToppings &&
+                                  p.includedToppings.length > 0 && (
+                                    <span className="text-[8px] font-700 text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded">
+                                      ✓ {p.includedToppings.length} Recipe
+                                      Toppings
+                                    </span>
+                                  )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-3 border-t border-neutral-100 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsLinkModalOpen(false)}
+                className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-xl text-[10px] font-700 hover:bg-neutral-50 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleImportProductsAsOptions}
+                disabled={selectedProdIds.length === 0}
+                className="px-5 py-2 bg-brand-primary text-white rounded-xl text-[10px] font-800 uppercase tracking-wider hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-md shadow-brand-primary/20 flex items-center gap-1.5"
+              >
+                <Plus size={12} />
+                Import Selected Products ({selectedProdIds.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

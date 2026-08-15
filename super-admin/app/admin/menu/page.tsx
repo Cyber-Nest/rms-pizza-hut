@@ -115,6 +115,8 @@ export default function MenuPage() {
         {activeTab === "modifiers" && (
           <ModifiersTab
             modifiers={modifiers}
+            products={products}
+            categories={categories}
             fetchModifiers={fetchModifiers}
             showToast={showToast}
           />
