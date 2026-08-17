@@ -316,10 +316,12 @@ export default function ModifierDrawer({
     }
 
     // 2. Detect size from group/slot name if in a deal (e.g. "Recipe Pizza Med" -> medium)
-    let detectedSize = "medium"; // Default for deals
+    let detectedSize = "medium";
     if (groupName) {
       const gLower = groupName.toLowerCase();
-      if (gLower.includes("large") || gLower.includes('14"'))
+      if (gLower.includes("pnqlicious") || gLower.includes('16"'))
+        detectedSize = "pnqlicious";
+      else if (gLower.includes("large") || gLower.includes('14"'))
         detectedSize = "large";
       else if (gLower.includes("small") || gLower.includes('9"'))
         detectedSize = "small";
@@ -571,7 +573,9 @@ export default function ModifierDrawer({
     let slotSize = selectedSize?.sizeCode;
     if (!slotSize) {
       const gLower = displayName.toLowerCase();
-      if (gLower.includes("large") || gLower.includes('14"'))
+      if (gLower.includes("pnqlicious") || gLower.includes('16"'))
+        slotSize = "pnqlicious";
+      else if (gLower.includes("large") || gLower.includes('14"'))
         slotSize = "large";
       else if (gLower.includes("small") || gLower.includes('9"'))
         slotSize = "small";
@@ -838,33 +842,42 @@ export default function ModifierDrawer({
                 Select Pizza Size
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {item.variants.map((variant) => {
-                  const isSelected =
-                    selectedSize?.sizeCode === variant.sizeCode;
-                  return (
-                    <button
-                      key={variant.sizeCode}
-                      type="button"
-                      onClick={() => setSelectedSize(variant)}
-                      className={`flex-1 min-w-[100px] flex items-center justify-between px-3 py-2 rounded-xl border text-[10.5px] font-700 transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-brand-primary border-brand-primary text-white shadow-sm ring-2 ring-brand-primary/20"
-                          : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                      }`}
-                    >
-                      <span className="truncate">{variant.sizeName}</span>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-full font-800 ${
+                {(() => {
+                  const SIZE_ORDER = ["personal", "small", "medium", "large", "pnqlicious", "xl"];
+                  const sortedVariants = [...item.variants].sort((a, b) => {
+                    const idxA = SIZE_ORDER.indexOf(a.sizeCode);
+                    const idxB = SIZE_ORDER.indexOf(b.sizeCode);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    return a.price - b.price;
+                  });
+                  return sortedVariants.map((variant) => {
+                    const isSelected =
+                      selectedSize?.sizeCode === variant.sizeCode;
+                    return (
+                      <button
+                        key={variant.sizeCode}
+                        type="button"
+                        onClick={() => setSelectedSize(variant)}
+                        className={`flex-1 min-w-[100px] flex items-center justify-between px-3 py-2 rounded-xl border text-[10.5px] font-700 transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-white/20 text-white"
-                            : "bg-neutral-100 text-brand-primary"
+                            ? "bg-brand-primary border-brand-primary text-white shadow-sm ring-2 ring-brand-primary/20"
+                            : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                         }`}
                       >
-                        ${variant.price.toFixed(2)}
-                      </span>
-                    </button>
-                  );
-                })}
+                        <span className="truncate">{variant.sizeName}</span>
+                        <span
+                          className={`text-[9px] px-1.5 py-0.5 rounded-full font-800 ${
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : "bg-neutral-100 text-brand-primary"
+                          }`}
+                        >
+                          ${variant.price.toFixed(2)}
+                        </span>
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}

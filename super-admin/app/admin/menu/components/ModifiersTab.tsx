@@ -120,6 +120,7 @@ export default function ModifiersTab({
     { code: "small", label: '9" Small' },
     { code: "medium", label: '12" Medium' },
     { code: "large", label: '14" Large' },
+    { code: "pnqlicious", label: '16" Pnqlicious' },
     { code: "xl", label: "XL Panormous" },
   ];
 

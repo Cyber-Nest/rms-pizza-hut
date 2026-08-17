@@ -31,6 +31,7 @@ const DEFAULT_PIZZA_SIZES = [
   { sizeCode: "small", sizeName: '9" Small', price: 14.99, isDefault: false },
   { sizeCode: "medium", sizeName: '12" Medium', price: 18.99, isDefault: true },
   { sizeCode: "large", sizeName: '14" Large', price: 22.99, isDefault: false },
+  { sizeCode: "pnqlicious", sizeName: '16" Pnqlicious', price: 27.99, isDefault: false },
   { sizeCode: "xl", sizeName: "XL Panormous", price: 26.99, isDefault: false },
 ];
 
@@ -211,6 +212,17 @@ export default function ProductsTab({
 
   const startEditProduct = (prod: Product) => {
     setEditProd(prod);
+    const existingVariants =
+      prod.variants && prod.variants.length > 0
+        ? [...prod.variants]
+        : [...DEFAULT_PIZZA_SIZES];
+    if (prod.hasVariants) {
+      DEFAULT_PIZZA_SIZES.forEach((defSize) => {
+        if (!existingVariants.some((v) => v.sizeCode === defSize.sizeCode)) {
+          existingVariants.push(defSize);
+        }
+      });
+    }
     setProdForm({
       name: prod.name,
       description: prod.description || "",
@@ -218,7 +230,7 @@ export default function ProductsTab({
       image: prod.image || "",
       itemType: prod.itemType || "combo",
       hasVariants: !!prod.hasVariants,
-      variants: prod.variants && prod.variants.length > 0 ? prod.variants : DEFAULT_PIZZA_SIZES,
+      variants: existingVariants,
       categoryId:
         typeof prod.categoryId === "object"
           ? prod.categoryId.id || prod.categoryId._id
