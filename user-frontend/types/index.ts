@@ -20,6 +20,7 @@ export interface MenuItem {
   itemType: MenuItemType;
   modifierGroupIds?: string[];
   modifierGroups?: ModifierGroup[];
+  includedToppings?: { groupId: string; optionId: string }[];
   kitchenLabel?: 'chicken' | 'pizza';
   isOutOfStock?: boolean;
 }
@@ -30,6 +31,8 @@ export interface ModifierOption {
   image?: string;
   price: number;
   isDefault?: boolean;
+  pricesPerSize?: { sizeCode: string; price: number }[];
+  availableForSizes?: string[];
   modifierGroups?: ModifierGroup[];
   productId?: string;
   includedToppings?: { groupId: string; optionId: string }[];

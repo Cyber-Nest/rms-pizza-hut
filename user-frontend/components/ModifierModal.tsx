@@ -29,12 +29,37 @@ export default function ModifierModal({
   const [activeIdx, setActiveIdx] = useState(0);
   const [note, setNote] = useState("");
 
-  // Check if an option is an included topping for this product OR for any active selected deal option
+  // Check if an option is an included topping for this product OR for a specific parent option
   const isIncludedTopping = (
     groupId: string,
     optionId: string,
-    currentSelections?: Record<string, ModifierOption[]>
+    currentSelections?: Record<string, ModifierOption[]>,
+    parentOpt?: ModifierOption,
   ) => {
+    // 1. If a specific parent option is provided (e.g. BBQ Chicken or Veggie Lovers), check its includedToppings ONLY
+    if (parentOpt?.includedToppings && parentOpt.includedToppings.length > 0) {
+      return parentOpt.includedToppings.some(
+        (it: { groupId: string; optionId: string }) =>
+          (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
+          (it.optionId === optionId || (it.optionId as any)?._id === optionId),
+      );
+    }
+
+    // 2. Check root product level
+    if (item?.includedToppings && item.includedToppings.length > 0) {
+      if (
+        item.includedToppings.some(
+          (it: { groupId: string; optionId: string }) =>
+            (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
+            (it.optionId === optionId ||
+              (it.optionId as any)?._id === optionId),
+        )
+      ) {
+        return true;
+      }
+    }
+
+    // 3. Fallback: Check active parent deal selections
     const selSource = currentSelections || selections;
     for (const gId of Object.keys(selSource)) {
       const selectedOpts = selSource[gId] || [];
@@ -42,9 +67,11 @@ export default function ModifierModal({
         if (opt.includedToppings && opt.includedToppings.length > 0) {
           if (
             opt.includedToppings.some(
-              (it: { groupId: string; optionId: string; }) =>
-                (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
-                (it.optionId === optionId || (it.optionId as any)?._id === optionId)
+              (it: { groupId: string; optionId: string }) =>
+                (it.groupId === groupId ||
+                  (it.groupId as any)?._id === groupId) &&
+                (it.optionId === optionId ||
+                  (it.optionId as any)?._id === optionId),
             )
           ) {
             return true;
@@ -52,6 +79,7 @@ export default function ModifierModal({
         }
       }
     }
+
     return false;
   };
 
@@ -63,11 +91,11 @@ export default function ModifierModal({
     setNote("");
 
     const init: Record<string, ModifierOption[]> = {};
-    const initGroup = (g: ModifierGroup) => {
+    const initGroup = (g: ModifierGroup, parentOpt?: ModifierOption) => {
       if (!g || !g.options) return;
       const defs = g.options.filter((o) => o.isDefault);
       const includedOpts = g.options.filter(
-        (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init)
+        (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init, parentOpt),
       );
       let selected = [...defs, ...includedOpts];
       if (
@@ -83,12 +111,12 @@ export default function ModifierModal({
       // Recurse nested groups
       selected.forEach((opt) => {
         if (opt.modifierGroups) {
-          opt.modifierGroups.forEach(initGroup);
+          opt.modifierGroups.forEach((subG) => initGroup(subG, opt));
         }
       });
     };
 
-    item.modifierGroups?.forEach(initGroup);
+    item.modifierGroups?.forEach((g) => initGroup(g));
     setSelections(init);
   }, [item, isOpen]);
 
@@ -152,14 +180,37 @@ export default function ModifierModal({
 
   if (!isOpen || !item) return null;
 
+  // Helper to recursively clear sub-group selections when a parent option is unselected
+  const clearSubGroups = (
+    o: ModifierOption,
+    targetState: Record<string, ModifierOption[]>,
+  ) => {
+    if (o.modifierGroups) {
+      o.modifierGroups.forEach((subG) => {
+        delete targetState[subG.id];
+        subG.options.forEach((so) => clearSubGroups(so, targetState));
+      });
+    }
+  };
+
   const toggleOption = (g: ModifierGroup, opt: ModifierOption) => {
     const cur = selections[g.id] ?? [];
     const has = cur.some((o) => o.id === opt.id);
     let next: ModifierOption[];
 
+    const newSelections = { ...selections };
+
     if (g.maxSelection === 1) {
+      // Clear sub-groups of previously selected option in single-choice radio group
+      cur.forEach((prevOpt) => {
+        if (prevOpt.id !== opt.id) {
+          clearSubGroups(prevOpt, newSelections);
+        }
+      });
       next = has && !g.required ? [] : [opt];
     } else if (has) {
+      // Unselecting an option -> clear its sub-groups
+      clearSubGroups(opt, newSelections);
       next = cur.filter((o) => o.id !== opt.id);
     } else if (cur.length < g.maxSelection) {
       next = [...cur, opt];
@@ -167,16 +218,27 @@ export default function ModifierModal({
       return; // Reached limit
     }
 
-    const newSelections = { ...selections, [g.id]: next };
+    newSelections[g.id] = next;
 
     // Initialize defaults and recipe toppings for sub-groups of newly selected options
-    const initNested = (o: ModifierOption) => {
+    // parentPizzaOpt = the deal pizza option (e.g. BBQ Chicken) that owns these sub-groups
+    const initNested = (o: ModifierOption, parentPizzaOpt?: ModifierOption) => {
       if (o.modifierGroups) {
         o.modifierGroups.forEach((subG) => {
           if (newSelections[subG.id] === undefined) {
             const defs = subG.options.filter((so) => so.isDefault);
+            // Use the top-level pizza opt as parentOpt so only THIS pizza's
+            // includedToppings are checked — no cross-slot leakage
+            const parentForCheck = parentPizzaOpt || o;
             const includedOpts = subG.options.filter(
-              (so) => !so.isDefault && isIncludedTopping(subG.id, so.id, newSelections)
+              (so) =>
+                !so.isDefault &&
+                isIncludedTopping(
+                  subG.id,
+                  so.id,
+                  newSelections,
+                  parentForCheck,
+                ),
             );
             let selected = [...defs, ...includedOpts];
             if (
@@ -188,13 +250,16 @@ export default function ModifierModal({
               selected = [subG.options[0]];
             }
             newSelections[subG.id] = selected;
-            newSelections[subG.id].forEach(initNested);
+            // Recurse deeper, keeping same top-level pizza as parent
+            newSelections[subG.id].forEach((so) =>
+              initNested(so, parentForCheck),
+            );
           }
         });
       }
     };
 
-    next.forEach(initNested);
+    next.forEach((o) => initNested(o, o));
     setSelections(newSelections);
   };
 
@@ -208,12 +273,65 @@ export default function ModifierModal({
       return count >= g.minSelection && count <= g.maxSelection;
     });
 
+  // Helper to check if an option is available for a given size code
+  const isOptionAvailableForSize = (opt: ModifierOption, sizeCode?: string) => {
+    if (!sizeCode) return true;
+    if (!opt.availableForSizes || opt.availableForSizes.length === 0)
+      return true;
+    return opt.availableForSizes.includes(sizeCode);
+  };
+
+  // Helper to resolve option price based on group/slot size context and pricesPerSize
+  const getOptionPrice = (
+    opt: ModifierOption,
+    groupId?: string,
+    groupName?: string,
+  ) => {
+    // If this option is an included topping for an active selection, it's free ($0)
+    if (groupId && isIncludedTopping(groupId, opt.id)) {
+      return 0;
+    }
+
+    // Detect size from group/slot name (e.g. "Recipe Pizza Med" -> medium)
+    let detectedSize = "medium"; // Default for deals (most deals feature Medium pizzas)
+    if (groupName) {
+      const gLower = groupName.toLowerCase();
+      if (gLower.includes("large") || gLower.includes('14"'))
+        detectedSize = "large";
+      else if (gLower.includes("small") || gLower.includes('9"'))
+        detectedSize = "small";
+      else if (gLower.includes("personal") || gLower.includes('6"'))
+        detectedSize = "personal";
+      else if (gLower.includes("xl") || gLower.includes("panormous"))
+        detectedSize = "xl";
+      else if (gLower.includes("med") || gLower.includes('12"'))
+        detectedSize = "medium";
+    }
+
+    // 1. Try size-specific price from pricesPerSize
+    const pricesList = opt.pricesPerSize as
+      | { sizeCode: string; price: number }[]
+      | undefined;
+    if (Array.isArray(pricesList) && pricesList.length > 0) {
+      const matched = pricesList.find((p) => p.sizeCode === detectedSize);
+      if (matched && typeof matched.price === "number" && matched.price > 0) {
+        return matched.price;
+      }
+      // Fallback: pick any non-zero price in pricesPerSize
+      const anyNonZero = pricesList.find((p) => p.price > 0);
+      if (anyNonZero) return anyNonZero.price;
+    }
+
+    // 2. Return base price
+    return opt.price || 0;
+  };
+
   const getLivePrice = () => {
     let modSum = 0;
     allActiveGroups.forEach((g) => {
       const selectedOpts = selections[g.id] ?? [];
       selectedOpts.forEach((o) => {
-        modSum += o.price;
+        modSum += getOptionPrice(o, g.id, g.name);
       });
     });
     return (item.price + modSum) * quantity;
@@ -232,7 +350,7 @@ export default function ModifierModal({
           groupName: g.name,
           optionId: o.id,
           optionName: o.name,
-          price: o.price,
+          price: getOptionPrice(o, g.id, g.name),
           isRoot,
         });
       });
@@ -243,10 +361,32 @@ export default function ModifierModal({
   };
 
   // Render a modifier group recursively
-  const renderModifierGroup = (g: ModifierGroup, pathName: string = "") => {
+  const renderModifierGroup = (
+    g: ModifierGroup,
+    pathName: string = "",
+    parentOpt?: ModifierOption,
+  ) => {
     const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id);
     const displayName = pathName ? `${pathName} › ${g.name}` : g.name;
     const selectedCount = (selections[g.id] ?? []).length;
+
+    // Detect size context for filtering available options
+    let detectedSize = "medium";
+    const gLower = displayName.toLowerCase();
+    if (gLower.includes("large") || gLower.includes('14"'))
+      detectedSize = "large";
+    else if (gLower.includes("small") || gLower.includes('9"'))
+      detectedSize = "small";
+    else if (gLower.includes("personal") || gLower.includes('6"'))
+      detectedSize = "personal";
+    else if (gLower.includes("xl") || gLower.includes("panormous"))
+      detectedSize = "xl";
+    else if (gLower.includes("med") || gLower.includes('12"'))
+      detectedSize = "medium";
+
+    const availableOptions = g.options.filter((opt) =>
+      isOptionAvailableForSize(opt, detectedSize),
+    );
 
     return (
       <div
@@ -284,9 +424,17 @@ export default function ModifierModal({
 
         {/* Options Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {g.options.map((opt) => {
+          {availableOptions.map((opt) => {
             const sel = isSelected(g.id, opt.id);
             const isCard = g.displayType === "card";
+            const optPrice = getOptionPrice(opt, g.id, displayName);
+            const isInc = isIncludedTopping(
+              g.id,
+              opt.id,
+              selections,
+              parentOpt,
+            );
+
             return (
               <div key={opt.id} className="flex flex-col">
                 <button
@@ -336,11 +484,15 @@ export default function ModifierModal({
                     <p className="text-[11px] font-semibold text-neutral-800 truncate">
                       {opt.name}
                     </p>
-                    {opt.price > 0 && (
-                      <p className="text-[10px] font-bold text-brand-primary mt-0.5">
-                        +${opt.price.toFixed(2)}
+                    {isInc ? (
+                      <p className="text-[9.5px] font-bold text-emerald-600 mt-0.5">
+                        ✓ Included
                       </p>
-                    )}
+                    ) : optPrice > 0 ? (
+                      <p className="text-[10px] font-bold text-brand-primary mt-0.5">
+                        +${optPrice.toFixed(2)}
+                      </p>
+                    ) : null}
                   </div>
 
                   {/* Top-Right Tick for Cards */}
@@ -373,6 +525,7 @@ export default function ModifierModal({
                   renderModifierGroup(
                     childG,
                     isRoot ? opt.name : `${pathName} › ${opt.name}`,
+                    opt,
                   ),
                 )}
               </div>
@@ -526,7 +679,7 @@ export default function ModifierModal({
                 className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
                   activeIdx === (item.modifierGroups?.length ?? 1) - 1
                     ? "border-neutral-100 bg-neutral-50 text-neutral-300 cursor-not-allowed"
-                    : "border-neutral-200 bg-white text-neutral-600 active:scale-95"
+                    : "border-brand-primary bg-brand-primary text-white active:scale-95"
                 }`}
               >
                 Next
@@ -583,22 +736,30 @@ export default function ModifierModal({
                     <p className="text-[8.5px] font-bold text-neutral-400 uppercase tracking-wider">
                       {g.name}
                     </p>
-                    {opts.map((o) => (
-                      <div
-                        key={o.id}
-                        className="flex items-center gap-1.5 text-brand-primary pl-1 text-[11px]"
-                      >
-                        <span className="font-bold">✓</span>
-                        <span className="text-neutral-700 font-medium">
-                          {o.name}
-                        </span>
-                        {o.price > 0 && (
-                          <span className="text-[9.5px] text-neutral-400 ml-auto">
-                            +${o.price.toFixed(2)}
+                    {opts.map((o) => {
+                      const oPrice = getOptionPrice(o, g.id, g.name);
+                      const isInc = isIncludedTopping(g.id, o.id);
+                      return (
+                        <div
+                          key={o.id}
+                          className="flex items-center gap-1.5 text-brand-primary pl-1 text-[11px]"
+                        >
+                          <span className="font-bold">✓</span>
+                          <span className="text-neutral-700 font-medium">
+                            {o.name}
                           </span>
-                        )}
-                      </div>
-                    ))}
+                          {isInc ? (
+                            <span className="text-[9.5px] text-emerald-600 font-semibold ml-auto">
+                              Included
+                            </span>
+                          ) : oPrice > 0 ? (
+                            <span className="text-[9.5px] text-neutral-400 ml-auto">
+                              +${oPrice.toFixed(2)}
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
