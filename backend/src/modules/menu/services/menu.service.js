@@ -482,6 +482,7 @@ exports.getPOSMenuFeed = async (branchId = null) => {
             required: g.required,
             minSelection: g.minSelection,
             maxSelection: g.maxSelection,
+            freeSelectionLimit: g.freeSelectionLimit ?? 0,
             displayType: g.displayType,
             options: g.options.map((opt) => ({
               id: opt._id.toHexString(),
@@ -506,6 +507,7 @@ exports.getPOSMenuFeed = async (branchId = null) => {
                     required: subG.required,
                     minSelection: subG.minSelection,
                     maxSelection: subG.maxSelection,
+                    freeSelectionLimit: subG.freeSelectionLimit ?? 0,
                     displayType: subG.displayType,
                     options: subG.options.map((subOpt) => ({
                       id: subOpt._id.toHexString(),

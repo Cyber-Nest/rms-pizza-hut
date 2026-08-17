@@ -29,8 +29,8 @@ export default function ModifierModal({
   const [activeIdx, setActiveIdx] = useState(0);
   const [note, setNote] = useState("");
 
-  // Check if an option is an included topping for this product OR for a specific parent option
-  const isIncludedTopping = (
+  // Check if an option is a fixed recipe included topping (from product or parent deal opt)
+  const isRecipeIncludedTopping = (
     groupId: string,
     optionId: string,
     currentSelections?: Record<string, ModifierOption[]>,
@@ -83,6 +83,60 @@ export default function ModifierModal({
     return false;
   };
 
+  // Check if an option is an included topping for this product OR for a specific parent option
+  const isIncludedTopping = (
+    groupId: string,
+    optionId: string,
+    currentSelections?: Record<string, ModifierOption[]>,
+    parentOpt?: ModifierOption,
+  ) => {
+    if (isRecipeIncludedTopping(groupId, optionId, currentSelections, parentOpt)) {
+      return true;
+    }
+
+    // 4. Check freeSelectionLimit on the group (e.g. CYO Toppings with 2 free items limit)
+    const activeSel = currentSelections || selections;
+    const groupSelections = activeSel[groupId] || [];
+    const itemIndex = groupSelections.findIndex((o) => o.id === optionId);
+
+    let targetGroup: ModifierGroup | undefined;
+    const findGroup = (groups?: ModifierGroup[]) => {
+      if (!groups) return;
+      for (const g of groups) {
+        if (
+          g.id === groupId ||
+          (g as any)._id === groupId ||
+          ((g as any)._id && (g as any)._id.toString() === groupId)
+        ) {
+          targetGroup = g;
+          return;
+        }
+        if (g.options) {
+          for (const o of g.options) {
+            if (o.modifierGroups) findGroup(o.modifierGroups);
+            if (targetGroup) return;
+          }
+        }
+      }
+    };
+    findGroup(item?.modifierGroups);
+    if (!targetGroup && parentOpt?.modifierGroups) {
+      findGroup(parentOpt.modifierGroups);
+    }
+    if (
+      targetGroup &&
+      typeof targetGroup.freeSelectionLimit === "number" &&
+      targetGroup.freeSelectionLimit > 0
+    ) {
+      if (itemIndex !== -1) {
+        return itemIndex < targetGroup.freeSelectionLimit;
+      }
+      return groupSelections.length < targetGroup.freeSelectionLimit;
+    }
+
+    return false;
+  };
+
   // Reset/Initialize default selections when item opens
   useEffect(() => {
     if (!item) return;
@@ -95,7 +149,7 @@ export default function ModifierModal({
       if (!g || !g.options) return;
       const defs = g.options.filter((o) => o.isDefault);
       const includedOpts = g.options.filter(
-        (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init, parentOpt),
+        (o) => !o.isDefault && isRecipeIncludedTopping(g.id, o.id, init, parentOpt),
       );
       let selected = [...defs, ...includedOpts];
       if (
@@ -421,9 +475,16 @@ export default function ModifierModal({
               {g.maxSelection > 1 ? ` (Max ${g.maxSelection})` : ""}
             </p>
           </div>
-          <span className="text-[10px] font-bold text-neutral-500 bg-neutral-100 px-2.5 py-0.5 rounded-full">
-            {selectedCount} / {g.maxSelection}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {typeof g.freeSelectionLimit === "number" && g.freeSelectionLimit > 0 && (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
+                🎁 First {g.freeSelectionLimit} Free
+              </span>
+            )}
+            <span className="text-[10px] font-bold text-neutral-500 bg-neutral-100 px-2.5 py-0.5 rounded-full">
+              {selectedCount} / {g.maxSelection}
+            </span>
+          </div>
         </div>
 
         {/* Options Grid */}

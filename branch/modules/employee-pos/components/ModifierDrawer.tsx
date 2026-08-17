@@ -57,9 +57,8 @@ export default function ModifierDrawer({
     return opt.availableForSizes.includes(sizeCode);
   };
 
-  // Check if an option is an included topping for this product OR for any active selected deal option
-  // Check if an option is an included topping for this product OR for a specific parent option
-  const isIncludedTopping = (
+  // Check if an option is a fixed recipe included topping (from product or parent deal opt)
+  const isRecipeIncludedTopping = (
     groupId: string,
     optionId: string,
     currentSelections?: Record<string, ModifierOption[]>,
@@ -112,6 +111,60 @@ export default function ModifierDrawer({
     return false;
   };
 
+  // Check if an option is an included topping for this product OR for a specific parent option
+  const isIncludedTopping = (
+    groupId: string,
+    optionId: string,
+    currentSelections?: Record<string, ModifierOption[]>,
+    parentOpt?: ModifierOption,
+  ) => {
+    if (isRecipeIncludedTopping(groupId, optionId, currentSelections, parentOpt)) {
+      return true;
+    }
+
+    // 4. Check freeSelectionLimit on the group (e.g. CYO Toppings with 2 free items limit)
+    const activeSel = currentSelections || selections;
+    const groupSelections = activeSel[groupId] || [];
+    const itemIndex = groupSelections.findIndex((o) => o.id === optionId);
+
+    let targetGroup: ModifierGroup | undefined;
+    const findGroup = (groups?: ModifierGroup[]) => {
+      if (!groups) return;
+      for (const g of groups) {
+        if (
+          g.id === groupId ||
+          (g as any)._id === groupId ||
+          ((g as any)._id && (g as any)._id.toString() === groupId)
+        ) {
+          targetGroup = g;
+          return;
+        }
+        if (g.options) {
+          for (const o of g.options) {
+            if (o.modifierGroups) findGroup(o.modifierGroups);
+            if (targetGroup) return;
+          }
+        }
+      }
+    };
+    findGroup(item?.modifierGroups);
+    if (!targetGroup && parentOpt?.modifierGroups) {
+      findGroup(parentOpt.modifierGroups);
+    }
+    if (
+      targetGroup &&
+      typeof targetGroup.freeSelectionLimit === "number" &&
+      targetGroup.freeSelectionLimit > 0
+    ) {
+      if (itemIndex !== -1) {
+        return itemIndex < targetGroup.freeSelectionLimit;
+      }
+      return groupSelections.length < targetGroup.freeSelectionLimit;
+    }
+
+    return false;
+  };
+
   // Recursively initialize default selections for groups and default size
   useEffect(() => {
     if (!item) return;
@@ -146,7 +199,7 @@ export default function ModifierDrawer({
         const includedOpts = availableOpts.filter(
           (o) =>
             !o.isDefault &&
-            isIncludedTopping(g.id, o.id, restoredSelections, parentOpt),
+            isRecipeIncludedTopping(g.id, o.id, restoredSelections, parentOpt),
         );
         const baseSelections = [...defs, ...includedOpts];
 
@@ -208,7 +261,7 @@ export default function ModifierDrawer({
         );
         const defs = availableOpts.filter((o) => o.isDefault);
         const includedOpts = availableOpts.filter(
-          (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init, parentOpt),
+          (o) => !o.isDefault && isRecipeIncludedTopping(g.id, o.id, init, parentOpt),
         );
         let selected = [...defs, ...includedOpts];
         if (
@@ -509,10 +562,10 @@ export default function ModifierDrawer({
       const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id) ?? false;
       const opts = selections[g.id] ?? [];
       opts.forEach((o) => {
-        const isInc = isIncludedTopping(g.id, o.id);
+        const isRecipeInc = isRecipeIncludedTopping(g.id, o.id);
         const isDef = o.isDefault && getOptionPrice(o, g.id, g.name) === 0;
         // Only save custom additions (not default included recipe toppings)
-        if (!isInc && !isDef) {
+        if (!isRecipeInc && !isDef) {
           mods.push({
             groupId: g.id,
             groupName: g.name,
@@ -622,10 +675,18 @@ export default function ModifierDrawer({
               </p>
             )}
           </div>
-          <span className="text-[9px] font-600 text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
-            {selectedCount} / {g.maxSelection === 1 ? "1" : g.maxSelection}{" "}
-            Selected
-          </span>
+          <div className="flex items-center gap-1.5">
+            {typeof g.freeSelectionLimit === "number" &&
+              g.freeSelectionLimit > 0 && (
+                <span className="text-[9px] font-700 text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                  🎁 First {g.freeSelectionLimit} Free
+                </span>
+              )}
+            <span className="text-[9px] font-600 text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
+              {selectedCount} / {g.maxSelection === 1 ? "1" : g.maxSelection}{" "}
+              Selected
+            </span>
+          </div>
         </div>
 
         {/* Options Grid */}
@@ -843,7 +904,14 @@ export default function ModifierDrawer({
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {(() => {
-                  const SIZE_ORDER = ["personal", "small", "medium", "large", "pnqlicious", "xl"];
+                  const SIZE_ORDER = [
+                    "personal",
+                    "small",
+                    "medium",
+                    "large",
+                    "pnqlicious",
+                    "xl",
+                  ];
                   const sortedVariants = [...item.variants].sort((a, b) => {
                     const idxA = SIZE_ORDER.indexOf(a.sizeCode);
                     const idxB = SIZE_ORDER.indexOf(b.sizeCode);

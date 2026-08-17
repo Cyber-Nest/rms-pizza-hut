@@ -44,6 +44,7 @@ export interface ModifierGroup {
   required: boolean;
   minSelection: number;
   maxSelection: number;
+  freeSelectionLimit?: number;
   displayType: 'radio' | 'checkbox' | 'card';
   options: ModifierOption[];
 }
