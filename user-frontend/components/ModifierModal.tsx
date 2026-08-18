@@ -335,6 +335,46 @@ export default function ModifierModal({
     return opt.availableForSizes.includes(sizeCode);
   };
 
+  const getDealPriceForModifierOption = (optionId: string, optionName?: string) => {
+    if (!item) return null;
+    const today = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ][new Date().getDay()];
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+
+    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+
+    if (matchedDeal && matchedDeal.sizes) {
+      const optDeal = matchedDeal.sizes.find(
+        (s: any) =>
+          s.isEnabled &&
+          typeof s.dealPrice === "number" &&
+          (s.sizeCode === optionId ||
+            s.sizeName === optionName ||
+            s.sizeName?.endsWith(`: ${optionName}`)),
+      );
+      if (optDeal) {
+        return optDeal.dealPrice;
+      }
+    }
+    return null;
+  };
+
   // Helper to resolve option price based on group/slot size context and pricesPerSize
   const getOptionPrice = (
     opt: ModifierOption,
@@ -344,6 +384,11 @@ export default function ModifierModal({
     // If this option is an included topping for an active selection, it's free ($0)
     if (groupId && isIncludedTopping(groupId, opt.id)) {
       return 0;
+    }
+
+    const modDealPrice = getDealPriceForModifierOption(opt.id, opt.name);
+    if (modDealPrice !== null) {
+      return modDealPrice;
     }
 
     // Detect size from group/slot name (e.g. "Recipe Pizza Med" -> medium)
@@ -382,6 +427,51 @@ export default function ModifierModal({
     return opt.price || 0;
   };
 
+  const getDealPriceForVariant = (variantSizeCode?: string) => {
+    if (!item) return null;
+    const today = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ][new Date().getDay()];
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+
+    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+
+    if (matchedDeal && matchedDeal.sizes) {
+      const szConfig = matchedDeal.sizes.find(
+        (s: any) =>
+          (!variantSizeCode || s.sizeCode === variantSizeCode) &&
+          s.isEnabled &&
+          typeof s.dealPrice === "number" &&
+          s.dealPrice > 0,
+      );
+      if (szConfig) {
+        return szConfig.dealPrice;
+      }
+    }
+    return null;
+  };
+
+  const getBaseItemPrice = () => {
+    if (!item) return 0;
+    const dealPrice = getDealPriceForVariant();
+    return dealPrice !== null ? dealPrice : item.price;
+  };
+
   const getLivePrice = () => {
     let modSum = 0;
     allActiveGroups.forEach((g) => {
@@ -390,7 +480,7 @@ export default function ModifierModal({
         modSum += getOptionPrice(o, g.id, g.name);
       });
     });
-    return (item.price + modSum) * quantity;
+    return (getBaseItemPrice() + modSum) * quantity;
   };
 
   const handleAddToCart = () => {
@@ -412,7 +502,7 @@ export default function ModifierModal({
       });
     });
 
-    addToCart(item, selectedMods, quantity, note);
+    addToCart({ ...item, price: getBaseItemPrice() }, selectedMods, quantity, note);
     onClose();
   };
 
@@ -554,9 +644,24 @@ export default function ModifierModal({
                         ✓ Included
                       </p>
                     ) : optPrice > 0 ? (
-                      <p className="text-[10px] font-bold text-brand-primary mt-0.5">
-                        +${optPrice.toFixed(2)}
-                      </p>
+                      <div className="text-[10px] font-bold text-brand-primary mt-0.5">
+                        {(() => {
+                          const dealP = getDealPriceForModifierOption(opt.id, opt.name);
+                          if (dealP !== null && dealP < opt.price) {
+                            return (
+                              <span className="flex items-center gap-1">
+                                <span className="line-through text-neutral-400 font-normal text-[9px]">
+                                  +${opt.price.toFixed(2)}
+                                </span>
+                                <span className="font-bold text-brand-primary">
+                                  🔥 +${dealP.toFixed(2)}
+                                </span>
+                              </span>
+                            );
+                          }
+                          return `+$${optPrice.toFixed(2)}`;
+                        })()}
+                      </div>
                     ) : null}
                   </div>
 

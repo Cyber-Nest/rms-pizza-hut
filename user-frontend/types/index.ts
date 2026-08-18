@@ -9,6 +9,7 @@ export interface Category {
 export type MenuItemType = 'simple' | 'combo' | 'modifier';
 
 export interface MenuItem {
+  productId?: any;
   id: string;
   categoryId: string;
   name: string;

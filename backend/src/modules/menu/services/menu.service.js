@@ -1,6 +1,7 @@
 const Category = require("../models/category.model");
 const ModifierGroup = require("../models/modifier.model");
 const Product = require("../models/product.model");
+const DealOfTheDay = require("../models/dealOfTheDay.model");
 const cloudinary = require("../../../config/cloudinary.config");
 const logger = require("../../../shared/utils/logger");
 // Dynamic import to prevent circular dependency
@@ -430,9 +431,17 @@ exports.getPOSMenuFeed = async (branchId = null) => {
       .sort({ displayOrder: 1, name: 1 })
       .lean();
 
+    const activeDeals = await DealOfTheDay.find({ isActive: true }).lean();
     const bIdStr = branchId ? branchId.toString() : null;
 
     const feed = {
+      dealsOfTheDay: activeDeals.map((d) => ({
+        id: d._id.toHexString(),
+        dayOfWeek: d.dayOfWeek,
+        productId: d.productId ? d.productId.toString() : "",
+        sizes: d.sizes || [],
+        isActive: !!d.isActive,
+      })),
       categories: categories.map((cat) => ({
         id: cat._id.toHexString(),
         name: cat.name,
@@ -601,6 +610,84 @@ exports.deleteImageFromCloudinary = async (imageUrl) => {
     return result;
   } catch (error) {
     logger.error(`Cloudinary destroy service error: ${error.message}`);
+    throw error;
+  }
+};
+
+exports.getAllDealsOfTheDay = async (query = {}) => {
+  try {
+    const filter = {};
+    if (query.dayOfWeek) {
+      filter.dayOfWeek = query.dayOfWeek.toLowerCase();
+    }
+    if (query.isActive !== undefined) {
+      filter.isActive = query.isActive === "true" || query.isActive === true;
+    }
+    return await DealOfTheDay.find(filter)
+      .populate({
+        path: "productId",
+        select: "name image price categoryId itemType hasVariants variants",
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+  } catch (error) {
+    logger.error(`Menu Service Error: getAllDealsOfTheDay - ${error.message}`);
+    throw error;
+  }
+};
+
+exports.createDealOfTheDay = async (dealData) => {
+  try {
+    const { dayOfWeek, productId, sizes, isActive } = dealData;
+    const dayLower = (dayOfWeek || "").toLowerCase();
+    let deal = await DealOfTheDay.findOne({ dayOfWeek: dayLower, productId });
+    if (deal) {
+      deal.sizes = sizes;
+      if (isActive !== undefined) deal.isActive = isActive;
+      await deal.save();
+    } else {
+      deal = await DealOfTheDay.create({
+        dayOfWeek: dayLower,
+        productId,
+        sizes,
+        isActive: isActive !== undefined ? isActive : true,
+      });
+    }
+    clearPOSMenuCache();
+    return await DealOfTheDay.findById(deal._id).populate("productId").lean();
+  } catch (error) {
+    logger.error(`Menu Service Error: createDealOfTheDay - ${error.message}`);
+    throw error;
+  }
+};
+
+exports.updateDealOfTheDay = async (id, dealData) => {
+  try {
+    const deal = await DealOfTheDay.findByIdAndUpdate(id, dealData, {
+      returnDocument: "after",
+      runValidators: true,
+    }).populate("productId");
+    if (!deal) {
+      throw new Error("Deal of the Day not found.");
+    }
+    clearPOSMenuCache();
+    return deal;
+  } catch (error) {
+    logger.error(`Menu Service Error: updateDealOfTheDay - ${error.message}`);
+    throw error;
+  }
+};
+
+exports.deleteDealOfTheDay = async (id) => {
+  try {
+    const deal = await DealOfTheDay.findByIdAndDelete(id);
+    if (!deal) {
+      throw new Error("Deal of the Day not found.");
+    }
+    clearPOSMenuCache();
+    return deal;
+  } catch (error) {
+    logger.error(`Menu Service Error: deleteDealOfTheDay - ${error.message}`);
     throw error;
   }
 };

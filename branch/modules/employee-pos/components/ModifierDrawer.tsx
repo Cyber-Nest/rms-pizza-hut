@@ -347,6 +347,46 @@ export default function ModifierDrawer({
     return totalOptions > 6;
   }, [activeGroup, selections, selectedSize]);
 
+  const getDealPriceForModifierOption = (optionId: string, optionName?: string) => {
+    if (!item) return null;
+    const today = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ][new Date().getDay()];
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+
+    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+
+    if (matchedDeal && matchedDeal.sizes) {
+      const optDeal = matchedDeal.sizes.find(
+        (s: any) =>
+          s.isEnabled &&
+          typeof s.dealPrice === "number" &&
+          (s.sizeCode === optionId ||
+            s.sizeName === optionName ||
+            s.sizeName?.endsWith(`: ${optionName}`)),
+      );
+      if (optDeal) {
+        return optDeal.dealPrice;
+      }
+    }
+    return null;
+  };
+
   // Helper to resolve option price based on active size or deal slot size context (free for included toppings)
   const getOptionPrice = (
     opt: ModifierOption,
@@ -356,6 +396,11 @@ export default function ModifierDrawer({
     // If this option is an included topping, it's free
     if (groupId && isIncludedTopping(groupId, opt.id)) {
       return 0;
+    }
+
+    const modDealPrice = getDealPriceForModifierOption(opt.id, opt.name);
+    if (modDealPrice !== null) {
+      return modDealPrice;
     }
 
     // 1. If explicit selectedSize is present on the main item
@@ -544,7 +589,64 @@ export default function ModifierDrawer({
       return n >= g.minSelection && n <= g.maxSelection;
     });
 
+  // Helper to resolve deal of the day price for a given size variant or simple item
+  const getDealPriceForVariant = (variantSizeCode?: string) => {
+    if (!item) return null;
+    const today = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ][new Date().getDay()];
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+
+    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+
+    if (matchedDeal && matchedDeal.sizes) {
+      const szConfig = matchedDeal.sizes.find(
+        (s: any) =>
+          (!variantSizeCode ||
+            s.sizeCode === variantSizeCode ||
+            s.sizeCode === "regular") &&
+          s.isEnabled &&
+          typeof s.dealPrice === "number" &&
+          s.dealPrice > 0,
+      );
+      if (szConfig) {
+        return szConfig.dealPrice;
+      }
+    }
+    return null;
+  };
+
+  const effectiveSizePrice = (variant: ProductVariant) => {
+    const dPrice = getDealPriceForVariant(variant.sizeCode);
+    return dPrice !== null ? dPrice : variant.price;
+  };
+
+  const getBaseProductPrice = () => {
+    if (!item) return 0;
+    if (selectedSize) {
+      return effectiveSizePrice(selectedSize);
+    }
+    const simpleDealPrice = getDealPriceForVariant();
+    return simpleDealPrice !== null ? simpleDealPrice : item.price;
+  };
+
   const livePrice = () => {
+    let base = getBaseProductPrice();
     let modSum = 0;
     allActiveGroups.forEach((g) => {
       const selectedOpts = selections[g.id] ?? [];
@@ -552,7 +654,7 @@ export default function ModifierDrawer({
         modSum += getOptionPrice(o, g.id, g.name);
       });
     });
-    return (basePrice + modSum) * quantity;
+    return (base + modSum) * quantity;
   };
 
   const handleAdd = () => {
@@ -598,9 +700,12 @@ export default function ModifierDrawer({
       ? {
           ...item,
           name: `${item.name} (${selectedSize.sizeName})`,
-          price: selectedSize.price,
+          price: effectiveSizePrice(selectedSize),
         }
-      : item;
+      : {
+          ...item,
+          price: getBaseProductPrice(),
+        };
 
     if (editCartItem) {
       updateCartItem(editCartItem.id, itemToAdd, mods, quantity, note);
@@ -791,9 +896,24 @@ export default function ModifierDrawer({
                         ✓ Included
                       </p>
                     ) : optPrice > 0 ? (
-                      <p className="text-[9px] font-700 text-brand-primary">
-                        +${optPrice.toFixed(2)}
-                      </p>
+                      <div className="text-[9px] font-700 text-brand-primary">
+                        {(() => {
+                          const dealP = getDealPriceForModifierOption(opt.id, opt.name);
+                          if (dealP !== null && dealP < opt.price) {
+                            return (
+                              <span className="flex items-center gap-1">
+                                <span className="line-through text-neutral-400 font-normal text-[8px]">
+                                  +${opt.price.toFixed(2)}
+                                </span>
+                                <span className="font-bold text-brand-primary">
+                                  🔥 +${dealP.toFixed(2)}
+                                </span>
+                              </span>
+                            );
+                          }
+                          return `+$${optPrice.toFixed(2)}`;
+                        })()}
+                      </div>
                     ) : null}
                   </div>
 
@@ -921,27 +1041,49 @@ export default function ModifierDrawer({
                   return sortedVariants.map((variant) => {
                     const isSelected =
                       selectedSize?.sizeCode === variant.sizeCode;
+                    const dPrice = getDealPriceForVariant(variant.sizeCode);
+                    const hasDeal = dPrice !== null;
+                    const finalPrice = hasDeal ? dPrice : variant.price;
+
                     return (
                       <button
                         key={variant.sizeCode}
                         type="button"
                         onClick={() => setSelectedSize(variant)}
-                        className={`flex-1 min-w-[100px] flex items-center justify-between px-3 py-2 rounded-xl border text-[10.5px] font-700 transition-all cursor-pointer ${
+                        className={`flex-1 min-w-[105px] flex items-center justify-between px-3 py-2 rounded-xl border text-[10.5px] font-700 transition-all cursor-pointer ${
                           isSelected
                             ? "bg-brand-primary border-brand-primary text-white shadow-sm ring-2 ring-brand-primary/20"
-                            : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                            : hasDeal
+                              ? "bg-orange-50/60 border-orange-300 text-neutral-800 hover:bg-orange-100/60"
+                              : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                         }`}
                       >
-                        <span className="truncate">{variant.sizeName}</span>
-                        <span
-                          className={`text-[9px] px-1.5 py-0.5 rounded-full font-800 ${
-                            isSelected
-                              ? "bg-white/20 text-white"
-                              : "bg-neutral-100 text-brand-primary"
-                          }`}
-                        >
-                          ${variant.price.toFixed(2)}
+                        <span className="truncate flex items-center gap-1">
+                          {hasDeal && <span>🔥</span>}
+                          {variant.sizeName}
                         </span>
+                        <div className="flex items-center gap-1">
+                          {hasDeal && (
+                            <span
+                              className={`text-[8.5px] line-through font-semibold ${
+                                isSelected ? "text-white/70" : "text-neutral-400"
+                              }`}
+                            >
+                              ${variant.price.toFixed(2)}
+                            </span>
+                          )}
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-800 ${
+                              isSelected
+                                ? "bg-white/20 text-white"
+                                : hasDeal
+                                  ? "bg-brand-primary text-white"
+                                  : "bg-neutral-100 text-brand-primary"
+                            }`}
+                          >
+                            ${finalPrice.toFixed(2)}
+                          </span>
+                        </div>
                       </button>
                     );
                   });
@@ -1047,7 +1189,7 @@ export default function ModifierDrawer({
                 Base Price {selectedSize ? `(${selectedSize.sizeName})` : ""}
               </p>
               <p className="text-[15px] font-800 text-neutral-900 leading-tight mt-0.5">
-                ${basePrice.toFixed(2)}
+                ${getBaseProductPrice().toFixed(2)}
               </p>
             </div>
 
