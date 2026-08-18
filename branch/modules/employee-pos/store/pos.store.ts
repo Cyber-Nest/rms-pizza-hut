@@ -1002,9 +1002,15 @@ export const usePosStore = create<PosState>((set, get) => ({
           ? (fetchedCategories[0].id || (fetchedCategories[0] as any)._id)
           : "";
 
+        const dealsOfTheDay = res.data.data.dealsOfTheDay || [];
+        const menuItems = (res.data.data.menuItems || []).map((item: any) => ({
+          ...item,
+          dealsOfTheDay,
+        }));
+
         set({
           categories: fetchedCategories,
-          menuItems: res.data.data.menuItems,
+          menuItems,
           selectedCategory: defaultCatId,
         });
       }

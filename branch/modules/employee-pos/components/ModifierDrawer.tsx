@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { X, Plus, Minus, Check, MessageSquare, ChefHat, Pizza } from "lucide-react";
+import {
+  X,
+  Plus,
+  Minus,
+  Check,
+  MessageSquare,
+  ChefHat,
+  Pizza,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import {
   MenuItem,
@@ -19,7 +27,12 @@ interface Props {
   editCartItem?: CartItem | null;
 }
 
-export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: Props) {
+export default function ModifierDrawer({
+  item,
+  isOpen,
+  onClose,
+  editCartItem,
+}: Props) {
   const { addToCart, updateCartItem } = usePosStore();
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState<
@@ -34,30 +47,47 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
   const isInitialMount = useRef(true);
 
   // Check if an option is available for the current size
-  const isOptionAvailableForSize = (opt: ModifierOption, sizeCode: string | undefined) => {
-    if (!opt.availableForSizes || opt.availableForSizes.length === 0) return true;
+  const isOptionAvailableForSize = (
+    opt: ModifierOption,
+    sizeCode: string | undefined,
+  ) => {
+    if (!opt.availableForSizes || opt.availableForSizes.length === 0)
+      return true;
     if (!sizeCode) return true;
     return opt.availableForSizes.includes(sizeCode);
   };
 
-  // Check if an option is an included topping for this product OR for any active selected deal option
-  const isIncludedTopping = (
+  // Check if an option is a fixed recipe included topping (from product or parent deal opt)
+  const isRecipeIncludedTopping = (
     groupId: string,
     optionId: string,
-    currentSelections?: Record<string, ModifierOption[]>
+    currentSelections?: Record<string, ModifierOption[]>,
+    parentOpt?: ModifierOption,
   ) => {
-    // 1. Check root product level
+    // 1. If a specific parent option is provided (e.g. BBQ Chicken or Veggie Lovers), check its includedToppings ONLY
+    if (parentOpt?.includedToppings && parentOpt.includedToppings.length > 0) {
+      return parentOpt.includedToppings.some(
+        (it) =>
+          (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
+          (it.optionId === optionId || (it.optionId as any)?._id === optionId),
+      );
+    }
+
+    // 2. Check root product level
     if (item?.includedToppings && item.includedToppings.length > 0) {
       if (
         item.includedToppings.some(
-          (it) => it.groupId === groupId && it.optionId === optionId
+          (it) =>
+            (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
+            (it.optionId === optionId ||
+              (it.optionId as any)?._id === optionId),
         )
       ) {
         return true;
       }
     }
 
-    // 2. Check active parent deal selections
+    // 3. Fallback: Check active parent deal selections
     const selSource = currentSelections || selections;
     for (const gId of Object.keys(selSource)) {
       const selectedOpts = selSource[gId] || [];
@@ -66,14 +96,70 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
           if (
             opt.includedToppings.some(
               (it) =>
-                (it.groupId === groupId || (it.groupId as any)?._id === groupId) &&
-                (it.optionId === optionId || (it.optionId as any)?._id === optionId)
+                (it.groupId === groupId ||
+                  (it.groupId as any)?._id === groupId) &&
+                (it.optionId === optionId ||
+                  (it.optionId as any)?._id === optionId),
             )
           ) {
             return true;
           }
         }
       }
+    }
+
+    return false;
+  };
+
+  // Check if an option is an included topping for this product OR for a specific parent option
+  const isIncludedTopping = (
+    groupId: string,
+    optionId: string,
+    currentSelections?: Record<string, ModifierOption[]>,
+    parentOpt?: ModifierOption,
+  ) => {
+    if (isRecipeIncludedTopping(groupId, optionId, currentSelections, parentOpt)) {
+      return true;
+    }
+
+    // 4. Check freeSelectionLimit on the group (e.g. CYO Toppings with 2 free items limit)
+    const activeSel = currentSelections || selections;
+    const groupSelections = activeSel[groupId] || [];
+    const itemIndex = groupSelections.findIndex((o) => o.id === optionId);
+
+    let targetGroup: ModifierGroup | undefined;
+    const findGroup = (groups?: ModifierGroup[]) => {
+      if (!groups) return;
+      for (const g of groups) {
+        if (
+          g.id === groupId ||
+          (g as any)._id === groupId ||
+          ((g as any)._id && (g as any)._id.toString() === groupId)
+        ) {
+          targetGroup = g;
+          return;
+        }
+        if (g.options) {
+          for (const o of g.options) {
+            if (o.modifierGroups) findGroup(o.modifierGroups);
+            if (targetGroup) return;
+          }
+        }
+      }
+    };
+    findGroup(item?.modifierGroups);
+    if (!targetGroup && parentOpt?.modifierGroups) {
+      findGroup(parentOpt.modifierGroups);
+    }
+    if (
+      targetGroup &&
+      typeof targetGroup.freeSelectionLimit === "number" &&
+      targetGroup.freeSelectionLimit > 0
+    ) {
+      if (itemIndex !== -1) {
+        return itemIndex < targetGroup.freeSelectionLimit;
+      }
+      return groupSelections.length < targetGroup.freeSelectionLimit;
     }
 
     return false;
@@ -103,22 +189,30 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       const restoredSelections: Record<string, ModifierOption[]> = {};
       const restoredRemoved: Record<string, string[]> = {};
 
-      const restoreGroup = (g: ModifierGroup) => {
+      const restoreGroup = (g: ModifierGroup, parentOpt?: ModifierOption) => {
         if (!g?.options) return;
         const sizeCode = defaultSize?.sizeCode;
-        const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
+        const availableOpts = g.options.filter((o) =>
+          isOptionAvailableForSize(o, sizeCode),
+        );
         const defs = availableOpts.filter((o) => o.isDefault);
         const includedOpts = availableOpts.filter(
-          (o) => !o.isDefault && isIncludedTopping(g.id, o.id, restoredSelections)
+          (o) =>
+            !o.isDefault &&
+            isRecipeIncludedTopping(g.id, o.id, restoredSelections, parentOpt),
         );
         const baseSelections = [...defs, ...includedOpts];
 
         const savedForGroup = editCartItem.selectedModifiers.filter(
-          (m) => m.groupId === g.id
+          (m) => m.groupId === g.id,
         );
         const removedOptIds = savedForGroup
           .filter((m) => m.optionName.startsWith("- NO "))
-          .map((m) => m.optionId || g.options.find((o) => `- NO ${o.name}` === m.optionName)?.id)
+          .map(
+            (m) =>
+              m.optionId ||
+              g.options.find((o) => `- NO ${o.name}` === m.optionName)?.id,
+          )
           .filter(Boolean) as string[];
 
         const extraOptObjs = savedForGroup
@@ -128,18 +222,22 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
 
         const activeSelections = baseSelections
           .filter((o) => !removedOptIds.includes(o.id))
-          .concat(extraOptObjs.filter((e) => !baseSelections.some((b) => b.id === e.id)));
+          .concat(
+            extraOptObjs.filter(
+              (e) => !baseSelections.some((b) => b.id === e.id),
+            ),
+          );
 
         restoredSelections[g.id] = activeSelections;
         restoredRemoved[g.id] = removedOptIds;
 
         // Recurse into child groups
         restoredSelections[g.id].forEach((opt) => {
-          opt.modifierGroups?.forEach(restoreGroup);
+          opt.modifierGroups?.forEach((subG) => restoreGroup(subG, opt));
         });
       };
 
-      item.modifierGroups?.forEach(restoreGroup);
+      item.modifierGroups?.forEach((g) => restoreGroup(g));
       setSelections(restoredSelections);
       setRemovedIncluded(restoredRemoved);
 
@@ -155,16 +253,23 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       setQuantity(1);
       setNote("");
       const init: Record<string, ModifierOption[]> = {};
-      const initGroup = (g: ModifierGroup) => {
+      const initGroup = (g: ModifierGroup, parentOpt?: ModifierOption) => {
         if (!g || !g.options) return;
         const sizeCode = defaultSize?.sizeCode;
-        const availableOpts = g.options.filter((o) => isOptionAvailableForSize(o, sizeCode));
+        const availableOpts = g.options.filter((o) =>
+          isOptionAvailableForSize(o, sizeCode),
+        );
         const defs = availableOpts.filter((o) => o.isDefault);
         const includedOpts = availableOpts.filter(
-          (o) => !o.isDefault && isIncludedTopping(g.id, o.id, init)
+          (o) => !o.isDefault && isRecipeIncludedTopping(g.id, o.id, init, parentOpt),
         );
         let selected = [...defs, ...includedOpts];
-        if (selected.length === 0 && g.required && g.maxSelection === 1 && availableOpts.length > 0) {
+        if (
+          selected.length === 0 &&
+          g.required &&
+          g.maxSelection === 1 &&
+          availableOpts.length > 0
+        ) {
           selected = [availableOpts[0]];
         }
         if (selected.length > g.maxSelection) {
@@ -173,15 +278,17 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
         init[g.id] = selected;
         selected.forEach((opt) => {
           if (opt.modifierGroups) {
-            opt.modifierGroups.forEach(initGroup);
+            opt.modifierGroups.forEach((subG) => initGroup(subG, opt));
           }
         });
       };
-      item.modifierGroups?.forEach(initGroup);
+      item.modifierGroups?.forEach((g) => initGroup(g));
       setSelections(init);
     }
 
-    setTimeout(() => { isInitialMount.current = false; }, 100);
+    setTimeout(() => {
+      isInitialMount.current = false;
+    }, 100);
   }, [item, isOpen]);
 
   // Auto-deselect incompatible options when size changes
@@ -193,7 +300,9 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
 
     Object.keys(newSelections).forEach((gid) => {
       const opts = newSelections[gid] ?? [];
-      const filtered = opts.filter((o) => isOptionAvailableForSize(o, selectedSize.sizeCode));
+      const filtered = opts.filter((o) =>
+        isOptionAvailableForSize(o, selectedSize.sizeCode),
+      );
       if (filtered.length !== opts.length) {
         deselected = true;
         newSelections[gid] = filtered;
@@ -238,23 +347,106 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
     return totalOptions > 6;
   }, [activeGroup, selections, selectedSize]);
 
-  // Helper to resolve option price based on active size (free for included toppings)
-  const getOptionPrice = (opt: ModifierOption, groupId?: string) => {
+  const getDealPriceForModifierOption = (optionId: string, optionName?: string) => {
+    if (!item) return null;
+    const today = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ][new Date().getDay()];
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+
+    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+
+    if (matchedDeal && matchedDeal.sizes) {
+      const optDeal = matchedDeal.sizes.find(
+        (s: any) =>
+          s.isEnabled &&
+          typeof s.dealPrice === "number" &&
+          (s.sizeCode === optionId ||
+            s.sizeName === optionName ||
+            s.sizeName?.endsWith(`: ${optionName}`)),
+      );
+      if (optDeal) {
+        return optDeal.dealPrice;
+      }
+    }
+    return null;
+  };
+
+  // Helper to resolve option price based on active size or deal slot size context (free for included toppings)
+  const getOptionPrice = (
+    opt: ModifierOption,
+    groupId?: string,
+    groupName?: string,
+  ) => {
     // If this option is an included topping, it's free
     if (groupId && isIncludedTopping(groupId, opt.id)) {
       return 0;
     }
+
+    const modDealPrice = getDealPriceForModifierOption(opt.id, opt.name);
+    if (modDealPrice !== null) {
+      return modDealPrice;
+    }
+
+    // 1. If explicit selectedSize is present on the main item
     if (selectedSize && opt.pricesPerSize && opt.pricesPerSize.length > 0) {
-      const pObj = opt.pricesPerSize.find((p) => p.sizeCode === selectedSize.sizeCode);
-      if (pObj && typeof pObj.price === "number") {
+      const pObj = opt.pricesPerSize.find(
+        (p) => p.sizeCode === selectedSize.sizeCode,
+      );
+      if (pObj && typeof pObj.price === "number" && pObj.price > 0) {
         return pObj.price;
       }
     }
-    return opt.price;
+
+    // 2. Detect size from group/slot name if in a deal (e.g. "Recipe Pizza Med" -> medium)
+    let detectedSize = "medium";
+    if (groupName) {
+      const gLower = groupName.toLowerCase();
+      if (gLower.includes("pnqlicious") || gLower.includes('16"'))
+        detectedSize = "pnqlicious";
+      else if (gLower.includes("large") || gLower.includes('14"'))
+        detectedSize = "large";
+      else if (gLower.includes("small") || gLower.includes('9"'))
+        detectedSize = "small";
+      else if (gLower.includes("personal") || gLower.includes('6"'))
+        detectedSize = "personal";
+      else if (gLower.includes("xl") || gLower.includes("panormous"))
+        detectedSize = "xl";
+      else if (gLower.includes("med") || gLower.includes('12"'))
+        detectedSize = "medium";
+    }
+
+    if (opt.pricesPerSize && opt.pricesPerSize.length > 0) {
+      const matched = opt.pricesPerSize.find(
+        (p) => p.sizeCode === detectedSize,
+      );
+      if (matched && typeof matched.price === "number" && matched.price > 0) {
+        return matched.price;
+      }
+      const anyNonZero = opt.pricesPerSize.find((p) => p.price > 0);
+      if (anyNonZero) return anyNonZero.price;
+    }
+
+    return opt.price || 0;
   };
 
   // Base price for current selection
-  const basePrice = selectedSize ? selectedSize.price : (item?.price || 0);
+  const basePrice = selectedSize ? selectedSize.price : item?.price || 0;
 
   // Recursive memo to get all active groups based on selections
   const allActiveGroups = useMemo(() => {
@@ -283,6 +475,23 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
 
   if (!isOpen || !item) return null;
 
+  // Helper to recursively clear sub-group selections when a parent option is unselected
+  const clearSubGroups = (
+    o: ModifierOption,
+    targetSelections: Record<string, ModifierOption[]>,
+    targetRemoved?: Record<string, string[]>,
+  ) => {
+    if (o.modifierGroups) {
+      o.modifierGroups.forEach((subG) => {
+        delete targetSelections[subG.id];
+        if (targetRemoved) delete targetRemoved[subG.id];
+        subG.options.forEach((so) =>
+          clearSubGroups(so, targetSelections, targetRemoved),
+        );
+      });
+    }
+  };
+
   const toggle = (g: ModifierGroup, opt: ModifierOption) => {
     const cur = selections[g.id] ?? [];
     const curRemoved = removedIncluded[g.id] ?? [];
@@ -292,6 +501,8 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
 
     let next: ModifierOption[];
     let nextRemoved = [...curRemoved];
+    const newSelections = { ...selections };
+    const newRemoved = { ...removedIncluded };
 
     if (isInc) {
       if (has) {
@@ -306,40 +517,66 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
         nextRemoved = nextRemoved.filter((id) => id !== opt.id);
       }
     } else if (g.maxSelection === 1) {
+      // Clear sub-groups of previously selected option in single-choice radio group
+      cur.forEach((prevOpt) => {
+        if (prevOpt.id !== opt.id) {
+          clearSubGroups(prevOpt, newSelections, newRemoved);
+        }
+      });
       next = has && !g.required ? [] : [opt];
     } else if (has) {
+      clearSubGroups(opt, newSelections, newRemoved);
       next = cur.filter((o) => o.id !== opt.id);
     } else if (cur.length < g.maxSelection) {
       next = [...cur, opt];
     } else return;
 
-    const newSelections = { ...selections, [g.id]: next };
-    const newRemoved = { ...removedIncluded, [g.id]: nextRemoved };
+    newSelections[g.id] = next;
+    newRemoved[g.id] = nextRemoved;
 
     // Recursively initialize default sub-groups and included recipe toppings for new selections
-    const initNested = (o: ModifierOption) => {
+    // parentPizzaOpt = the deal pizza option (e.g. BBQ Chicken) that owns these sub-groups
+    const initNested = (o: ModifierOption, parentPizzaOpt?: ModifierOption) => {
       if (o.modifierGroups) {
         o.modifierGroups.forEach((subG) => {
           if (newSelections[subG.id] === undefined) {
             const defs = subG.options.filter((so) => so.isDefault);
+            // Use the immediate parent option (o) as parentOpt so we only check
+            // THIS pizza's includedToppings — no cross-slot leakage
+            const parentForCheck = parentPizzaOpt || o;
             const includedOpts = subG.options.filter(
-              (so) => !so.isDefault && isIncludedTopping(subG.id, so.id, newSelections)
+              (so) =>
+                !so.isDefault &&
+                isIncludedTopping(
+                  subG.id,
+                  so.id,
+                  newSelections,
+                  parentForCheck,
+                ),
             );
             let selected = [...defs, ...includedOpts];
-            if (selected.length === 0 && subG.required && subG.maxSelection === 1 && subG.options.length > 0) {
+            if (
+              selected.length === 0 &&
+              subG.required &&
+              subG.maxSelection === 1 &&
+              subG.options.length > 0
+            ) {
               selected = [subG.options[0]];
             }
             if (selected.length > subG.maxSelection) {
               selected = selected.slice(0, subG.maxSelection);
             }
             newSelections[subG.id] = selected;
-            newSelections[subG.id].forEach(initNested);
+            // Recurse deeper, keeping the same top-level pizza as parent
+            newSelections[subG.id].forEach((so) =>
+              initNested(so, parentForCheck),
+            );
           }
         });
       }
     };
 
-    next.forEach(initNested);
+    next.forEach((o) => initNested(o, o));
     setSelections(newSelections);
     setRemovedIncluded(newRemoved);
   };
@@ -352,15 +589,72 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       return n >= g.minSelection && n <= g.maxSelection;
     });
 
+  // Helper to resolve deal of the day price for a given size variant or simple item
+  const getDealPriceForVariant = (variantSizeCode?: string) => {
+    if (!item) return null;
+    const today = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ][new Date().getDay()];
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+
+    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+
+    if (matchedDeal && matchedDeal.sizes) {
+      const szConfig = matchedDeal.sizes.find(
+        (s: any) =>
+          (!variantSizeCode ||
+            s.sizeCode === variantSizeCode ||
+            s.sizeCode === "regular") &&
+          s.isEnabled &&
+          typeof s.dealPrice === "number" &&
+          s.dealPrice > 0,
+      );
+      if (szConfig) {
+        return szConfig.dealPrice;
+      }
+    }
+    return null;
+  };
+
+  const effectiveSizePrice = (variant: ProductVariant) => {
+    const dPrice = getDealPriceForVariant(variant.sizeCode);
+    return dPrice !== null ? dPrice : variant.price;
+  };
+
+  const getBaseProductPrice = () => {
+    if (!item) return 0;
+    if (selectedSize) {
+      return effectiveSizePrice(selectedSize);
+    }
+    const simpleDealPrice = getDealPriceForVariant();
+    return simpleDealPrice !== null ? simpleDealPrice : item.price;
+  };
+
   const livePrice = () => {
+    let base = getBaseProductPrice();
     let modSum = 0;
     allActiveGroups.forEach((g) => {
       const selectedOpts = selections[g.id] ?? [];
       selectedOpts.forEach((o) => {
-        modSum += getOptionPrice(o, g.id);
+        modSum += getOptionPrice(o, g.id, g.name);
       });
     });
-    return (basePrice + modSum) * quantity;
+    return (base + modSum) * quantity;
   };
 
   const handleAdd = () => {
@@ -370,16 +664,16 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id) ?? false;
       const opts = selections[g.id] ?? [];
       opts.forEach((o) => {
-        const isInc = isIncludedTopping(g.id, o.id);
-        const isDef = o.isDefault && getOptionPrice(o, g.id) === 0;
+        const isRecipeInc = isRecipeIncludedTopping(g.id, o.id);
+        const isDef = o.isDefault && getOptionPrice(o, g.id, g.name) === 0;
         // Only save custom additions (not default included recipe toppings)
-        if (!isInc && !isDef) {
+        if (!isRecipeInc && !isDef) {
           mods.push({
             groupId: g.id,
             groupName: g.name,
             optionId: o.id,
             optionName: o.name,
-            price: getOptionPrice(o, g.id),
+            price: getOptionPrice(o, g.id, g.name),
             isRoot,
           });
         }
@@ -406,9 +700,12 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       ? {
           ...item,
           name: `${item.name} (${selectedSize.sizeName})`,
-          price: selectedSize.price,
+          price: effectiveSizePrice(selectedSize),
         }
-      : item;
+      : {
+          ...item,
+          price: getBaseProductPrice(),
+        };
 
     if (editCartItem) {
       updateCartItem(editCartItem.id, itemToAdd, mods, quantity, note);
@@ -422,10 +719,36 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
     (selections[gid] ?? []).some((o) => o.id === oid);
 
   //modifier groups (including child groups)
-  const renderModifierGroup = (g: ModifierGroup, pathName: string = "") => {
+  const renderModifierGroup = (
+    g: ModifierGroup,
+    pathName: string = "",
+    parentOpt?: ModifierOption,
+  ) => {
     const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id);
     const displayName = pathName ? `${pathName} › ${g.name}` : g.name;
     const selectedCount = (selections[g.id] ?? []).length;
+    // Detect slot size code (if selectedSize is not present e.g. for deals)
+    let slotSize = selectedSize?.sizeCode;
+    if (!slotSize) {
+      const gLower = displayName.toLowerCase();
+      if (gLower.includes("pnqlicious") || gLower.includes('16"'))
+        slotSize = "pnqlicious";
+      else if (gLower.includes("large") || gLower.includes('14"'))
+        slotSize = "large";
+      else if (gLower.includes("small") || gLower.includes('9"'))
+        slotSize = "small";
+      else if (gLower.includes("personal") || gLower.includes('6"'))
+        slotSize = "personal";
+      else if (gLower.includes("xl") || gLower.includes("panormous"))
+        slotSize = "xl";
+      else if (gLower.includes("med") || gLower.includes('12"'))
+        slotSize = "medium";
+      else slotSize = "medium";
+    }
+
+    const availableOpts = g.options.filter((opt) =>
+      isOptionAvailableForSize(opt, slotSize),
+    );
 
     return (
       <div
@@ -441,11 +764,15 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
           <div>
             <h4
               className={`font-700 uppercase tracking-wide ${
-                isRoot ? "text-[10px] text-neutral-700" : "text-[9.5px] text-brand-primary"
+                isRoot
+                  ? "text-[10px] text-neutral-700"
+                  : "text-[9.5px] text-brand-primary"
               }`}
             >
               {displayName}
-              {g.required && <span className="text-red-500 ml-1 font-bold">*</span>}
+              {g.required && (
+                <span className="text-red-500 ml-1 font-bold">*</span>
+              )}
             </h4>
             {!isRoot && (
               <p className="text-[8px] text-neutral-400 font-medium">
@@ -453,9 +780,18 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
               </p>
             )}
           </div>
-          <span className="text-[9px] font-600 text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
-            {selectedCount} / {g.maxSelection === 1 ? "1" : g.maxSelection} Selected
-          </span>
+          <div className="flex items-center gap-1.5">
+            {typeof g.freeSelectionLimit === "number" &&
+              g.freeSelectionLimit > 0 && (
+                <span className="text-[9px] font-700 text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                  🎁 First {g.freeSelectionLimit} Free
+                </span>
+              )}
+            <span className="text-[9px] font-600 text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
+              {selectedCount} / {g.maxSelection === 1 ? "1" : g.maxSelection}{" "}
+              Selected
+            </span>
+          </div>
         </div>
 
         {/* Options Grid */}
@@ -463,126 +799,148 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
           className={`grid gap-2.5 ${
             isLargeGroup
               ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-              : g.options.filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode)).length > 10
-              ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"
-              : g.options.filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode)).length > 4
-              ? "grid-cols-2 sm:grid-cols-3"
-              : "grid-cols-2"
+              : availableOpts.length > 10
+                ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"
+                : availableOpts.length > 4
+                  ? "grid-cols-2 sm:grid-cols-3"
+                  : "grid-cols-2"
           }`}
         >
-          {g.options
-            .filter((opt) => isOptionAvailableForSize(opt, selectedSize?.sizeCode))
-            .map((opt) => {
-              const sel = isSelected(g.id, opt.id);
-              const isCard = g.displayType === "card";
-              const optPrice = getOptionPrice(opt, g.id);
-              const included = isIncludedTopping(g.id, opt.id);
-              const isRemoved = (removedIncluded[g.id] ?? []).includes(opt.id);
+          {availableOpts.map((opt) => {
+            const sel = isSelected(g.id, opt.id);
+            const isCard = g.displayType === "card";
+            const optPrice = getOptionPrice(opt, g.id, displayName);
+            const included = isIncludedTopping(
+              g.id,
+              opt.id,
+              selections,
+              parentOpt,
+            );
+            const isRemoved = (removedIncluded[g.id] ?? []).includes(opt.id);
 
-              return (
-                <div key={opt.id} className="flex flex-col">
-                  <button
-                    type="button"
-                    onClick={() => toggle(g, opt)}
-                    className={`relative flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] w-full ${
-                      isRemoved
-                        ? "border-red-300 bg-red-50/60 ring-1 ring-red-300"
-                        : sel
+            return (
+              <div key={opt.id} className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => toggle(g, opt)}
+                  className={`relative flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] w-full ${
+                    isRemoved
+                      ? "border-red-300 bg-red-50/60 ring-1 ring-red-300"
+                      : sel
                         ? included
                           ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
                           : "border-brand-primary bg-orange-50 ring-1 ring-brand-primary"
                         : "border-neutral-200 bg-white hover:bg-neutral-50"
-                    }`}
-                  >
-                    {/* Left selection circle/square for list types */}
-                    {!isCard && (
-                      <div
-                        className={`w-4 h-4 border flex items-center justify-center flex-shrink-0 transition-all ${
-                          g.displayType === "radio" || g.maxSelection === 1 ? "rounded-full" : "rounded"
-                        } ${
-                          isRemoved
-                            ? "bg-red-500 border-red-500 text-white"
-                            : sel
+                  }`}
+                >
+                  {/* Left selection circle/square for list types */}
+                  {!isCard && (
+                    <div
+                      className={`w-4 h-4 border flex items-center justify-center flex-shrink-0 transition-all ${
+                        g.displayType === "radio" || g.maxSelection === 1
+                          ? "rounded-full"
+                          : "rounded"
+                      } ${
+                        isRemoved
+                          ? "bg-red-500 border-red-500 text-white"
+                          : sel
                             ? included
                               ? "bg-emerald-500 border-emerald-500 text-white"
                               : "bg-brand-primary border-brand-primary text-white"
                             : "border-neutral-300 bg-white"
-                        }`}
-                      >
-                        {isRemoved ? (
-                          <Minus size={9} strokeWidth={3} />
-                        ) : sel ? (
-                          <Check size={9} strokeWidth={3} />
-                        ) : null}
-                      </div>
-                    )}
-
-                    {/* Thumbnail Image for Cards Grid or if option has an image */}
-                    {(isCard || !!opt.image) && (
-                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200 flex-shrink-0">
-                        <img
-                          src={
-                            opt.image ||
-                            item.image ||
-                            "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60"
-                          }
-                          alt={opt.name}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60";
-                          }}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0 pr-1">
-                      <p
-                        className={`text-[10px] font-600 leading-tight ${
-                          isRemoved ? "text-red-700 line-through opacity-80" : "text-neutral-800"
-                        }`}
-                      >
-                        {opt.name}
-                      </p>
+                      }`}
+                    >
                       {isRemoved ? (
-                        <p className="text-[8.5px] font-700 text-red-600 flex items-center gap-0.5">
-                          <span>- NO {opt.name}</span>
-                        </p>
-                      ) : included ? (
-                        <p className="text-[8.5px] font-700 text-emerald-600">
-                          ✓ Included
-                        </p>
-                      ) : optPrice > 0 ? (
-                        <p className="text-[9px] font-700 text-brand-primary">
-                          +${optPrice.toFixed(2)}
-                        </p>
+                        <Minus size={9} strokeWidth={3} />
+                      ) : sel ? (
+                        <Check size={9} strokeWidth={3} />
                       ) : null}
                     </div>
+                  )}
 
-                    {/* Right selection indicator for Cards Grid */}
-                    {isCard && (
-                      <div
-                        className={`absolute top-2.5 right-2.5 w-4 h-4 border flex items-center justify-center transition-all ${
-                          g.maxSelection === 1 ? "rounded-full" : "rounded"
-                        } ${
-                          isRemoved
-                            ? "bg-red-500 border-red-500 text-white"
-                            : sel
+                  {/* Thumbnail Image for Cards Grid or if option has an image */}
+                  {(isCard || !!opt.image) && (
+                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200 flex-shrink-0">
+                      <img
+                        src={
+                          opt.image ||
+                          item.image ||
+                          "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60"
+                        }
+                        alt={opt.name}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60";
+                        }}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0 pr-1">
+                    <p
+                      className={`text-[10px] font-600 leading-tight ${
+                        isRemoved
+                          ? "text-red-700 line-through opacity-80"
+                          : "text-neutral-800"
+                      }`}
+                    >
+                      {opt.name}
+                    </p>
+                    {isRemoved ? (
+                      <p className="text-[8.5px] font-700 text-red-600 flex items-center gap-0.5">
+                        <span>- NO {opt.name}</span>
+                      </p>
+                    ) : included ? (
+                      <p className="text-[8.5px] font-700 text-emerald-600">
+                        ✓ Included
+                      </p>
+                    ) : optPrice > 0 ? (
+                      <div className="text-[9px] font-700 text-brand-primary">
+                        {(() => {
+                          const dealP = getDealPriceForModifierOption(opt.id, opt.name);
+                          if (dealP !== null && dealP < opt.price) {
+                            return (
+                              <span className="flex items-center gap-1">
+                                <span className="line-through text-neutral-400 font-normal text-[8px]">
+                                  +${opt.price.toFixed(2)}
+                                </span>
+                                <span className="font-bold text-brand-primary">
+                                  🔥 +${dealP.toFixed(2)}
+                                </span>
+                              </span>
+                            );
+                          }
+                          return `+$${optPrice.toFixed(2)}`;
+                        })()}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Right selection indicator for Cards Grid */}
+                  {isCard && (
+                    <div
+                      className={`absolute top-2.5 right-2.5 w-4 h-4 border flex items-center justify-center transition-all ${
+                        g.maxSelection === 1 ? "rounded-full" : "rounded"
+                      } ${
+                        isRemoved
+                          ? "bg-red-500 border-red-500 text-white"
+                          : sel
                             ? "bg-brand-primary border-brand-primary text-white"
                             : "border-neutral-300"
-                        }`}
-                      >
-                        {isRemoved ? (
-                          <Minus size={9} strokeWidth={3} />
-                        ) : sel ? (
-                          <Check size={9} strokeWidth={3} />
-                        ) : null}
-                      </div>
-                    )}
-                  </button>
-                </div>
-              );
-            })}
+                      }`}
+                    >
+                      {isRemoved ? (
+                        <Minus size={9} strokeWidth={3} />
+                      ) : sel ? (
+                        <Check size={9} strokeWidth={3} />
+                      ) : null}
+                    </div>
+                  )}
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         {/*child groups for selected options in this group */}
@@ -594,8 +952,9 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                 {opt.modifierGroups.map((childG) =>
                   renderModifierGroup(
                     childG,
-                    isRoot ? opt.name : `${pathName} › ${opt.name}`
-                  )
+                    isRoot ? opt.name : `${pathName} › ${opt.name}`,
+                    opt,
+                  ),
                 )}
               </div>
             );
@@ -617,7 +976,9 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
       {/* Drawer */}
       <div
         className={`relative w-full bg-white rounded-l-2xl overflow-hidden shadow-2xl flex z-10 animate-drawer-slide-in transition-all duration-300 ${
-          isLargeGroup ? "max-w-[95vw] lg:max-w-[92vw] xl:max-w-7xl" : "max-w-3xl"
+          isLargeGroup
+            ? "max-w-[95vw] lg:max-w-[92vw] xl:max-w-7xl"
+            : "max-w-3xl"
         }`}
       >
         {/* ── LEFT */}
@@ -662,30 +1023,71 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                 Select Pizza Size
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {item.variants.map((variant) => {
-                  const isSelected = selectedSize?.sizeCode === variant.sizeCode;
-                  return (
-                    <button
-                      key={variant.sizeCode}
-                      type="button"
-                      onClick={() => setSelectedSize(variant)}
-                      className={`flex-1 min-w-[100px] flex items-center justify-between px-3 py-2 rounded-xl border text-[10.5px] font-700 transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-brand-primary border-brand-primary text-white shadow-sm ring-2 ring-brand-primary/20"
-                          : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                      }`}
-                    >
-                      <span className="truncate">{variant.sizeName}</span>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded-full font-800 ${
-                          isSelected ? "bg-white/20 text-white" : "bg-neutral-100 text-brand-primary"
+                {(() => {
+                  const SIZE_ORDER = [
+                    "personal",
+                    "small",
+                    "medium",
+                    "large",
+                    "pnqlicious",
+                    "xl",
+                  ];
+                  const sortedVariants = [...item.variants].sort((a, b) => {
+                    const idxA = SIZE_ORDER.indexOf(a.sizeCode);
+                    const idxB = SIZE_ORDER.indexOf(b.sizeCode);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    return a.price - b.price;
+                  });
+                  return sortedVariants.map((variant) => {
+                    const isSelected =
+                      selectedSize?.sizeCode === variant.sizeCode;
+                    const dPrice = getDealPriceForVariant(variant.sizeCode);
+                    const hasDeal = dPrice !== null;
+                    const finalPrice = hasDeal ? dPrice : variant.price;
+
+                    return (
+                      <button
+                        key={variant.sizeCode}
+                        type="button"
+                        onClick={() => setSelectedSize(variant)}
+                        className={`flex-1 min-w-[105px] flex items-center justify-between px-3 py-2 rounded-xl border text-[10.5px] font-700 transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-brand-primary border-brand-primary text-white shadow-sm ring-2 ring-brand-primary/20"
+                            : hasDeal
+                              ? "bg-orange-50/60 border-orange-300 text-neutral-800 hover:bg-orange-100/60"
+                              : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                         }`}
                       >
-                        ${variant.price.toFixed(2)}
-                      </span>
-                    </button>
-                  );
-                })}
+                        <span className="truncate flex items-center gap-1">
+                          {hasDeal && <span>🔥</span>}
+                          {variant.sizeName}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {hasDeal && (
+                            <span
+                              className={`text-[8.5px] line-through font-semibold ${
+                                isSelected ? "text-white/70" : "text-neutral-400"
+                              }`}
+                            >
+                              ${variant.price.toFixed(2)}
+                            </span>
+                          )}
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-800 ${
+                              isSelected
+                                ? "bg-white/20 text-white"
+                                : hasDeal
+                                  ? "bg-brand-primary text-white"
+                                  : "bg-neutral-100 text-brand-primary"
+                            }`}
+                          >
+                            ${finalPrice.toFixed(2)}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}
@@ -709,7 +1111,9 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                   {count > 0 ? (
                     <span
                       className={`text-[8px] px-1.5 py-0.5 rounded-full font-700 ${
-                        active ? "bg-white/25 text-white" : "bg-brand-primary/10 text-brand-primary"
+                        active
+                          ? "bg-white/25 text-white"
+                          : "bg-brand-primary/10 text-brand-primary"
                       }`}
                     >
                       {count}
@@ -754,7 +1158,10 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
               <button
                 onClick={() =>
                   setActiveIdx(
-                    Math.min((item.modifierGroups?.length ?? 1) - 1, activeIdx + 1)
+                    Math.min(
+                      (item.modifierGroups?.length ?? 1) - 1,
+                      activeIdx + 1,
+                    ),
                   )
                 }
                 disabled={activeIdx === (item.modifierGroups?.length ?? 1) - 1}
@@ -782,7 +1189,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                 Base Price {selectedSize ? `(${selectedSize.sizeName})` : ""}
               </p>
               <p className="text-[15px] font-800 text-neutral-900 leading-tight mt-0.5">
-                ${basePrice.toFixed(2)}
+                ${getBaseProductPrice().toFixed(2)}
               </p>
             </div>
 
@@ -796,7 +1203,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                       acc +
                       (selections[g.id] ?? []).length +
                       (removedIncluded[g.id] ?? []).length,
-                    0
+                    0,
                   )}
                 </span>
               </p>
@@ -810,7 +1217,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                       {g.name}
                     </p> */}
                     {opts.map((o) => {
-                      const optPrice = getOptionPrice(o, g.id);
+                      const optPrice = getOptionPrice(o, g.id, g.name);
                       const included = isIncludedTopping(g.id, o.id);
                       return (
                         <div
@@ -855,7 +1262,7 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                   acc +
                   (selections[g.id] ?? []).length +
                   (removedIncluded[g.id] ?? []).length,
-                0
+                0,
               ) === 0 && (
                 <p className="text-[9.5px] text-neutral-400 italic">
                   No choices selected yet.
@@ -914,7 +1321,9 @@ export default function ModifierDrawer({ item, isOpen, onClose, editCartItem }: 
                   : "bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none"
               }`}
             >
-              {editCartItem ? `Update Cart\u00a0·\u00a0$${livePrice().toFixed(2)}` : `Add to Cart\u00a0·\u00a0$${livePrice().toFixed(2)}`}
+              {editCartItem
+                ? `Update Cart\u00a0·\u00a0$${livePrice().toFixed(2)}`
+                : `Add to Cart\u00a0·\u00a0$${livePrice().toFixed(2)}`}
             </button>
           </div>
         </div>

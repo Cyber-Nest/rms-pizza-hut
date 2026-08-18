@@ -236,3 +236,41 @@ exports.deleteImage = async (req, res) => {
     handleError(res, error, 500);
   }
 };
+
+exports.getDealsOfTheDay = async (req, res) => {
+  try {
+    const deals = await menuService.getAllDealsOfTheDay(req.query);
+    res.status(200).json({ success: true, data: deals });
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
+exports.createDealOfTheDay = async (req, res) => {
+  try {
+    const deal = await menuService.createDealOfTheDay(req.body);
+    res.status(201).json({ success: true, data: deal });
+  } catch (error) {
+    handleError(res, error, 400);
+  }
+};
+
+exports.updateDealOfTheDay = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deal = await menuService.updateDealOfTheDay(id, req.body);
+    res.status(200).json({ success: true, data: deal });
+  } catch (error) {
+    handleError(res, error, 400);
+  }
+};
+
+exports.deleteDealOfTheDay = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await menuService.deleteDealOfTheDay(id);
+    res.status(200).json({ success: true, message: 'Deal of the Day deleted successfully.' });
+  } catch (error) {
+    handleError(res, error, 400);
+  }
+};

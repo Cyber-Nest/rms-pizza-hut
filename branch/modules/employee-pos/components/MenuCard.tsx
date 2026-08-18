@@ -21,17 +21,48 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
   const hasModifiers = !!item.modifierGroups?.length || !!item.hasVariants;
   const isOutOfStock = !!item.isOutOfStock;
 
+  const getItemEffectivePrice = () => {
+    const today = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ][new Date().getDay()];
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+    const deals = (item as any).dealsOfTheDay || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+    const szConfig = matchedDeal?.sizes?.find(
+      (s: any) => s.isEnabled && typeof s.dealPrice === "number" && s.dealPrice > 0,
+    );
+    return szConfig ? szConfig.dealPrice : item.price;
+  };
+
   const handleAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isOutOfStock) return;
-    hasModifiers ? onOpenModifiers(item) : addToCart(item, []);
+    hasModifiers
+      ? onOpenModifiers(item)
+      : addToCart({ ...item, price: getItemEffectivePrice() }, []);
   };
 
   return (
     <div
       onClick={() => {
         if (isOutOfStock) return;
-        hasModifiers ? onOpenModifiers(item) : addToCart(item, []);
+        hasModifiers
+          ? onOpenModifiers(item)
+          : addToCart({ ...item, price: getItemEffectivePrice() }, []);
       }}
       className={`group relative flex flex-col bg-white rounded-xl border overflow-hidden transition-all duration-200 ${
         isOutOfStock
@@ -96,14 +127,65 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
 
         <div className="flex items-center justify-between">
           <span className={`text-[12px] font-700 ${isOutOfStock ? "text-neutral-400" : "text-neutral-900"}`}>
-            {item.hasVariants && item.variants && item.variants.length > 0 ? (
-              <>
-                <span className="text-[9px] font-600 text-neutral-400">From </span>
-                ${Math.min(...item.variants.map((v) => v.price)).toFixed(2)}
-              </>
-            ) : (
-              `$${item.price.toFixed(2)}`
-            )}
+            {(() => {
+              const today = [
+                "sunday",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+              ][new Date().getDay()];
+              const prodId = (item.id || (item as any)._id || item.productId) as string;
+              const deals = (item as any).dealsOfTheDay || [];
+              const matchedDeal = deals.find(
+                (d: any) =>
+                  d.isActive &&
+                  d.dayOfWeek?.toLowerCase() === today &&
+                  (d.productId === prodId ||
+                    (d.productId as any)?._id === prodId ||
+                    (d.productId as any)?.id === prodId ||
+                    !d.productId),
+              );
+              const szConfig = matchedDeal?.sizes?.find(
+                (s: any) => s.isEnabled && typeof s.dealPrice === "number" && s.dealPrice > 0,
+              );
+              const simpleDealPrice = szConfig ? szConfig.dealPrice : null;
+
+              if (item.hasVariants && item.variants && item.variants.length > 0) {
+                const minPrice = Math.min(
+                  ...item.variants.map((v) => {
+                    const dealSZ = matchedDeal?.sizes?.find(
+                      (s: any) =>
+                        s.sizeCode === v.sizeCode && s.isEnabled && s.dealPrice > 0,
+                    );
+                    return dealSZ ? dealSZ.dealPrice : v.price;
+                  }),
+                );
+                return (
+                  <>
+                    <span className="text-[9px] font-600 text-neutral-400">From </span>
+                    ${minPrice.toFixed(2)}
+                  </>
+                );
+              }
+
+              if (simpleDealPrice !== null) {
+                return (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-neutral-400 line-through">
+                      ${item.price.toFixed(2)}
+                    </span>
+                    <span className="text-brand-primary font-900">
+                      🔥 ${simpleDealPrice.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              }
+
+              return `$${item.price.toFixed(2)}`;
+            })()}
           </span>
           {!isOutOfStock ? (
             <button

@@ -71,6 +71,11 @@ const modifierGroupSchema = new mongoose.Schema({
     enum: ['radio', 'checkbox', 'card'],
     default: 'radio',
   },
+  freeSelectionLimit: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
   options: [modifierOptionSchema]
 }, {
   timestamps: true

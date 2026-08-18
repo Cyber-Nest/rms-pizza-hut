@@ -120,6 +120,7 @@ export default function ModifiersTab({
     { code: "small", label: '9" Small' },
     { code: "medium", label: '12" Medium' },
     { code: "large", label: '14" Large' },
+    { code: "pnqlicious", label: '16" Pnqlicious' },
     { code: "xl", label: "XL Panormous" },
   ];
 
@@ -128,6 +129,7 @@ export default function ModifiersTab({
     required: boolean;
     minSelection: number;
     maxSelection: number;
+    freeSelectionLimit?: number;
     displayType: "radio" | "checkbox" | "card";
     options: ModifierOption[];
   }>({
@@ -135,6 +137,7 @@ export default function ModifiersTab({
     required: false,
     minSelection: 0,
     maxSelection: 1,
+    freeSelectionLimit: 0,
     displayType: "radio",
     options: [
       {
@@ -235,6 +238,7 @@ export default function ModifiersTab({
       required: group.required,
       minSelection: group.minSelection,
       maxSelection: group.maxSelection,
+      freeSelectionLimit: group.freeSelectionLimit ?? 0,
       displayType: group.displayType,
       options: group.options.map((o) => ({
         id: (o.id || o._id) as string,
@@ -265,6 +269,7 @@ export default function ModifiersTab({
         required: group.required,
         minSelection: group.minSelection,
         maxSelection: group.maxSelection,
+        freeSelectionLimit: group.freeSelectionLimit ?? 0,
         displayType: group.displayType,
         options: group.options.map((o) => ({
           name: o.name,
@@ -311,6 +316,7 @@ export default function ModifiersTab({
       required: false,
       minSelection: 0,
       maxSelection: 1,
+      freeSelectionLimit: 0,
       displayType: "radio",
       options: [
         {
@@ -657,7 +663,7 @@ export default function ModifiersTab({
               </label>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
                 Min Selection
@@ -690,6 +696,24 @@ export default function ModifiersTab({
                   })
                 }
                 className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-xl px-3 py-2.5 text-[11px] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-700 text-emerald-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                Free Items Limit
+              </label>
+              <input
+                type="number"
+                min={0}
+                placeholder="0 (e.g. 2 for CYO)"
+                value={modForm.freeSelectionLimit ?? 0}
+                onChange={(e) =>
+                  setModForm({
+                    ...modForm,
+                    freeSelectionLimit: parseInt(e.target.value) || 0,
+                  })
+                }
+                className="w-full bg-emerald-50/50 border border-emerald-300 rounded-xl px-3 py-2.5 text-[11px] focus:outline-none text-emerald-900 font-600"
               />
             </div>
           </div>

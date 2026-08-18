@@ -10,10 +10,11 @@ import { API_URL, getAuthConfig } from "./utils";
 import CategoriesTab from "./components/CategoriesTab";
 import ModifiersTab from "./components/ModifiersTab";
 import ProductsTab from "./components/ProductsTab";
+import DealsOfTheDayTab from "./components/DealsOfTheDayTab";
 
 export default function MenuPage() {
   const [activeTab, setActiveTab] = useState<
-    "categories" | "modifiers" | "products"
+    "categories" | "modifiers" | "products" | "deals-of-the-day"
   >("categories");
   const [toastMsg, setToastMsg] = useState<{
     type: "success" | "error";
@@ -82,55 +83,66 @@ export default function MenuPage() {
 
       {/* ── TAB BAR CONTROL ── */}
       <div className="flex border-b border-neutral-200 bg-white p-1 rounded-xl shadow-sm border">
-        {(["categories", "modifiers", "products"] as const).map((tab) => (
+        {(
+          [
+            { id: "categories", label: "Categories" },
+            { id: "modifiers", label: "Modifiers" },
+            { id: "products", label: "Products" },
+            { id: "deals-of-the-day", label: "🔥 Deal of the Day" },
+          ] as const
+        ).map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
             className={`flex-1 py-3 px-4 rounded-lg text-[10.5px] font-700 uppercase tracking-wider transition-all cursor-pointer ${
-              activeTab === tab
+              activeTab === tab.id
                 ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
                 : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
             }`}
           >
-            {tab}
+            {tab.label}
           </button>
         ))}
       </div>
 
       {/* ── VIEWPORT ── */}
-      <div
-        className={`grid grid-cols-1 gap-6 ${
-          activeTab === "modifiers"
-            ? "lg:grid-cols-[minmax(420px,1.15fr)_minmax(0,1.85fr)]"
-            : "lg:grid-cols-3"
-        }`}
-      >
-        {activeTab === "categories" && (
-          <CategoriesTab
-            categories={categories}
-            fetchCategories={fetchCategories}
-            showToast={showToast}
-          />
-        )}
-        {activeTab === "modifiers" && (
-          <ModifiersTab
-            modifiers={modifiers}
-            products={products}
-            categories={categories}
-            fetchModifiers={fetchModifiers}
-            showToast={showToast}
-          />
-        )}
-        {activeTab === "products" && (
-          <ProductsTab
-            products={products}
-            categories={categories}
-            modifiers={modifiers}
-            fetchProducts={fetchProducts}
-            showToast={showToast}
-          />
-        )}
-      </div>
+      {activeTab === "deals-of-the-day" ? (
+        <DealsOfTheDayTab products={products} showToast={showToast} />
+      ) : (
+        <div
+          className={`grid grid-cols-1 gap-6 ${
+            activeTab === "modifiers"
+              ? "lg:grid-cols-[minmax(420px,1.15fr)_minmax(0,1.85fr)]"
+              : "lg:grid-cols-3"
+          }`}
+        >
+          {activeTab === "categories" && (
+            <CategoriesTab
+              categories={categories}
+              fetchCategories={fetchCategories}
+              showToast={showToast}
+            />
+          )}
+          {activeTab === "modifiers" && (
+            <ModifiersTab
+              modifiers={modifiers}
+              products={products}
+              categories={categories}
+              fetchModifiers={fetchModifiers}
+              showToast={showToast}
+            />
+          )}
+          {activeTab === "products" && (
+            <ProductsTab
+              products={products}
+              categories={categories}
+              modifiers={modifiers}
+              fetchProducts={fetchProducts}
+              showToast={showToast}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

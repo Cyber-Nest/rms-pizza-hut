@@ -36,4 +36,10 @@ router.post('/products', protectSuperAdmin, menuController.createProduct);
 router.put('/products/:id', protectSuperAdmin, menuController.updateProduct);
 router.delete('/products/:id', protectSuperAdmin, menuController.deleteProduct);
 
+//Deal of the Day Routes
+router.get('/deals-of-the-day', menuController.getDealsOfTheDay);
+router.post('/deals-of-the-day', protectSuperAdmin, menuController.createDealOfTheDay);
+router.put('/deals-of-the-day/:id', protectSuperAdmin, menuController.updateDealOfTheDay);
+router.delete('/deals-of-the-day/:id', protectSuperAdmin, menuController.deleteDealOfTheDay);
+
 module.exports = router;

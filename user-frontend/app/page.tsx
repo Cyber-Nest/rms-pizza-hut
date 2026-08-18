@@ -142,8 +142,13 @@ export default function HomePage() {
           params: { branchId: currentBranchId },
         });
         if (res.data.success) {
+          const dealsOfTheDay = res.data.data.dealsOfTheDay || [];
+          const menuItems = (res.data.data.menuItems || []).map((item: any) => ({
+            ...item,
+            dealsOfTheDay,
+          }));
           setCategories(res.data.data.categories || []);
-          setMenuItems(res.data.data.menuItems || []);
+          setMenuItems(menuItems);
         }
       } catch (err) {
         console.warn("Error loading branch menu:", err);
@@ -719,11 +724,62 @@ export default function HomePage() {
                           <p className="text-[8.5px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wider">
                             Price
                           </p>
-                          <p
-                            className={`text-[12px] sm:text-[14px] font-black ${isOutOfStock ? "text-neutral-400" : "text-neutral-800"}`}
-                          >
-                            ${item.price.toFixed(2)}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            {(() => {
+                              const today = [
+                                "sunday",
+                                "monday",
+                                "tuesday",
+                                "wednesday",
+                                "thursday",
+                                "friday",
+                                "saturday",
+                              ][new Date().getDay()];
+                              const prodId = (item.id || (item as any)._id || item.productId) as string;
+                              const deals = (item as any).dealsOfTheDay || [];
+                              const matchedDeal = deals.find(
+                                (d: any) =>
+                                  d.isActive &&
+                                  d.dayOfWeek?.toLowerCase() === today &&
+                                  (d.productId === prodId ||
+                                    (d.productId as any)?._id === prodId ||
+                                    (d.productId as any)?.id === prodId ||
+                                    !d.productId),
+                              );
+                              const szConfig = matchedDeal?.sizes?.find(
+                                (s: any) =>
+                                  s.isEnabled &&
+                                  typeof s.dealPrice === "number" &&
+                                  s.dealPrice > 0,
+                              );
+                              const dealPrice = szConfig ? szConfig.dealPrice : null;
+
+                              if (dealPrice !== null) {
+                                return (
+                                  <>
+                                    <span className="text-[10px] text-neutral-400 line-through">
+                                      ${item.price.toFixed(2)}
+                                    </span>
+                                    <span className="text-[12px] sm:text-[14px] font-black text-brand-primary">
+                                      🔥 ${dealPrice.toFixed(2)}
+                                    </span>
+                                  </>
+                                );
+                              }
+
+                              return (
+                                <span
+                                  className={`text-[12px] sm:text-[14px] font-black ${
+                                    isOutOfStock
+                                      ? "text-neutral-400"
+                                      : "text-neutral-800"
+                                  }`}
+                                >
+                                  ${item.price.toFixed(2)}
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </div>
                         <button
                           onClick={() =>
