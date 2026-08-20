@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Eye, Smartphone, Store } from 'lucide-react';
+import { Eye, Printer, Smartphone, Store } from 'lucide-react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 import { Order } from '../types';
 import { formatLocalDateTime24 } from '../utils/timezone';
 
@@ -110,6 +112,20 @@ export default function OrdersTableView({
   const startIndex = (activePage - 1) * activeEntriesPerPage;
   const endIndex = Math.min(startIndex + activeEntriesPerPage, totalEntriesCount);
   const visibleOrders = isServerSide ? orders : orders.slice(startIndex, endIndex);
+
+  // ── Handle Thermal Print from Table Row ──
+  const handlePrintOrder = async (e: React.MouseEvent, order: Order) => {
+    e.stopPropagation();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+    const toastId = `print-${order._id}`;
+    try {
+      toast.loading(`Printing order #${order.orderNumber}...`, { id: toastId });
+      await axios.post(`${apiUrl}/orders/${order._id}/print`, { paperSize: '58mm' });
+      toast.success(`Receipt printed for #${order.orderNumber}!`, { id: toastId });
+    } catch (err) {
+      toast.error('Print failed — check printer connection.', { id: toastId });
+    }
+  };
 
   return (
     <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden flex-1 flex flex-col min-h-0 font-sans select-none">
@@ -271,15 +287,24 @@ export default function OrdersTableView({
                       {formatDate(order.createdAt)}
                     </td>
 
-                    {/* Action Eye Button */}
+                    {/* Action Eye & Print Buttons */}
                     <td className="px-5 py-4 text-center">
-                      <button
-                        onClick={() => onSelectOrder(order)}
-                        className="w-8 h-8 rounded-full bg-neutral-50 hover:bg-brand-primary-light border border-neutral-200 hover:border-brand-primary/30 text-neutral-500 hover:text-brand-primary flex items-center justify-center transition-all duration-150 active:scale-90 mx-auto cursor-pointer shadow-xs"
-                        title="View details"
-                      >
-                        <Eye size={13} strokeWidth={2.5} />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => onSelectOrder(order)}
+                          className="w-8 h-8 rounded-full bg-neutral-50 hover:bg-brand-primary-light border border-neutral-200 hover:border-brand-primary/30 text-neutral-500 hover:text-brand-primary flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer shadow-xs"
+                          title="View details"
+                        >
+                          <Eye size={13} strokeWidth={2.5} />
+                        </button>
+                        <button
+                          onClick={(e) => handlePrintOrder(e, order)}
+                          className="w-8 h-8 rounded-full bg-neutral-50 hover:bg-emerald-50 border border-neutral-200 hover:border-emerald-300 text-neutral-500 hover:text-emerald-600 flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer shadow-xs"
+                          title="Print thermal receipt (58mm)"
+                        >
+                          <Printer size={13} strokeWidth={2.5} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

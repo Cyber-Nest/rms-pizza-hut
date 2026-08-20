@@ -188,6 +188,32 @@ const triggerDriverStatusChange = async (restaurantId, driverData) => {
   }
 };
 
+/**
+ * Triggers a print-job event on the branch-specific private channel.
+ * Store PC print-agent.js subscribes to this channel and prints locally via pdf-to-printer.
+ * Only triggered when backend is running on Vercel/Linux (Cloud Bypassed).
+ */
+const triggerPrintJob = async (branchId, jobPayload) => {
+  if (!pusherInstance) {
+    logger.debug("Pusher is not initialized, skipping print-job trigger.");
+    return;
+  }
+  if (!branchId) {
+    logger.warn("triggerPrintJob called without branchId — skipping.");
+    return;
+  }
+
+  try {
+    const channel = `private-branch-${branchId.toString()}-print`;
+    await pusherInstance.trigger(channel, "print-job", jobPayload);
+    logger.info(
+      `Pusher 'print-job' triggered on [${channel}] for order: ${jobPayload.orderNumber}`
+    );
+  } catch (error) {
+    logger.error(`Failed to trigger Pusher print-job: ${error.message}`);
+  }
+};
+
 module.exports = {
   pusherInstance,
   triggerNewOrder,
@@ -196,4 +222,5 @@ module.exports = {
   triggerDeliveryAssigned,
   triggerDeliveryStatusUpdate,
   triggerDriverStatusChange,
+  triggerPrintJob,
 };

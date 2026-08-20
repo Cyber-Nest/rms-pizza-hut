@@ -31,7 +31,7 @@ const DEFAULT_PIZZA_SIZES = [
   { sizeCode: "small", sizeName: '9" Small', price: 14.99, isDefault: false },
   { sizeCode: "medium", sizeName: '12" Medium', price: 18.99, isDefault: true },
   { sizeCode: "large", sizeName: '14" Large', price: 22.99, isDefault: false },
-  { sizeCode: "pnqlicious", sizeName: '16" Pnqlicious', price: 27.99, isDefault: false },
+  { sizeCode: "panalicious", sizeName: 'Panalicious', price: 27.99, isDefault: false },
   { sizeCode: "xl", sizeName: "XL Panormous", price: 26.99, isDefault: false },
 ];
 

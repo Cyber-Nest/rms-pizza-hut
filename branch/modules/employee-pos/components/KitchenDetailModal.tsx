@@ -107,7 +107,12 @@ export default function KitchenDetailModal({
   const [cancelling, setCancelling] = useState(false);
 
   const isItemVisible = (item: any) => {
-    if (!categoryFilter || categoryFilter === "all" || categoryFilter === "cut_station") return true;
+    if (
+      !categoryFilter ||
+      categoryFilter === "all" ||
+      categoryFilter === "cut_station"
+    )
+      return true;
     const label = item.kitchenLabel || "make_table";
     if (categoryFilter === "make_table" || categoryFilter === "pizza") {
       return label === "make_table" || label === "pizza";
@@ -206,7 +211,12 @@ export default function KitchenDetailModal({
       const note = `Kitchen updated status to ${nextStatus}`;
       const res = await axios.patch(
         `${apiUrl}/orders/${localOrder._id}/status`,
-        { status: nextStatus, note, userName: activeEmpName, station: categoryFilter },
+        {
+          status: nextStatus,
+          note,
+          userName: activeEmpName,
+          station: categoryFilter,
+        },
       );
 
       if (res.data.success) {
@@ -218,10 +228,10 @@ export default function KitchenDetailModal({
           nextStatus === "preparing"
             ? "Preparing"
             : nextStatus === "in_oven"
-            ? "In the Oven"
-            : nextStatus === "ready"
-            ? readyText
-            : "Completed";
+              ? "In the Oven"
+              : nextStatus === "ready"
+                ? readyText
+                : "Completed";
         toast.success(`Order transitioned to ${statusMsg}`);
 
         // Update local status and history
@@ -263,36 +273,42 @@ export default function KitchenDetailModal({
           // Cut Station (Pizza or Combo) → full receipt
           // Wings-only order on Wings Station → full receipt (all items are wings)
           const isComboOrder =
-            !!(localOrder.hasPizza || (localOrder.items || []).some((i: any) => i.kitchenLabel === "make_table")) &&
-            !!(localOrder.hasWings || (localOrder.items || []).some((i: any) => i.kitchenLabel === "wings_station"));
+            !!(
+              localOrder.hasPizza ||
+              (localOrder.items || []).some(
+                (i: any) =>
+                  i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza",
+              )
+            ) &&
+            !!(
+              localOrder.hasWings ||
+              (localOrder.items || []).some(
+                (i: any) =>
+                  i.kitchenLabel === "wings_station" ||
+                  i.kitchenLabel === "chicken",
+              )
+            );
 
           const wingsOnlyDownload =
             categoryFilter === "wings_station" && isComboOrder;
 
           const itemsFilterParam = wingsOnlyDownload ? "wings_only" : "all";
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+          const apiUrl =
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-          // Fire & forget — don't block close on download
-          try {
-            const pdfRes = await axios.get(
-              `${apiUrl}/orders/${localOrder._id}/pdf?itemsFilter=${itemsFilterParam}`,
-              { responseType: "blob" },
-            );
-            const blob = new Blob([pdfRes.data], { type: "application/pdf" });
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            const fileLabel = wingsOnlyDownload ? "wings-receipt" : "invoice";
-            link.setAttribute("download", `${fileLabel}-${localOrder.orderNumber?.replace("#", "")}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-            toast.success("Receipt downloaded!");
-          } catch {
-            // Silent fail — don't block close even if PDF fails
-            console.warn("Auto-receipt download failed silently.");
-          }
+          // Silent backend print via pdf-to-printer (SumatraPDF) — no browser dialog
+          axios
+            .post(`${apiUrl}/orders/${localOrder._id}/print`, {
+              paperSize: "58mm",
+              itemsFilter: itemsFilterParam,
+            })
+            .then(() => {
+              toast.success("Receipt sent to printer!");
+            })
+            .catch((err) => {
+              console.warn("[print] Backend print failed:", err);
+              toast.error("Print failed — check printer connection.");
+            });
         }
         // ──────────────────────────────────────────────────────────────────
 
@@ -670,10 +686,13 @@ export default function KitchenDetailModal({
 
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const res = await axios.post(`${apiUrl}/orders/${localOrder._id}/cancel`, {
-        reason: cancelReason,
-        userName: activeEmpName,
-      });
+      const res = await axios.post(
+        `${apiUrl}/orders/${localOrder._id}/cancel`,
+        {
+          reason: cancelReason,
+          userName: activeEmpName,
+        },
+      );
 
       if (res.data.success) {
         toast.success("Order cancelled successfully.");
@@ -699,33 +718,21 @@ export default function KitchenDetailModal({
   };
 
   const handlePrintInvoice = async () => {
-    if (isPrinting || !localOrder) return;
+    if (!localOrder || isPrinting) return;
     setIsPrinting(true);
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
     try {
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const response = await axios.get(
-        `${apiUrl}/orders/${localOrder._id}/pdf`,
-        {
-          responseType: "blob",
-        },
-      );
-
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `invoice-${localOrder.orderNumber.replace("#", "")}.pdf`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Invoice PDF downloaded successfully!");
+      toast.loading("Sending to printer...", { id: "print-toast" });
+      await axios.post(`${apiUrl}/orders/${localOrder._id}/print`, {
+        paperSize: "58mm",
+      });
+      toast.success("Receipt printed successfully!", { id: "print-toast" });
     } catch (err: any) {
-      toast.error("Failed to download invoice PDF");
+      console.error("[print] Failed:", err);
+      toast.error("Print failed. Is printer ON and connected?", {
+        id: "print-toast",
+      });
     } finally {
       setIsPrinting(false);
     }
@@ -761,8 +768,8 @@ export default function KitchenDetailModal({
       categoryFilter === "make_table"
         ? localOrder.makeTableStatus || localOrder.status
         : categoryFilter === "wings_station"
-        ? localOrder.wingsStatus || localOrder.status
-        : localOrder.makeTableStatus || localOrder.status;
+          ? localOrder.wingsStatus || localOrder.status
+          : localOrder.makeTableStatus || localOrder.status;
 
     if (currentStationStatus === "pending") {
       return (
@@ -801,7 +808,10 @@ export default function KitchenDetailModal({
       );
     }
 
-    if (currentStationStatus === "in_oven" || currentStationStatus === "ready") {
+    if (
+      currentStationStatus === "in_oven" ||
+      currentStationStatus === "ready"
+    ) {
       return (
         <button
           onClick={() => handleTransition("completed")}
@@ -860,7 +870,7 @@ export default function KitchenDetailModal({
                 {isPrinting ? (
                   <>
                     <RefreshCw size={13} className="animate-spin text-white" />
-                    Downloading...
+                    Printing...
                   </>
                 ) : (
                   <>
@@ -1010,7 +1020,9 @@ export default function KitchenDetailModal({
               <FileText size={16} className="text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-[10px] font-900 text-amber-800 uppercase tracking-wider">
-                  {localOrder.orderType === 'delivery' ? 'Delivery Instructions Note:' : 'Customer Order Note:'}
+                  {localOrder.orderType === "delivery"
+                    ? "Delivery Instructions Note:"
+                    : "Customer Order Note:"}
                 </p>
                 <p className="text-xs font-700 mt-0.5 leading-relaxed">
                   "{localOrder.notes}"
@@ -1062,7 +1074,12 @@ export default function KitchenDetailModal({
                                                 {mod.groupName}
                                               </span> */}
                                               <div className="flex justify-between items-baseline text-neutral-700 font-600 pl-0.5">
-                                                {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
+                                                {mod.optionName
+                                                  .trim()
+                                                  .startsWith("-") ||
+                                                mod.optionName
+                                                  .toLowerCase()
+                                                  .includes("no ") ? (
                                                   <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
                                                     {mod.optionName}
                                                   </span>
@@ -1168,7 +1185,12 @@ export default function KitchenDetailModal({
                                                 {mod.groupName}
                                               </span> */}
                                               <div className="flex justify-between items-baseline text-neutral-600 font-600 pl-0.5">
-                                                {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
+                                                {mod.optionName
+                                                  .trim()
+                                                  .startsWith("-") ||
+                                                mod.optionName
+                                                  .toLowerCase()
+                                                  .includes("no ") ? (
                                                   <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
                                                     {mod.optionName}
                                                   </span>
@@ -1293,8 +1315,7 @@ export default function KitchenDetailModal({
                       </span>
                     </div>
                   )}
-                  {((localOrder.tip as number | undefined) ?? 0) >
-                    0 && (
+                  {((localOrder.tip as number | undefined) ?? 0) > 0 && (
                     <div className="flex justify-between text-brand-primary font-bold">
                       <span>Driver Tip:</span>
                       <span className="font-mono">
@@ -1578,8 +1599,13 @@ export default function KitchenDetailModal({
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <h3 className="text-sm font-900 text-neutral-900 leading-tight">Confirm Order Cancellation</h3>
-                <p className="text-[11px] text-neutral-500 font-500">Order {localOrder.orderNumber} · Total ${localOrder.total.toFixed(2)}</p>
+                <h3 className="text-sm font-900 text-neutral-900 leading-tight">
+                  Confirm Order Cancellation
+                </h3>
+                <p className="text-[11px] text-neutral-500 font-500">
+                  Order {localOrder.orderNumber} · Total $
+                  {localOrder.total.toFixed(2)}
+                </p>
               </div>
             </div>
 
@@ -1601,7 +1627,7 @@ export default function KitchenDetailModal({
                 type="button"
                 onClick={() => {
                   setShowCancelModal(false);
-                  setCancelReason('');
+                  setCancelReason("");
                 }}
                 disabled={cancelling}
                 className="px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-[11px] font-800 rounded-full uppercase tracking-wider transition-all cursor-pointer"

@@ -417,8 +417,8 @@ export default function ModifierDrawer({
     let detectedSize = "medium";
     if (groupName) {
       const gLower = groupName.toLowerCase();
-      if (gLower.includes("pnqlicious") || gLower.includes('16"'))
-        detectedSize = "pnqlicious";
+      if (gLower.includes("panalicious"))
+        detectedSize = "panalicious";
       else if (gLower.includes("large") || gLower.includes('14"'))
         detectedSize = "large";
       else if (gLower.includes("small") || gLower.includes('9"'))
@@ -731,8 +731,8 @@ export default function ModifierDrawer({
     let slotSize = selectedSize?.sizeCode;
     if (!slotSize) {
       const gLower = displayName.toLowerCase();
-      if (gLower.includes("pnqlicious") || gLower.includes('16"'))
-        slotSize = "pnqlicious";
+      if (gLower.includes("panalicious"))
+        slotSize = "panalicious";
       else if (gLower.includes("large") || gLower.includes('14"'))
         slotSize = "large";
       else if (gLower.includes("small") || gLower.includes('9"'))
@@ -1017,19 +1017,28 @@ export default function ModifierDrawer({
 
           {/* Pizza Size Selector */}
           {item.hasVariants && item.variants && item.variants.length > 0 && (
-            <div className="px-5 pt-3.5 pb-2 border-b border-neutral-100 bg-orange-50/30 flex-shrink-0">
-              <p className="text-[8.5px] font-800 text-brand-primary uppercase tracking-widest mb-1.5 flex items-center gap-1">
-                <Pizza size={10} />
-                Select Pizza Size
-              </p>
-              <div className="flex flex-wrap gap-1.5">
+            <div className="px-5 pt-3.5 pb-2.5 border-b border-neutral-100 bg-gradient-to-r from-orange-50/40 via-amber-50/20 to-orange-50/40 flex-shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] font-800 text-brand-primary uppercase tracking-widest flex items-center gap-1.5">
+                  <Pizza size={11} className="text-brand-primary" />
+                  Select Pizza Size
+                </p>
+                {item.variants.some(
+                  (v) => getDealPriceForVariant(v.sizeCode) !== null,
+                ) && (
+                  <span className="text-[8.5px] font-700 text-amber-700 bg-amber-100/90 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200/60 shadow-xs">
+                    🔥 Deal Active
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {(() => {
                   const SIZE_ORDER = [
                     "personal",
                     "small",
                     "medium",
                     "large",
-                    "pnqlicious",
+                    "panalicious",
                     "xl",
                   ];
                   const sortedVariants = [...item.variants].sort((a, b) => {
@@ -1050,22 +1059,35 @@ export default function ModifierDrawer({
                         key={variant.sizeCode}
                         type="button"
                         onClick={() => setSelectedSize(variant)}
-                        className={`flex-1 min-w-[105px] flex items-center justify-between px-3 py-2 rounded-xl border text-[10.5px] font-700 transition-all cursor-pointer ${
+                        className={`flex items-center justify-between px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl border transition-all duration-150 cursor-pointer active:scale-[0.98] min-w-0 ${
                           isSelected
-                            ? "bg-brand-primary border-brand-primary text-white shadow-sm ring-2 ring-brand-primary/20"
+                            ? "bg-brand-primary border-brand-primary text-white shadow-md shadow-brand-primary/20 ring-2 ring-brand-primary/20"
                             : hasDeal
-                              ? "bg-orange-50/60 border-orange-300 text-neutral-800 hover:bg-orange-100/60"
-                              : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                              ? "bg-amber-50/80 border-amber-300/90 text-neutral-900 hover:bg-amber-100/80 hover:border-amber-400"
+                              : "bg-white border-neutral-200 text-neutral-800 hover:bg-neutral-50 hover:border-neutral-300"
                         }`}
                       >
-                        <span className="truncate flex items-center gap-1">
-                          {hasDeal && <span>🔥</span>}
-                          {variant.sizeName}
-                        </span>
-                        <div className="flex items-center gap-1">
+                        {/* Size Name & Sub-badge */}
+                        <div className="flex flex-col items-start min-w-0 pr-0.5">
+                          <span className="text-[10px] sm:text-[10.5px] font-700 leading-tight tracking-tight whitespace-nowrap">
+                            {variant.sizeName}
+                          </span>
+                          {/* {hasDeal && (
+                            <span
+                              className={`text-[7px] sm:text-[7.5px] font-800 uppercase tracking-tight mt-0.5 ${
+                                isSelected ? "text-amber-200" : "text-amber-600"
+                              }`}
+                            >
+                              Deal
+                            </span>
+                          )} */}
+                        </div>
+
+                        {/* Price Column */}
+                        <div className="flex flex-col items-end shrink-0 ml-1">
                           {hasDeal && (
                             <span
-                              className={`text-[8.5px] line-through font-semibold ${
+                              className={`text-[8px] line-through font-semibold leading-tight mb-0.5 ${
                                 isSelected ? "text-white/70" : "text-neutral-400"
                               }`}
                             >
@@ -1073,11 +1095,11 @@ export default function ModifierDrawer({
                             </span>
                           )}
                           <span
-                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-800 ${
+                            className={`text-[8.5px] sm:text-[9px] px-1.5 py-0.5 rounded-md font-800 leading-none ${
                               isSelected
-                                ? "bg-white/20 text-white"
+                                ? "bg-white text-brand-primary shadow-xs"
                                 : hasDeal
-                                  ? "bg-brand-primary text-white"
+                                  ? "bg-brand-primary text-white shadow-xs"
                                   : "bg-neutral-100 text-brand-primary"
                             }`}
                           >
