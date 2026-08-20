@@ -19,10 +19,14 @@ router.post("/sales-summary/deposit", orderController.saveDeposit);
 router.get("/account-closing", orderController.getAccountClosing);
 router.post("/account-closing/deposit", orderController.saveTerminalDeposit);
 router.post("/account-closing/void", orderController.voidTerminalDeposit);
-router.post("/account-closing/finalize", orderController.finalizeAccountClosing);
+router.post(
+  "/account-closing/finalize",
+  orderController.finalizeAccountClosing,
+);
 router.get("/", orderController.getAllOrders);
 router.get("/:id", orderController.getOrderById);
 router.get("/:id/pdf", orderController.downloadReceiptPdf);
+router.post("/:id/print", orderController.silentPrintOrderReceipt); // Silent print to physical printer
 router.patch("/:id/status", orderController.updateOrderStatus);
 router.patch("/:id/kitchen-clear", orderController.kitchenClear);
 router.patch("/:id/due-time", orderController.updateOrderDueTime);
@@ -31,5 +35,4 @@ router.patch("/:id", orderController.updateOrderItems);
 router.post("/:id/refund", orderController.refundOrder);
 router.post("/:id/cancel", orderController.cancelOrder);
 router.delete("/:id", orderController.cancelOrder);
-
 module.exports = router;

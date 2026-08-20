@@ -2,6 +2,8 @@ const orderService = require("../services/order.service");
 const receiptPdfService = require("../services/receiptPdf.service");
 const reportPdfService = require("../services/reportPdf.service");
 const reportExcelService = require("../services/reportExcel.service");
+const silentPrintService = require("../services/silentPrint.service");
+const fs = require("fs");
 const logger = require("../../../shared/utils/logger");
 const { getLocalDateStr } = require("../../../shared/utils/timezone");
 
@@ -208,6 +210,7 @@ exports.downloadReceiptPdf = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
     const itemsFilter = req.query.itemsFilter || "all"; // "wings_only" | "all"
+    const paperSize = req.query.paperSize || "58mm";
     const fileLabel =
       itemsFilter === "wings_only" ? "wings-receipt" : "invoice";
     res.setHeader("Content-Type", "application/pdf");
@@ -215,9 +218,68 @@ exports.downloadReceiptPdf = async (req, res) => {
       "Content-Disposition",
       `attachment; filename=${fileLabel}-${order.orderNumber}.pdf`,
     );
-    await receiptPdfService.generateReceiptPdf(order, res, itemsFilter);
+    await receiptPdfService.generateReceiptPdf(
+      order,
+      res,
+      itemsFilter,
+      paperSize,
+    );
   } catch (error) {
     handleError(res, error, 500);
+  }
+};
+
+// POST /:id/print  — generates PDF to temp file and sends to physical printer via pdf-to-printer
+exports.silentPrintOrderReceipt = async (req, res) => {
+  let tempPdfPath = null;
+  try {
+    const order = await orderService.getOrderById(req.params.id);
+    if (!order)
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+
+    const paperSize = req.body?.paperSize || req.query?.paperSize || "58mm";
+    const printerName = req.body?.printerName || req.query?.printerName || null;
+    const itemsFilter =
+      req.body?.itemsFilter || req.query?.itemsFilter || "all";
+
+    const cleanOrderNum = (order.orderNumber || req.params.id).replace("#", "");
+    const filename = `receipt-${cleanOrderNum}-${Date.now()}.pdf`;
+    tempPdfPath = silentPrintService.getTempReceiptPath(filename);
+
+    // Generate PDF to temp file
+    const fileStream = fs.createWriteStream(tempPdfPath);
+    await receiptPdfService.generateReceiptPdfStream(
+      order,
+      fileStream,
+      itemsFilter,
+      paperSize,
+    );
+    await new Promise((resolve, reject) => {
+      fileStream.on("finish", resolve);
+      fileStream.on("error", reject);
+    });
+
+    // Send to Windows print spooler via pdf-to-printer (SumatraPDF)
+    const printResult = await silentPrintService.printPdfSilently(
+      tempPdfPath,
+      printerName,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Receipt sent to printer successfully for order ${order.orderNumber}`,
+      printer: printResult.printer,
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  } finally {
+    if (tempPdfPath) {
+      setTimeout(() => {
+        if (fs.existsSync(tempPdfPath)) fs.unlink(tempPdfPath, () => {});
+      }, 15000);
+    }
   }
 };
 
@@ -379,12 +441,10 @@ exports.exportReport = async (req, res) => {
       req.query;
     const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
     if (!type || !format) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Type and format query parameters are required.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Type and format query parameters are required.",
+      });
     }
 
     let reportData = [];
