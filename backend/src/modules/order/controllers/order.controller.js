@@ -3,6 +3,7 @@ const receiptPdfService = require("../services/receiptPdf.service");
 const reportPdfService = require("../services/reportPdf.service");
 const reportExcelService = require("../services/reportExcel.service");
 const silentPrintService = require("../services/silentPrint.service");
+const { triggerPrintJob } = require("../../../config/pusher");
 const fs = require("fs");
 const logger = require("../../../shared/utils/logger");
 const { getLocalDateStr } = require("../../../shared/utils/timezone");
@@ -266,6 +267,17 @@ exports.silentPrintOrderReceipt = async (req, res) => {
       tempPdfPath,
       printerName,
     );
+
+    // If on Vercel/Cloud: push print-job event via Pusher so Store PC agent can print locally
+    if (printResult.printer === "Cloud Bypassed" && order.branchId) {
+      await triggerPrintJob(order.branchId, {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        paperSize,
+        itemsFilter,
+        printerName: printerName || null,
+      });
+    }
 
     return res.status(200).json({
       success: true,
