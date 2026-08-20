@@ -395,8 +395,8 @@ export default function ModifierModal({
     let detectedSize = "medium"; // Default for deals (most deals feature Medium pizzas)
     if (groupName) {
       const gLower = groupName.toLowerCase();
-      if (gLower.includes("pnqlicious") || gLower.includes('16"'))
-        detectedSize = "pnqlicious";
+      if (gLower.includes("panalicious"))
+        detectedSize = "panalicious";
       else if (gLower.includes("large") || gLower.includes('14"'))
         detectedSize = "large";
       else if (gLower.includes("small") || gLower.includes('9"'))
@@ -519,8 +519,8 @@ export default function ModifierModal({
     // Detect size context for filtering available options
     let detectedSize = "medium";
     const gLower = displayName.toLowerCase();
-    if (gLower.includes("pnqlicious") || gLower.includes('16"'))
-      detectedSize = "pnqlicious";
+    if (gLower.includes("panalicious"))
+      detectedSize = "panalicious";
     else if (gLower.includes("large") || gLower.includes('14"'))
       detectedSize = "large";
     else if (gLower.includes("small") || gLower.includes('9"'))
