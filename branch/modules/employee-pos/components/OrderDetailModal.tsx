@@ -119,7 +119,7 @@ export default function OrderDetailModal({
         id: `print-${order._id}`,
       });
       const res = await axios.post(`${apiUrl}/orders/${order._id}/print`, {
-        paperSize: "58mm",
+        paperSize: "80mm",
       });
       if (res.data.success) {
         toast.success(`Receipt printed successfully!`, {
@@ -144,7 +144,7 @@ export default function OrderDetailModal({
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const response = await axios.get(
-        `${apiUrl}/orders/${order._id}/pdf?paperSize=58mm`,
+        `${apiUrl}/orders/${order._id}/pdf?paperSize=80mm`,
         {
           responseType: "blob",
         },
@@ -226,7 +226,7 @@ export default function OrderDetailModal({
         toast.success(`Order status updated to ${newStatus}`);
         if (newStatus === "completed") {
           axios
-            .post(`${apiUrl}/orders/${order._id}/print`, { paperSize: "58mm" })
+            .post(`${apiUrl}/orders/${order._id}/print`, { paperSize: "80mm" })
             .then(() => toast.success("Receipt auto-printed!"))
             .catch((err) => console.warn("Auto-print failed silently:", err));
         }
