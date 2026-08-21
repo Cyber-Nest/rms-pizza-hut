@@ -120,7 +120,7 @@ export default function OrdersTableView({
     const toastId = `print-${order._id}`;
     try {
       toast.loading(`Printing order #${order.orderNumber}...`, { id: toastId });
-      await axios.post(`${apiUrl}/orders/${order._id}/print`, { paperSize: '58mm' });
+      await axios.post(`${apiUrl}/orders/${order._id}/print`, { paperSize: '80mm' });
       toast.success(`Receipt printed for #${order.orderNumber}!`, { id: toastId });
     } catch (err) {
       toast.error('Print failed — check printer connection.', { id: toastId });
@@ -300,7 +300,7 @@ export default function OrdersTableView({
                         <button
                           onClick={(e) => handlePrintOrder(e, order)}
                           className="w-8 h-8 rounded-full bg-neutral-50 hover:bg-emerald-50 border border-neutral-200 hover:border-emerald-300 text-neutral-500 hover:text-emerald-600 flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer shadow-xs"
-                          title="Print thermal receipt (58mm)"
+                          title="Print thermal receipt (80mm)"
                         >
                           <Printer size={13} strokeWidth={2.5} />
                         </button>

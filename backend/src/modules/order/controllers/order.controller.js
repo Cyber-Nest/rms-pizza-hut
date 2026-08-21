@@ -211,7 +211,7 @@ exports.downloadReceiptPdf = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
     const itemsFilter = req.query.itemsFilter || "all"; // "wings_only" | "all"
-    const paperSize = req.query.paperSize || "58mm";
+    const paperSize = req.query.paperSize || "80mm";
     const fileLabel =
       itemsFilter === "wings_only" ? "wings-receipt" : "invoice";
     res.setHeader("Content-Type", "application/pdf");
@@ -240,7 +240,7 @@ exports.silentPrintOrderReceipt = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Order not found" });
 
-    const paperSize = req.body?.paperSize || req.query?.paperSize || "58mm";
+    const paperSize = req.body?.paperSize || req.query?.paperSize || "80mm";
     const printerName = req.body?.printerName || req.query?.printerName || null;
     const itemsFilter =
       req.body?.itemsFilter || req.query?.itemsFilter || "all";

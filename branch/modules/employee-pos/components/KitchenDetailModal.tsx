@@ -299,7 +299,7 @@ export default function KitchenDetailModal({
           // Silent backend print via pdf-to-printer (SumatraPDF) — no browser dialog
           axios
             .post(`${apiUrl}/orders/${localOrder._id}/print`, {
-              paperSize: "58mm",
+              paperSize: "80mm",
               itemsFilter: itemsFilterParam,
             })
             .then(() => {
@@ -725,7 +725,7 @@ export default function KitchenDetailModal({
     try {
       toast.loading("Sending to printer...", { id: "print-toast" });
       await axios.post(`${apiUrl}/orders/${localOrder._id}/print`, {
-        paperSize: "58mm",
+        paperSize: "80mm",
       });
       toast.success("Receipt printed successfully!", { id: "print-toast" });
     } catch (err: any) {
