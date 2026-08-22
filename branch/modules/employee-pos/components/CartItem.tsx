@@ -12,7 +12,6 @@ interface CartItemProps {
 
 export default function CartItem({ item, onEdit }: CartItemProps) {
   const { increaseQuantity, decreaseQuantity, removeFromCart } = usePosStore();
-  const summary = item.selectedModifiers.map((m) => m.optionName).join(', ');
 
   return (
     <div className="flex items-start gap-2.5 py-2 border-b border-neutral-100 group last:border-0">
@@ -23,12 +22,29 @@ export default function CartItem({ item, onEdit }: CartItemProps) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <h5 className="text-[11px] font-600 text-neutral-800 leading-tight truncate">{item.name}</h5>
-        <p className="text-[9px] text-neutral-400 font-400 mt-0.5 truncate leading-tight">
-          {summary || 'No customization'}
-        </p>
+        <h5 className="text-[11px] font-600 text-neutral-800 leading-tight break-words">{item.name}</h5>
+        {item.selectedModifiers && item.selectedModifiers.length > 0 ? (
+          <div className="text-[9px] text-neutral-500 mt-1 space-y-0.5 leading-tight">
+            {item.selectedModifiers.map((m, idx) => (
+              <p
+                key={idx}
+                className={
+                  m.isRoot
+                    ? "font-600 text-neutral-700 mt-1.5 first:mt-0.5"
+                    : "pl-2 text-neutral-500"
+                }
+              >
+                {m.isRoot ? m.optionName : `• ${m.optionName}`}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[9px] text-neutral-400 font-400 mt-0.5 leading-tight">
+            No customization
+          </p>
+        )}
         {item.note && (
-          <p className="text-[8.5px] font-500 text-amber-600 bg-amber-50 rounded px-1 py-0.5 mt-0.5 border border-amber-100 inline-block max-w-full truncate">
+          <p className="text-[8.5px] font-500 text-amber-600 bg-amber-50 rounded px-1 py-0.5 mt-1 border border-amber-100 inline-block max-w-full break-words">
             {item.note}
           </p>
         )}
