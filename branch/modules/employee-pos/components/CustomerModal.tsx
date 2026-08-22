@@ -335,15 +335,19 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
     onClose();
   };
 
-  // Validate & smart-sanitize the search field on every keystroke
+  // Validate & smart-sanitize the search field on every keystroke + auto-sync to phone/email
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
     setSearchError(null);
 
-    // If purely digits → phone mode: cap at 10
+    // If purely digits → phone mode: cap at 10 and auto-sync to Enter Phone # field
     const digitsOnly = val.replace(/\D/g, "");
     if (/^\d*$/.test(val)) {
       val = digitsOnly.slice(0, 10);
+      setValue("phone", val);
+    } else if (val.includes("@") || /[a-zA-Z]/.test(val)) {
+      // Auto-sync to Enter Email Address field
+      setValue("email", val);
     }
 
     setValue("searchQuery", val);
@@ -466,6 +470,23 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
         .join(" ");
     } else if (activeField === "phone") {
       newVal = newVal.replace(/\D/g, "").slice(0, 10); // Strip non-digits, limit 10
+      const currentSearch = getValues("searchQuery") || "";
+      if (!currentSearch || /^\d*$/.test(currentSearch)) {
+        setValue("searchQuery", newVal);
+      }
+    } else if (activeField === "email") {
+      const currentSearch = getValues("searchQuery") || "";
+      if (!currentSearch || currentSearch.includes("@") || /[a-zA-Z]/.test(currentSearch)) {
+        setValue("searchQuery", newVal);
+      }
+    } else if (activeField === "searchQuery") {
+      const digitsOnly = newVal.replace(/\D/g, "");
+      if (/^\d*$/.test(newVal)) {
+        newVal = digitsOnly.slice(0, 10);
+        setValue("phone", newVal);
+      } else if (newVal.includes("@") || /[a-zA-Z]/.test(newVal)) {
+        setValue("email", newVal);
+      }
     }
 
     setValue(activeField, newVal);
@@ -586,6 +607,10 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
                             .replace(/\D/g, "")
                             .slice(0, 10);
                           setValue("phone", val);
+                          const currentSearch = getValues("searchQuery") || "";
+                          if (!currentSearch || /^\d*$/.test(currentSearch)) {
+                            setValue("searchQuery", val);
+                          }
                         },
                       })}
                       placeholder="Enter Phone #"
@@ -595,7 +620,16 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
 
                   <div>
                     <input
-                      {...registerWithFocus("email")}
+                      {...registerWithFocus("email", {
+                        onChange: (e: any) => {
+                          const val = e.target.value;
+                          setValue("email", val);
+                          const currentSearch = getValues("searchQuery") || "";
+                          if (!currentSearch || currentSearch.includes("@") || /[a-zA-Z]/.test(currentSearch)) {
+                            setValue("searchQuery", val);
+                          }
+                        },
+                      })}
                       placeholder="Enter Email Address"
                       className="w-full bg-white border border-neutral-200 rounded-full px-4 py-2 text-[11px] font-500 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all"
                     />

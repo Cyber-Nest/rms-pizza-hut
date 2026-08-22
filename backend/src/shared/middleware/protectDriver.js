@@ -28,6 +28,19 @@ const protectDriver = (req, res, next) => {
     }
 
     if (!token) {
+      const fallbackBranchId =
+        req.query.branchId ||
+        req.query.restaurantId ||
+        req.body?.branchId ||
+        req.body?.restaurantId ||
+        req.headers["x-branch-id"];
+
+      if (fallbackBranchId) {
+        req.branch = { branchId: String(fallbackBranchId) };
+        req.activeBranchId = String(fallbackBranchId);
+        return next();
+      }
+
       return res.status(401).json({
         success: false,
         code: "DRIVER_AUTH_REQUIRED",

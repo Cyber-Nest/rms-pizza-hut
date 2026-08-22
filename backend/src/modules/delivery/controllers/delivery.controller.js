@@ -996,6 +996,85 @@ exports.markDelivered = async (req, res) => {
 };
 
 /**
+ * POST: Branch POS marks a delivery order as delivered.
+ * Body: { orderId }
+ */
+exports.markDeliveredByBranch = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "orderId is required." });
+    }
+
+    const assignment = await DeliveryAssignment.findOne({
+      orderId,
+      status: { $in: ["assigned", "en-route", "delivered"] },
+    });
+
+    if (assignment) {
+      assignment.status = "delivered";
+      assignment.deliveredAt = new Date();
+      await assignment.save();
+
+      const driver = await Driver.findById(assignment.driverId);
+      if (driver) {
+        driver.activeOrderIds = driver.activeOrderIds.filter(
+          (oid) => oid.toString() !== orderId.toString(),
+        );
+        if (driver.activeOrderIds.length === 0) {
+          driver.status = "returning";
+        }
+        await driver.save();
+      }
+
+      await triggerDeliveryStatusUpdate(
+        assignment.restaurantId || getRestaurantIdFromReq(req),
+        orderId.toString(),
+        {
+          status: "delivered",
+          driverId: assignment.driverId ? assignment.driverId.toString() : null,
+        },
+      );
+
+      if (driver && driver.activeOrderIds.length === 0) {
+        await triggerDriverStatusChange(
+          assignment.restaurantId || getRestaurantIdFromReq(req),
+          {
+            driverId: driver._id.toString(),
+            status: "returning",
+          },
+        );
+      }
+    }
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        status: "completed",
+        $push: {
+          statusHistory: {
+            status: "completed",
+            changedAt: new Date(),
+            note: "Delivered to customer (via POS Dispatch)",
+          },
+        },
+      },
+      { new: true },
+    );
+
+    if (order) {
+      await triggerOrderUpdated(order);
+    }
+
+    res.status(200).json({ success: true, data: { order, assignment } });
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
+/**
  * POST: Auto-called when driver reaches restaurant (< 200m).
  * Sets assignment to completed, driver to available.
  */
