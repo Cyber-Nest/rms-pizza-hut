@@ -87,7 +87,11 @@ export default function CustomerSearchModal({ isOpen, onClose }: CustomerSearchM
                   type="tel"
                   placeholder="Search by phone #"
                   value={searchPhone}
-                  onChange={(e) => setSearchPhone(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSearchPhone(val);
+                    setForm((f) => ({ ...f, phone: val }));
+                  }}
                   className="w-full border border-neutral-200 rounded-xl pl-8 pr-3 py-2 text-[11px] font-500 text-neutral-700 bg-neutral-50 focus:outline-none focus:border-brand-primary focus:bg-white transition-all placeholder:text-neutral-400"
                 />
               </div>
@@ -97,7 +101,11 @@ export default function CustomerSearchModal({ isOpen, onClose }: CustomerSearchM
                   type="email"
                   placeholder="Search by email address"
                   value={searchEmail}
-                  onChange={(e) => setSearchEmail(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSearchEmail(val);
+                    setForm((f) => ({ ...f, email: val }));
+                  }}
                   className="w-full border border-neutral-200 rounded-xl pl-8 pr-3 py-2 text-[11px] font-500 text-neutral-700 bg-neutral-50 focus:outline-none focus:border-brand-primary focus:bg-white transition-all placeholder:text-neutral-400"
                 />
               </div>

@@ -9,11 +9,14 @@ import {
   RotateCcw,
   AlertTriangle,
   FileText,
+  Pencil,
 } from "lucide-react";
 import { Order, CartItem, SplitPayment } from "../types";
 import axios from "axios";
 import toast from "react-hot-toast";
 import ThermalReceipt from "./ThermalReceipt";
+import { usePosStore } from "../store/pos.store";
+import { useRouter } from "next/navigation";
 
 interface OrderDetailModalProps {
   order: Order | null;
@@ -34,6 +37,15 @@ export default function OrderDetailModal({
     "cash" | "card" | "debit" | "credit"
   >("cash");
   const [cashGivenInput, setCashGivenInput] = useState("");
+  const router = useRouter();
+  const { loadOrderForEditing } = usePosStore();
+
+  const handleEditOrder = () => {
+    if (!order) return;
+    loadOrderForEditing(order);
+    onClose();
+    router.push("/employee/pos");
+  };
 
   // Refund State
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -397,6 +409,16 @@ export default function OrderDetailModal({
                 >
                   <FileText size={13} />
                 </button>
+                {order.status !== "cancelled" && (
+                  <button
+                    onClick={handleEditOrder}
+                    className="flex items-center gap-1.5 py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg border border-amber-400/30 text-[11px] font-800 transition-all cursor-pointer shadow-sm"
+                    title="Edit this order in POS Terminal"
+                  >
+                    <Pencil size={13} />
+                    <span>Edit Order</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
