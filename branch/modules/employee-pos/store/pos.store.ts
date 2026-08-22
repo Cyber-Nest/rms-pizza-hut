@@ -73,6 +73,11 @@ interface PosState {
   placingOrder: boolean;
   nextOrderNumber: string;
 
+  // ── Editing Existing Order ──────────────────────────────────
+  editingOrderId: string | null;
+  editingOrderNumber: string | null;
+  updatingOrder: boolean;
+
   // ── Actions ──────────────────────────────────────────────────
   setCategory: (category: string) => void;
   setSearch: (query: string) => void;
@@ -123,6 +128,9 @@ interface PosState {
   applyManualDiscount: (type: "percentage" | "flat", value: number) => void;
   removeDiscount: () => void;
   placeOrder: () => Promise<Order | null>;
+  loadOrderForEditing: (order: Order) => void;
+  cancelEditingOrder: () => void;
+  updateOrder: () => Promise<Order | null>;
   fetchMenu: () => Promise<void>;
   fetchNextOrderNumber: () => Promise<void>;
 }
@@ -277,6 +285,9 @@ export const usePosStore = create<PosState>((set, get) => ({
   orders: [],
   placingOrder: false,
   nextOrderNumber: "",
+  editingOrderId: null,
+  editingOrderNumber: null,
+  updatingOrder: false,
 
   // ── Restore cart from localStorage (runs before any component action) ──
   ...getInitialCartState(),
@@ -569,6 +580,8 @@ export const usePosStore = create<PosState>((set, get) => ({
 
   clearCart: () => {
     set({
+      editingOrderId: null,
+      editingOrderNumber: null,
       cartItems: [],
       selectedCustomer: null,
       selectedTable: null,
@@ -932,6 +945,189 @@ export const usePosStore = create<PosState>((set, get) => ({
         error instanceof Error
           ? error.message
           : "Network error. Please try again.";
+      toast.error(message);
+      return null;
+    }
+  },
+
+  // ── Load Order For Editing ───────────────────────────────────
+  loadOrderForEditing: (order) => {
+    const restoredItems: CartItem[] = (order.items || []).map((item) => {
+      const modifierSum = (item.selectedModifiers || []).reduce(
+        (sum, mod) => sum + mod.price,
+        0,
+      );
+      const unitPrice =
+        item.basePrice ||
+        roundToTwo((item.totalPrice || 0) / (item.quantity || 1) - modifierSum);
+      return {
+        id: generateCartItemId(item.menuItemId, item.selectedModifiers || []),
+        menuItemId: item.menuItemId,
+        categoryId: item.categoryId || "",
+        categoryName: item.categoryName || "",
+        name: item.name,
+        image: item.image || "",
+        basePrice: unitPrice,
+        selectedModifiers: item.selectedModifiers || [],
+        quantity: item.quantity || 1,
+        totalPrice:
+          item.totalPrice ||
+          roundToTwo((unitPrice + modifierSum) * (item.quantity || 1)),
+        note: item.note || "",
+        kitchenLabel: item.kitchenLabel || "make_table",
+      };
+    });
+
+    set({
+      editingOrderId: order._id,
+      editingOrderNumber: order.orderNumber,
+      cartItems: restoredItems,
+      orderType: (order.orderType as PosState["orderType"]) || "takeout",
+      selectedCustomer:
+        order.customer &&
+        order.customer.name &&
+        order.customer.name !== "No Name"
+          ? order.customer
+          : null,
+      orderNotes: order.notes || "",
+    });
+
+    get().calculateTotals();
+    toast.success(`Order ${order.orderNumber} loaded for editing`);
+  },
+
+  // ── Cancel Editing Mode ───────────────────────────────────────
+  cancelEditingOrder: () => {
+    set({
+      editingOrderId: null,
+      editingOrderNumber: null,
+      cartItems: [],
+      selectedCustomer: null,
+      selectedTable: null,
+      selectedVehicle: null,
+      subtotal: 0,
+      tax: 0,
+      discount: 0,
+      total: 0,
+      orderNotes: "",
+    });
+    get().calculateTotals();
+    toast("Order editing cancelled");
+  },
+
+  // ── Update Order (API) ────────────────────────────────────────
+  updateOrder: async () => {
+    const {
+      editingOrderId,
+      editingOrderNumber,
+      cartItems,
+      orderType,
+      selectedCustomer,
+      subtotal,
+      tax,
+      discount,
+      total,
+      orderNotes,
+      orders,
+    } = get();
+
+    if (!editingOrderId) {
+      toast.error("No active order being edited.");
+      return null;
+    }
+
+    if (cartItems.length === 0) {
+      toast.error("Cart cannot be empty for an existing order.");
+      return null;
+    }
+
+    set({ updatingOrder: true });
+
+    const rawDeliveryFee = Number(get().branchTaxFees?.deliveryFee ?? 4.99);
+    const deliveryFee =
+      orderType === "delivery"
+        ? isNaN(rawDeliveryFee)
+          ? 4.99
+          : rawDeliveryFee
+        : 0;
+
+    const payload = {
+      orderType,
+      items: cartItems.map((item) => ({
+        menuItemId: item.menuItemId,
+        name: item.name,
+        image: item.image || "",
+        basePrice: item.basePrice,
+        selectedSize: item.selectedSize || undefined,
+        selectedModifiers: item.selectedModifiers,
+        quantity: item.quantity,
+        totalPrice: item.totalPrice,
+        note: item.note || "",
+        kitchenLabel: item.kitchenLabel || "chicken",
+      })),
+      subtotal,
+      tax,
+      deliveryFee,
+      discount,
+      total,
+      notes: orderNotes,
+      customer:
+        selectedCustomer &&
+        selectedCustomer.name &&
+        selectedCustomer.name.trim()
+          ? selectedCustomer
+          : { name: "No Name", phone: "", email: "" },
+    };
+
+    try {
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const res = await axios.patch(
+        `${apiUrl}/orders/${editingOrderId}`,
+        payload,
+      );
+
+      if (res.data.success) {
+        const updatedOrder = res.data.data as Order;
+        const updatedOrdersList = orders.map((o) =>
+          o._id === editingOrderId ? updatedOrder : o,
+        );
+
+        set({
+          orders: updatedOrdersList,
+          currentOrder: updatedOrder,
+          editingOrderId: null,
+          editingOrderNumber: null,
+          cartItems: [],
+          selectedCustomer: null,
+          selectedTable: null,
+          selectedVehicle: null,
+          subtotal: 0,
+          tax: 0,
+          discount: 0,
+          total: 0,
+          orderNotes: "",
+          updatingOrder: false,
+        });
+
+        syncDraftCart([], "takeout", null, {
+          subtotal: 0,
+          tax: 0,
+          discount: 0,
+          total: 0,
+        });
+        toast.success(
+          `Order ${editingOrderNumber || ""} updated successfully!`,
+        );
+        return updatedOrder;
+      }
+      throw new Error(res.data.message || "Failed to update order.");
+    } catch (error: unknown) {
+      set({ updatingOrder: false });
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Network error while updating order.";
       toast.error(message);
       return null;
     }

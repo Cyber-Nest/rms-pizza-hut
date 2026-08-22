@@ -805,6 +805,8 @@ exports.updateOrderItems = async (id, updateData) => {
       }
     }
     if (updateData.notes !== undefined) order.notes = updateData.notes;
+    if (updateData.customer !== undefined) order.customer = updateData.customer;
+    if (updateData.orderType !== undefined) order.orderType = updateData.orderType;
 
     await order.save();
     logger.info(

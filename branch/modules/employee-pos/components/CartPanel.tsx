@@ -32,6 +32,11 @@ export default function CartPanel() {
     nextOrderNumber,
     branchTaxFees,
     menuItems,
+    editingOrderId,
+    editingOrderNumber,
+    cancelEditingOrder,
+    updateOrder,
+    updatingOrder,
   } = usePosStore();
 
   const [editingCartItem, setEditingCartItem] = useState<CartItemType | null>(null);
@@ -41,7 +46,7 @@ export default function CartPanel() {
     (branchTaxFees?.pstTaxRate ?? 0) +
     (branchTaxFees?.hstTaxRate ?? 0);
 
-  const orderNum = nextOrderNumber;
+  const orderNum = editingOrderNumber || nextOrderNumber;
 
   const validate = () => {
     if (!cartItems.length) {
@@ -63,10 +68,12 @@ export default function CartPanel() {
       (t) => (
         <div className="flex flex-col gap-2 p-1.5 min-w-[220px]">
           <p className="text-[11.5px] font-700 text-neutral-800 uppercase tracking-wide">
-            Clear Cart
+            {editingOrderId ? "Discard Edits" : "Clear Cart"}
           </p>
           <p className="text-[10px] text-neutral-500 font-550">
-            Are you sure you want to clear all items from your cart?
+            {editingOrderId
+              ? "Are you sure you want to discard changes for this order?"
+              : "Are you sure you want to clear all items from your cart?"}
           </p>
           <div className="flex justify-end gap-2 mt-1.5">
             <button
@@ -78,8 +85,12 @@ export default function CartPanel() {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                clearCart();
-                toast.success("Cart cleared successfully.");
+                if (editingOrderId) {
+                  cancelEditingOrder();
+                } else {
+                  clearCart();
+                }
+                toast.success("Cart cleared.");
               }}
               className="px-2.5 py-1 rounded bg-[#DC2626] hover:bg-red-700 text-white text-[10px] font-700 transition-all cursor-pointer"
             >
@@ -111,12 +122,12 @@ export default function CartPanel() {
 
       <div className="bg-white rounded-xl border border-neutral-200 flex flex-col h-full overflow-hidden select-none">
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-neutral-100 flex-shrink-0">
+        <div className={`flex items-center justify-between px-3.5 py-2.5 border-b flex-shrink-0 ${editingOrderId ? "bg-amber-50/80 border-amber-200" : "border-neutral-100"}`}>
           <div>
-            <h3 className="text-[12px] font-700 text-neutral-900 leading-tight">
-              Current Order
+            <h3 className={`text-[12px] font-700 leading-tight ${editingOrderId ? "text-amber-900" : "text-neutral-900"}`}>
+              {editingOrderId ? "Editing Order" : "Current Order"}
             </h3>
-            <span className="text-[10px] font-600 text-brand-primary tracking-wide mt-0.5 block">
+            <span className={`text-[10px] font-700 tracking-wide mt-0.5 block ${editingOrderId ? "text-amber-800" : "text-brand-primary"}`}>
               {orderNum}
             </span>
           </div>
@@ -130,7 +141,7 @@ export default function CartPanel() {
             <button
               onClick={handleClearCart}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer"
-              title="Clear cart"
+              title={editingOrderId ? "Cancel editing" : "Clear cart"}
             >
               <Trash2 size={14} />
             </button>
@@ -220,19 +231,41 @@ export default function CartPanel() {
           </div>
 
           {/* CTA Buttons */}
-          <div className="space-y-1.5 pt-0.5">
-            <button
-              onClick={handleCreate}
-              disabled={!cartItems.length}
-              className={`w-full py-2.5 rounded-xl text-[11px] font-700 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
-                cartItems.length
-                  ? "bg-brand-primary text-white hover:bg-brand-primary-hover shadow-brand-primary/20"
-                  : "bg-neutral-100 text-neutral-400 cursor-not-allowed shadow-none"
-              }`}
-            >
-              Create Order <ChevronRight size={13} strokeWidth={2.5} />
-            </button>
-          </div>
+          {editingOrderId ? (
+            <div className="space-y-1.5 pt-0.5">
+              <button
+                onClick={updateOrder}
+                disabled={!cartItems.length || updatingOrder}
+                className={`w-full py-2.5 rounded-xl text-[11px] font-700 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
+                  cartItems.length && !updatingOrder
+                    ? "bg-amber-600 text-white hover:bg-amber-700 shadow-amber-600/20"
+                    : "bg-neutral-100 text-neutral-400 cursor-not-allowed shadow-none"
+                }`}
+              >
+                {updatingOrder ? "Updating Order..." : `Update Order ${editingOrderNumber}`} <ChevronRight size={13} strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={cancelEditingOrder}
+                className="w-full py-1 rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-100 text-[10px] font-600 transition-all cursor-pointer"
+              >
+                Cancel Editing
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1.5 pt-0.5">
+              <button
+                onClick={handleCreate}
+                disabled={!cartItems.length}
+                className={`w-full py-2.5 rounded-xl text-[11px] font-700 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
+                  cartItems.length
+                    ? "bg-brand-primary text-white hover:bg-brand-primary-hover shadow-brand-primary/20"
+                    : "bg-neutral-100 text-neutral-400 cursor-not-allowed shadow-none"
+                }`}
+              >
+                Create Order <ChevronRight size={13} strokeWidth={2.5} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>
