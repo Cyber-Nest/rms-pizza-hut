@@ -415,24 +415,16 @@ export default function DeliveryMap() {
         d.status === "returning"),
   );
 
-  // Apply radial offset to prevent overlapping markers at the restaurant or identical coordinates
+  // Apply radial offset to prevent overlapping markers for drivers at identical coordinates
   const jitteredDrivers = React.useMemo(() => {
-    const enriched = activeDrivers
-      .filter(
-        (d) =>
-          (d.currentLocation && d.currentLocation.lat) ||
-          d.status === "available",
-      )
-      .map((driver) => ({
-        ...driver,
-        currentLocation:
-          driver.currentLocation && driver.currentLocation.lat
-            ? driver.currentLocation
-            : {
-                lat: restaurantLocation.coordinates.lat || 0,
-                lng: restaurantLocation.coordinates.lng || 0,
-              },
-      }));
+    const enriched = activeDrivers.filter(
+      (d) =>
+        d.currentLocation &&
+        d.currentLocation.lat &&
+        d.currentLocation.lat !== 0 &&
+        d.currentLocation.lng &&
+        d.currentLocation.lng !== 0,
+    );
 
     const coordinateGroups: { [key: string]: typeof enriched } = {};
     enriched.forEach((driver) => {
