@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { usePosStore } from "../store/pos.store";
 
-// Helper function to geocode manual address inputs (Primary: Canada with postal code, Fallback: Global)
+// Helper function to geocode manual address inputs (Primary: Mapbox Canada, Fallback: Nominatim)
 const geocodeManualAddress = async (
   address: string,
   postalCode?: string,
@@ -16,9 +16,21 @@ const geocodeManualAddress = async (
   if (!cleanAddr) return null;
 
   const combinedQuery = `${cleanAddr}${cleanPostal ? " " + cleanPostal : ""}`;
+  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
   try {
-    // 1. Primary Priority: Search in CANADA first (with postal code if provided)
+    // 1. Primary Priority: Mapbox Canada High-Precision Geocoding
+    if (mapboxToken && !mapboxToken.includes("demo_token")) {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(combinedQuery)}.json?country=ca&limit=1&access_token=${mapboxToken}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data?.features?.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        return { lat, lng };
+      }
+    }
+
+    // 2. Secondary Fallback: Nominatim Canada
     const caQuery = `${combinedQuery}, Canada`;
     const resCa = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ca&addressdetails=1&limit=1&q=${encodeURIComponent(caQuery)}`,
@@ -26,47 +38,6 @@ const geocodeManualAddress = async (
     const jsonCa = await resCa.json();
     if (Array.isArray(jsonCa) && jsonCa.length > 0) {
       return { lat: parseFloat(jsonCa[0].lat), lng: parseFloat(jsonCa[0].lon) };
-    }
-
-    // Try Photon Canada
-    const photonCa = await fetch(
-      `https://photon.komoot.io/api/?q=${encodeURIComponent(caQuery)}&limit=3&bbox=-141.0,41.7,-52.6,83.1`,
-    );
-    const photonCaJson = await photonCa.json();
-    if (photonCaJson?.features?.length > 0) {
-      const caMatch = photonCaJson.features.find((f: any) => {
-        const cc = (
-          f.properties?.countrycode ||
-          f.properties?.country_code ||
-          ""
-        ).toLowerCase();
-        return cc === "ca" || f.properties?.country === "Canada";
-      });
-      if (caMatch) {
-        const coords = caMatch.geometry.coordinates;
-        return { lat: coords[1], lng: coords[0] };
-      }
-    }
-
-    // 2. Secondary Priority: Fallback to GLOBAL (India, US, UK, etc.)
-    const resGlobal = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&q=${encodeURIComponent(combinedQuery)}`,
-    );
-    const jsonGlobal = await resGlobal.json();
-    if (Array.isArray(jsonGlobal) && jsonGlobal.length > 0) {
-      return {
-        lat: parseFloat(jsonGlobal[0].lat),
-        lng: parseFloat(jsonGlobal[0].lon),
-      };
-    }
-
-    const photonGlobal = await fetch(
-      `https://photon.komoot.io/api/?q=${encodeURIComponent(combinedQuery)}&limit=1`,
-    );
-    const photonGlobalJson = await photonGlobal.json();
-    if (photonGlobalJson?.features?.length > 0) {
-      const coords = photonGlobalJson.features[0].geometry.coordinates;
-      return { lat: coords[1], lng: coords[0] };
     }
   } catch (err) {
     console.warn("Manual Geocoding Error:", err);
@@ -181,19 +152,21 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
     new Map(),
   );
 
-  // Lightning Fast Canada-Only Autocomplete (Nominatim structured search + cache + AbortController)
+  // Ultra-Optimized Mapbox Canada Autocomplete (350ms Debounce + Memory Cache + AbortController)
   useEffect(() => {
     const query = (watchSearchAddress || "").trim();
-    if (query.length < 2) {
+    if (query.length < 3) {
       setAddressSuggestions([]);
+      setIsSearchingAddress(false);
       return;
     }
 
     const cacheKey = query.toLowerCase();
 
-    // 0ms instant response from cache
+    // 0ms instant response from client-side memory cache (Saves API Quota)
     if (addressCacheRef.current.has(cacheKey)) {
       setAddressSuggestions(addressCacheRef.current.get(cacheKey)!);
+      setIsSearchingAddress(false);
       return;
     }
 
@@ -202,7 +175,43 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
     const timer = setTimeout(async () => {
       setIsSearchingAddress(true);
       try {
-        // Nominatim structured Canada search (countrycodes=ca ensures ONLY Canada results)
+        const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+
+        // 1. Primary Priority: Mapbox Canada High-Precision Search
+        if (mapboxToken && !mapboxToken.includes("demo_token")) {
+          // Valid Mapbox types: address, postcode, place, locality, neighborhood, poi (street is invalid in v5)
+          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?country=ca&types=address,postcode,place,locality,neighborhood&autocomplete=true&limit=8&access_token=${mapboxToken}`;
+          const res = await fetch(url, { signal: abortController.signal });
+          const data = await res.json();
+
+          if (data?.features?.length > 0) {
+            const parsed: AddressSuggestion[] = data.features.map((feature: any) => {
+              const [lng, lat] = feature.center || [0, 0];
+              const fullAddr = feature.place_name || "";
+              let postcode = "";
+              const postcodeCtx = feature.context?.find((c: any) => c.id?.startsWith("postcode"));
+              if (postcodeCtx) postcode = postcodeCtx.text || "";
+
+              return {
+                displayName: fullAddr,
+                address: fullAddr,
+                postalCode: postcode,
+                lat,
+                lng,
+              };
+            });
+
+            addressCacheRef.current.set(cacheKey, parsed);
+            setAddressSuggestions(parsed);
+            setIsSearchingAddress(false);
+            return;
+          } else {
+            setAddressSuggestions([]);
+          }
+        }
+
+        // 2. Secondary Fallback (Commented out as requested for testing Pure Mapbox)
+        /*
         const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ca&addressdetails=1&limit=8&q=${encodeURIComponent(query)}`;
         const res = await fetch(url, {
           signal: abortController.signal,
@@ -244,27 +253,21 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
             };
           });
 
-          // Deduplicate
-          const seen = new Set<string>();
-          const unique = parsed.filter((item) => {
-            const key = item.address.toLowerCase().slice(0, 40);
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
-
-          addressCacheRef.current.set(cacheKey, unique);
-          setAddressSuggestions(unique);
+          addressCacheRef.current.set(cacheKey, parsed);
+          setAddressSuggestions(parsed);
         } else {
           setAddressSuggestions([]);
         }
+        */
       } catch (err: any) {
         if (err.name !== "AbortError")
           console.error("Autocomplete error:", err);
       } finally {
-        if (!abortController.signal.aborted) setIsSearchingAddress(false);
+        if (!abortController.signal.aborted) {
+          setIsSearchingAddress(false);
+        }
       }
-    }, 300);
+    }, 350);
 
     return () => {
       clearTimeout(timer);
@@ -722,18 +725,61 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
                       <input
                         {...registerWithFocus("searchAddress")}
                         placeholder="Search By Address"
-                        className="w-full bg-brand-primary-light/10 border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-[11px] font-500 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all"
+                        className="w-full bg-brand-primary-light/10 border border-neutral-200 rounded-lg pl-3 pr-9 py-2 text-[11px] font-500 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all"
                       />
-                      <Search
-                        size={13}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400"
-                      />
+                      {isSearchingAddress ? (
+                        <svg
+                          className="animate-spin h-3.5 w-3.5 text-brand-primary absolute right-3 top-1/2 -translate-y-1/2"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <Search
+                          size={13}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400"
+                        />
+                      )}
                     </div>
 
                     {/* Filtered suggestions list */}
                     {isSearchingAddress && (
-                      <div className="text-[10px] text-neutral-400 italic px-2 py-1">
-                        Searching addresses...
+                      <div className="flex items-center gap-2 text-[10px] text-brand-primary font-600 px-2.5 py-1.5 bg-red-50/80 border border-red-100/80 rounded-lg animate-pulse">
+                        <svg
+                          className="animate-spin h-3 w-3 text-brand-primary shrink-0"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          ></path>
+                        </svg>
+                        <span>Searching Canadian addresses with Mapbox...</span>
                       </div>
                     )}
                     {addressSuggestions.length > 0 && (

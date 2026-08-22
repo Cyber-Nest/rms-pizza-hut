@@ -86,11 +86,19 @@ export default function KitchenDashboard() {
       if (res.data.success) {
         // Only keep active kitchen orders (pending, preparing, in_oven, ready)
         // and exclude future scheduled orders (orders scheduled for a day after today)
+        // Also exclude orders where ALL kitchen stations are completed (kitchen work is done)
         const todayLocalStr = getLocalTodayStr();
         const activeOrders = (res.data.data as Order[]).filter((o) => {
           const isActive = ['pending', 'preparing', 'in_oven', 'ready'].includes(o.status);
           if (!isActive) return false;
           if (o.kitchenCleared) return false;
+
+          // If both stations are "completed", kitchen work is fully done for this order
+          // (e.g., delivery orders stuck in "ready" status waiting for driver pickup)
+          // These should not appear in the kitchen view at all
+          if (o.makeTableStatus === 'completed' && o.wingsStatus === 'completed') {
+            return false;
+          }
 
           if (o.orderTiming === 'later' && o.scheduledAt) {
             const schedLocalStr = getLocalDateStr(o.scheduledAt);
@@ -154,7 +162,8 @@ export default function KitchenDashboard() {
       
       if (!existingOrder) {
         const isActiveStatus = ['pending', 'preparing', 'in_oven', 'ready'].includes(data.status);
-        if (data.kitchenCleared || !isActiveStatus) {
+        const bothStationsDone = data.makeTableStatus === 'completed' && data.wingsStatus === 'completed';
+        if (data.kitchenCleared || !isActiveStatus || bothStationsDone) {
           console.log('Ignoring order-updated event in Kitchen View (order already not active/cleared).');
           return;
         }
