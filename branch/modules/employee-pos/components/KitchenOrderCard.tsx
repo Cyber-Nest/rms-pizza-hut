@@ -7,7 +7,7 @@ import { Order } from "../types";
 interface KitchenOrderCardProps {
   order: Order;
   onClick: () => void;
-  stationFilter?: 'cut_station' | 'make_table' | 'wings_station';
+  stationFilter?: "cut_station" | "make_table" | "wings_station";
 }
 
 interface GroupedModifier {
@@ -62,7 +62,7 @@ export default function KitchenOrderCard({
   useEffect(() => {
     const updateElapsed = () => {
       let createdTime = new Date(order.createdAt).getTime();
-      if (order.orderTiming === 'later' && order.scheduledAt) {
+      if (order.orderTiming === "later" && order.scheduledAt) {
         createdTime = new Date(order.scheduledAt).getTime() - 45 * 60000;
       }
       const diffMs = Date.now() - createdTime;
@@ -85,12 +85,13 @@ export default function KitchenOrderCard({
     online: "Online",
   };
 
-  const orderTypeLabel = ({
-    takeout: "Takeout",
-    "drive-through": "Drive-Through",
-    "dine-in": "Dine-In",
-    delivery: "Delivery",
-  }[order.orderType] || order.orderType);
+  const orderTypeLabel =
+    {
+      takeout: "Takeout",
+      "drive-through": "Drive-Through",
+      "dine-in": "Dine-In",
+      delivery: "Delivery",
+    }[order.orderType] || order.orderType;
 
   const formattedType = PLATFORM_LABELS[order.orderSource]
     ? `${PLATFORM_LABELS[order.orderSource]} - ${order.orderType === "delivery" ? "Delivery" : "Takeout"}`
@@ -105,22 +106,27 @@ export default function KitchenOrderCard({
     completed: "bg-neutral-400",
     cancelled: "bg-red-500",
   };
-  const statusBarBg = isDraft ? "bg-amber-500" : (statusColorMap[order.status] || "bg-neutral-300");
+  const statusBarBg = isDraft
+    ? "bg-amber-500"
+    : statusColorMap[order.status] || "bg-neutral-300";
 
-  const typeBadgeClass = order.orderSource === "doordash"
-    ? "bg-red-50 text-red-600 border-red-100 font-bold"
-    : order.orderSource === "skip"
-    ? "bg-orange-50 text-orange-600 border-orange-100 font-bold"
-    : order.orderSource === "ubereats"
-    ? "bg-green-50 text-green-600 border-green-100 font-bold"
-    : order.orderSource === "online"
-    ? "bg-rose-50 text-rose-600 border-rose-100 font-bold"
-    : ({
-        takeout: "bg-orange-50 text-brand-primary border-orange-100",
-        "drive-through": "bg-purple-50 text-purple-600 border-purple-100",
-        "dine-in": "bg-blue-50 text-blue-600 border-blue-100",
-        delivery: "bg-amber-50 text-amber-700 border-amber-100",
-      }[order.orderType] || "bg-neutral-50 text-neutral-600 border-neutral-100");
+  const typeBadgeClass =
+    order.orderSource === "doordash"
+      ? "bg-red-50 text-red-600 border-red-100 font-bold"
+      : order.orderSource === "skip"
+        ? "bg-orange-50 text-orange-600 border-orange-100 font-bold"
+        : order.orderSource === "ubereats"
+          ? "bg-green-50 text-green-600 border-green-100 font-bold"
+          : order.orderSource === "online"
+            ? "bg-rose-50 text-rose-600 border-rose-100 font-bold"
+            : {
+                takeout: "bg-orange-50 text-brand-primary border-orange-100",
+                "drive-through":
+                  "bg-purple-50 text-purple-600 border-purple-100",
+                "dine-in": "bg-blue-50 text-blue-600 border-blue-100",
+                delivery: "bg-amber-50 text-amber-700 border-amber-100",
+              }[order.orderType] ||
+              "bg-neutral-50 text-neutral-600 border-neutral-100";
 
   // If order is older than 15 mins, mark as delayed
   const isDelayed = !isDraft && elapsedMins >= 15 && order.status !== "ready";
@@ -148,7 +154,9 @@ export default function KitchenOrderCard({
             })}
           </span>
         </div>
-        <span className={`px-2 py-0.5 rounded-full border text-[9px] font-700 uppercase tracking-wider ${typeBadgeClass}`}>
+        <span
+          className={`px-2 py-0.5 rounded-full border text-[9px] font-700 uppercase tracking-wider ${typeBadgeClass}`}
+        >
           {formattedType}
         </span>
       </div>
@@ -172,69 +180,86 @@ export default function KitchenOrderCard({
                       <p className="text-neutral-800 font-700 text-[15px] leading-tight truncate">
                         {item.name}
                       </p>
-                      {(item.kitchenLabel === "wings_station" || item.kitchenLabel === "chicken") && (
-                        <span className={`text-[8px] font-800 px-1 py-0.2 rounded border uppercase flex-shrink-0 ${
-                          order.wingsStatus === "completed"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      {(item.kitchenLabel === "wings_station" ||
+                        item.kitchenLabel === "chicken") && (
+                        <span
+                          className={`text-[8px] font-800 px-1 py-0.2 rounded border uppercase flex-shrink-0 ${
+                            order.wingsStatus === "completed"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : order.wingsStatus === "ready"
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                : order.wingsStatus === "preparing"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}
+                        >
+                          Wings:{" "}
+                          {order.wingsStatus === "completed"
+                            ? "Done"
                             : order.wingsStatus === "ready"
-                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                            : order.wingsStatus === "preparing"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
-                        }`}>
-                          Wings: {order.wingsStatus === "completed" ? "Done" : order.wingsStatus === "ready" ? "Ready" : order.wingsStatus === "preparing" ? "Prep" : "Pending"}
+                              ? "Ready"
+                              : order.wingsStatus === "preparing"
+                                ? "Prep"
+                                : "Pending"}
                         </span>
                       )}
                     </div>
                     <span className="text-[12.5px] font-800 text-neutral-700 flex-shrink-0">
-                      ${((item.totalPrice ?? item.basePrice * item.quantity)).toFixed(2)}
+                      $
+                      {(
+                        item.totalPrice ?? item.basePrice * item.quantity
+                      ).toFixed(2)}
                     </span>
                   </div>
 
                   {/* Modifiers */}
-                  {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-                    <div className="pl-2.5 mt-1 border-l-2 border-neutral-200 flex flex-col gap-0.5">
-                      {getGroupedModifiers(item.selectedModifiers).map(
-                        (mod, modIdx) => (
-                          <div
-                            key={modIdx}
-                            className="text-[12.5px] leading-tight text-neutral-600"
-                          >
-                            {mod.isRoot ? (
-                              <div className="mt-1">
-                                {/* <span className="text-[10.5px] font-800 text-neutral-400 uppercase tracking-wider">
+                  {item.selectedModifiers &&
+                    item.selectedModifiers.length > 0 && (
+                      <div className="pl-2.5 mt-1 border-l-2 border-neutral-200 flex flex-col gap-0.5">
+                        {getGroupedModifiers(item.selectedModifiers).map(
+                          (mod, modIdx) => (
+                            <div
+                              key={modIdx}
+                              className="text-[12.5px] leading-tight text-neutral-600"
+                            >
+                              {mod.isRoot ? (
+                                <div className="mt-1">
+                                  {/* <span className="text-[10.5px] font-800 text-neutral-400 uppercase tracking-wider">
                                   {mod.groupName}
                                 </span> */}
-                                <div className="flex justify-between items-baseline font-600 text-neutral-700">
-                                  {mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ') ? (
-                                    <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
-                                      {mod.optionName}
-                                    </span>
-                                  ) : (
-                                    <span>{mod.optionName}</span>
-                                  )}
+                                  <div className="flex justify-between items-baseline font-600 text-neutral-700">
+                                    {mod.optionName.trim().startsWith("-") ||
+                                    mod.optionName
+                                      .toLowerCase()
+                                      .includes("no ") ? (
+                                      <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
+                                        {mod.optionName}
+                                      </span>
+                                    ) : (
+                                      <span>{mod.optionName}</span>
+                                    )}
+                                    {mod.quantity > 1 && (
+                                      <span className="font-700 text-neutral-900 text-[11px]">
+                                        x{mod.quantity}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex justify-between items-baseline text-neutral-500 font-500 text-[11.5px] italic pl-1.5">
+                                  <span>{mod.optionName}</span>
                                   {mod.quantity > 1 && (
-                                    <span className="font-700 text-neutral-900 text-[11px]">
+                                    <span className="font-600 text-neutral-600 text-[10px]">
                                       x{mod.quantity}
                                     </span>
                                   )}
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="flex justify-between items-baseline text-neutral-500 font-500 text-[11.5px] italic pl-1.5">
-                                <span>{mod.optionName}</span>
-                                {mod.quantity > 1 && (
-                                  <span className="font-600 text-neutral-600 text-[10px]">
-                                    x{mod.quantity}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  )}
+                              )}
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    )}
 
                   {/* Custom Note */}
                   {item.note && (
@@ -251,7 +276,9 @@ export default function KitchenOrderCard({
         {/* Order Level Delivery / Prep Note */}
         {order.notes && (
           <div className="text-[10px] text-amber-900 font-700 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200 leading-snug">
-            <span className="font-900 uppercase text-[8.5px] block text-amber-800 tracking-wider">Note / Instructions:</span>
+            <span className="font-900 uppercase text-[8.5px] block text-amber-800 tracking-wider">
+              Note / Instructions:
+            </span>
             "{order.notes}"
           </div>
         )}
@@ -266,11 +293,14 @@ export default function KitchenOrderCard({
               POS Drafting
             </span>
           ) : stationFilter === "wings_station" ? (
-            (order.wingsStatus === "completed" || order.wingsStatus === "ready" || (order.status === "ready" && !order.makeTableStatus)) ? (
+            order.wingsStatus === "completed" ||
+            order.wingsStatus === "ready" ||
+            (order.status === "ready" && !order.makeTableStatus) ? (
               <span className="px-2 py-0.5 rounded-full border border-emerald-250 bg-emerald-50 text-emerald-700 text-[9px] font-700 uppercase tracking-wide">
                 {order.orderType === "delivery" ? "Ready Delv" : "Ready Pick"}
               </span>
-            ) : (order.wingsStatus === "preparing" || order.status === "preparing") ? (
+            ) : order.wingsStatus === "preparing" ||
+              order.status === "preparing" ? (
               <span className="px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-600 text-[9px] font-700 uppercase tracking-wide">
                 Preparing
               </span>
@@ -279,15 +309,17 @@ export default function KitchenOrderCard({
                 Confirmed
               </span>
             )
-          ) : (order.makeTableStatus === "in_oven" || order.status === "in_oven") ? (
+          ) : order.makeTableStatus === "in_oven" ||
+            order.status === "in_oven" ? (
             <span className="px-2 py-0.5 rounded-full border border-orange-300 bg-orange-100 text-orange-700 text-[9px] font-800 uppercase tracking-wide">
               In Oven
             </span>
-          ) : (order.makeTableStatus === "ready" || order.status === "ready") ? (
+          ) : order.makeTableStatus === "ready" || order.status === "ready" ? (
             <span className="px-2 py-0.5 rounded-full border border-emerald-250 bg-emerald-50 text-emerald-700 text-[9px] font-700 uppercase tracking-wide">
               {order.orderType === "delivery" ? "Ready Delv" : "Ready Pick"}
             </span>
-          ) : (order.makeTableStatus === "preparing" || order.status === "preparing") ? (
+          ) : order.makeTableStatus === "preparing" ||
+            order.status === "preparing" ? (
             <span className="px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-600 text-[9px] font-700 uppercase tracking-wide">
               Preparing
             </span>
@@ -314,7 +346,9 @@ export default function KitchenOrderCard({
           )}
 
           {!isDraft && (
-            <div className={`flex items-center gap-1 text-[10px] font-600 ${isDelayed ? "text-red-600 font-700 animate-pulse" : "text-neutral-400"}`}>
+            <div
+              className={`flex items-center gap-1 text-[10px] font-600 ${isDelayed ? "text-red-600 font-700 animate-pulse" : "text-neutral-400"}`}
+            >
               <Clock size={11} className={isDelayed ? "animate-bounce" : ""} />
               <span>
                 {elapsedMins} Min{elapsedMins !== 1 ? "s" : ""}

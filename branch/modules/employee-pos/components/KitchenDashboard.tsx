@@ -328,11 +328,53 @@ export default function KitchenDashboard() {
       return 'make_table';
     };
 
+    const getModStation = (mod: any): 'make_table' | 'wings_station' | null => {
+      if (!mod.kitchenLabel) return null;
+      if (mod.kitchenLabel === 'wings_station' || mod.kitchenLabel === 'chicken') return 'wings_station';
+      if (mod.kitchenLabel === 'make_table' || mod.kitchenLabel === 'pizza') return 'make_table';
+      return null;
+    };
+
+    const filterItemForStation = (item: any, targetStation: 'make_table' | 'wings_station'): any | null => {
+      const baseLabel = getItemKitchenLabel(item);
+      const mods = item.selectedModifiers || [];
+      const hasExplicitModLabels = mods.some((m: any) => getModStation(m) !== null);
+
+      if (!hasExplicitModLabels) {
+        return baseLabel === targetStation ? item : null;
+      }
+
+      const matchingMods = mods.filter((m: any) => {
+        const s = getModStation(m);
+        if (s) return s === targetStation;
+        return baseLabel === targetStation;
+      });
+
+      const isBaseStationMatch = baseLabel === targetStation;
+      const hasMatchingMods = matchingMods.length > 0;
+
+      if (isBaseStationMatch || hasMatchingMods) {
+        return {
+          ...item,
+          selectedModifiers: matchingMods,
+        };
+      }
+
+      return null;
+    };
+
     // Station filtering logic
     const stationFiltered: Order[] = [];
     candidates.forEach((o) => {
       const items = o.items || [];
-      const hasPizza = items.some((item: any) => getItemKitchenLabel(item) === 'make_table');
+      const makeTableItems = items
+        .map((item: any) => filterItemForStation(item, 'make_table'))
+        .filter(Boolean);
+      const wingsStationItems = items
+        .map((item: any) => filterItemForStation(item, 'wings_station'))
+        .filter(Boolean);
+
+      const hasPizza = makeTableItems.length > 0;
 
       const mtStatus = o.makeTableStatus || (o.status === 'in_oven' ? 'in_oven' : o.status === 'completed' ? 'completed' : o.status === 'preparing' ? 'preparing' : 'pending');
       const wStatus = o.wingsStatus || (o.status === 'completed' ? 'completed' : o.status === 'ready' ? 'ready' : o.status === 'preparing' ? 'preparing' : 'pending');
@@ -344,28 +386,22 @@ export default function KitchenDashboard() {
           stationFiltered.push(o);
         }
       } else if (stationFilter === 'make_table') {
-        // Make Station: Show ONLY Pizza items when makeTableStatus is pending or preparing (removes when in_oven or completed)
+        // Make Station: Show ONLY Pizza/Make items when makeTableStatus is pending or preparing
         const isMakeTableActive = mtStatus === 'pending' || mtStatus === 'preparing';
-        if (isMakeTableActive) {
-          const matchingItems = items.filter((item: any) => getItemKitchenLabel(item) === 'make_table');
-          if (matchingItems.length > 0) {
-            stationFiltered.push({
-              ...o,
-              items: matchingItems
-            });
-          }
+        if (isMakeTableActive && makeTableItems.length > 0) {
+          stationFiltered.push({
+            ...o,
+            items: makeTableItems,
+          });
         }
       } else if (stationFilter === 'wings_station') {
-        // Wings Station: Show ONLY Wings items when wingsStatus is NOT completed
+        // Wings Station: Show ONLY Wings/Sides items when wingsStatus is NOT completed
         const isWingsActive = wStatus !== 'completed';
-        if (isWingsActive) {
-          const matchingItems = items.filter((item: any) => getItemKitchenLabel(item) === 'wings_station');
-          if (matchingItems.length > 0) {
-            stationFiltered.push({
-              ...o,
-              items: matchingItems
-            });
-          }
+        if (isWingsActive && wingsStationItems.length > 0) {
+          stationFiltered.push({
+            ...o,
+            items: wingsStationItems,
+          });
         }
       }
     });

@@ -377,6 +377,14 @@ export const usePosStore = create<PosState>((set, get) => ({
         (menuItem as any).category ||
         "";
 
+      const stampedModifiers = selectedModifiers.map((mod) => {
+        const modLabelMapping = (menuItem.modifierKitchenLabels || []).find((m) => m.groupId === mod.groupId);
+        return {
+          ...mod,
+          kitchenLabel: mod.kitchenLabel || modLabelMapping?.kitchenLabel || undefined,
+        };
+      });
+
       const newItem: CartItem = {
         id: cartItemId,
         menuItemId: menuItem.id,
@@ -385,7 +393,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         name: menuItem.name,
         image: menuItem.image,
         basePrice: menuItem.price,
-        selectedModifiers,
+        selectedModifiers: stampedModifiers,
         quantity,
         totalPrice: roundToTwo(itemUnitCost * quantity),
         note,
@@ -529,6 +537,14 @@ export const usePosStore = create<PosState>((set, get) => ({
       cartItems[originalIndex].categoryName ||
       "";
 
+    const stampedModifiers = selectedModifiers.map((mod) => {
+      const modLabelMapping = (menuItem.modifierKitchenLabels || []).find((m) => m.groupId === mod.groupId);
+      return {
+        ...mod,
+        kitchenLabel: mod.kitchenLabel || modLabelMapping?.kitchenLabel || undefined,
+      };
+    });
+
     const updatedItem: CartItem = {
       id: newCartItemId,
       menuItemId: menuItem.id,
@@ -537,7 +553,7 @@ export const usePosStore = create<PosState>((set, get) => ({
       name: menuItem.name,
       image: menuItem.image,
       basePrice: menuItem.price,
-      selectedModifiers,
+      selectedModifiers: stampedModifiers,
       quantity,
       totalPrice: roundToTwo(itemUnitCost * quantity),
       note,

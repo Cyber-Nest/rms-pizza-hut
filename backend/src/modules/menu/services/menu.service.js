@@ -469,6 +469,10 @@ exports.getPOSMenuFeed = async (branchId = null) => {
           badge: prod.badge,
           isPopular: prod.isPopular,
           kitchenLabel: prod.kitchenLabel || "make_table",
+          modifierKitchenLabels: (prod.modifierKitchenLabels || []).map((m) => ({
+            groupId: m.groupId ? m.groupId.toString() : "",
+            kitchenLabel: m.kitchenLabel || "make_table",
+          })),
           displayOrder: prod.displayOrder ?? 0,
           itemType: prod.itemType,
           hasVariants: !!prod.hasVariants,

@@ -34,5 +34,6 @@ export interface SelectedModifier {
   optionName: string;
   price: number;
   isRoot?: boolean;
+  kitchenLabel?: 'make_table' | 'wings_station' | 'chicken' | 'pizza';
 }
 

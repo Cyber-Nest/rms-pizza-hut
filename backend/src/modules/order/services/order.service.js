@@ -209,26 +209,45 @@ exports.createOrder = async (orderData) => {
       }
     }
 
-    // Populate accurate kitchenLabels for all items from Product DB model
+    // Populate accurate kitchenLabels for all items and selectedModifiers from Product DB model
     try {
       const productIds = (orderData.items || [])
-        .map((i) => i.productId)
+        .map((i) => i.menuItemId || i.productId)
         .filter(Boolean);
       if (productIds.length > 0) {
         const dbProducts = await Product.find({ _id: { $in: productIds } })
-          .select("_id kitchenLabel")
+          .select("_id kitchenLabel modifierKitchenLabels")
           .lean();
         const prodMap = new Map(
           dbProducts.map((p) => [p._id.toString(), p.kitchenLabel]),
         );
+        const modLabelMap = new Map();
+        dbProducts.forEach((p) => {
+          if (p.modifierKitchenLabels && p.modifierKitchenLabels.length > 0) {
+            const groupMap = new Map(
+              p.modifierKitchenLabels.map((m) => [m.groupId.toString(), m.kitchenLabel]),
+            );
+            modLabelMap.set(p._id.toString(), groupMap);
+          }
+        });
 
         orderData.items = (orderData.items || []).map((item) => {
-          const dbLabel = item.productId
-            ? prodMap.get(item.productId.toString())
-            : undefined;
+          const itemKey = (item.menuItemId || item.productId || "").toString();
+          const dbLabel = itemKey ? prodMap.get(itemKey) : undefined;
+          const groupMap = itemKey ? modLabelMap.get(itemKey) : undefined;
+
+          const updatedModifiers = (item.selectedModifiers || []).map((mod) => {
+            const mappedModLabel = groupMap && mod.groupId ? groupMap.get(mod.groupId.toString()) : undefined;
+            return {
+              ...mod,
+              kitchenLabel: mappedModLabel || mod.kitchenLabel || null,
+            };
+          });
+
           return {
             ...item,
             kitchenLabel: dbLabel || item.kitchenLabel || "make_table",
+            selectedModifiers: updatedModifiers,
           };
         });
       }
@@ -240,11 +259,19 @@ exports.createOrder = async (orderData) => {
 
     const hasPizza = (orderData.items || []).some((item) => {
       const label = item.kitchenLabel || "make_table";
-      return label === "make_table" || label === "pizza";
+      const isItemPizza = label === "make_table" || label === "pizza";
+      const hasPizzaMod = (item.selectedModifiers || []).some(
+        (m) => m.kitchenLabel === "make_table" || m.kitchenLabel === "pizza",
+      );
+      return isItemPizza || hasPizzaMod;
     });
     const hasWings = (orderData.items || []).some((item) => {
       const label = item.kitchenLabel || "make_table";
-      return label === "wings_station" || label === "chicken";
+      const isItemWings = label === "wings_station" || label === "chicken";
+      const hasWingsMod = (item.selectedModifiers || []).some(
+        (m) => m.kitchenLabel === "wings_station" || m.kitchenLabel === "chicken",
+      );
+      return isItemWings || hasWingsMod;
     });
 
     const makeTableStatus = hasPizza ? "pending" : "completed";
@@ -504,11 +531,19 @@ exports.updateOrderStatus = async (
     // Recalculate overall order.status
     const hasPizza = (order.items || []).some((item) => {
       const label = item.kitchenLabel || "make_table";
-      return label === "make_table" || label === "pizza";
+      const isItemPizza = label === "make_table" || label === "pizza";
+      const hasPizzaMod = (item.selectedModifiers || []).some(
+        (m) => m.kitchenLabel === "make_table" || m.kitchenLabel === "pizza",
+      );
+      return isItemPizza || hasPizzaMod;
     });
     const hasWings = (order.items || []).some((item) => {
       const label = item.kitchenLabel || "make_table";
-      return label === "wings_station" || label === "chicken";
+      const isItemWings = label === "wings_station" || label === "chicken";
+      const hasWingsMod = (item.selectedModifiers || []).some(
+        (m) => m.kitchenLabel === "wings_station" || m.kitchenLabel === "chicken",
+      );
+      return isItemWings || hasWingsMod;
     });
 
     const isMakeDone = !hasPizza || order.makeTableStatus === "completed";

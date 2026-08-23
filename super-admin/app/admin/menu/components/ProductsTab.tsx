@@ -242,6 +242,7 @@ export default function ProductsTab({
       badge: prod.badge || null,
       isActive: prod.isActive !== false,
       kitchenLabel: (prod.kitchenLabel as any) || "make_table",
+      modifierKitchenLabels: prod.modifierKitchenLabels || [],
       displayOrder: prod.displayOrder ?? 0,
     });
     scrollToTop();
@@ -263,6 +264,7 @@ export default function ProductsTab({
       badge: null,
       isActive: true,
       kitchenLabel: "make_table",
+      modifierKitchenLabels: [],
       displayOrder: 0,
     });
   };
@@ -377,6 +379,11 @@ export default function ProductsTab({
     uploading ||
     !prodForm.name.trim() ||
     !prodForm.categoryId;
+
+  const selectedCatObj = categories.find((c) => (c.id || c._id) === prodForm.categoryId);
+  const isDealsCategory = selectedCatObj
+    ? selectedCatObj.slug === "deals" || selectedCatObj.name.toLowerCase().includes("deal")
+    : false;
 
   return (
     <>
@@ -567,38 +574,40 @@ export default function ProductsTab({
               </div>
             </div>
 
-            <div>
-              <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
-                Kitchen Label
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setProdForm({ ...prodForm, kitchenLabel: "make_table" })}
-                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
-                    prodForm.kitchenLabel === "make_table" || prodForm.kitchenLabel === "pizza"
-                      ? "bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/15"
-                      : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
-                  }`}
-                >
-                  🍕 Make Table
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setProdForm({ ...prodForm, kitchenLabel: "wings_station" })}
-                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
-                    prodForm.kitchenLabel === "wings_station" || prodForm.kitchenLabel === "chicken"
-                      ? "bg-amber-600 border-amber-600 text-white shadow-md shadow-amber-600/15"
-                      : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
-                  }`}
-                >
-                  🍗 Wings Station
-                </button>
+            {!isDealsCategory && (
+              <div>
+                <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider mb-1.5">
+                  Kitchen Label
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProdForm({ ...prodForm, kitchenLabel: "make_table" })}
+                    className={`flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
+                      prodForm.kitchenLabel === "make_table" || prodForm.kitchenLabel === "pizza"
+                        ? "bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-500/15"
+                        : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                    }`}
+                  >
+                    🍕 Make Table
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProdForm({ ...prodForm, kitchenLabel: "wings_station" })}
+                    className={`flex-1 py-2.5 rounded-xl text-[10px] font-700 uppercase tracking-wider transition-all cursor-pointer border ${
+                      prodForm.kitchenLabel === "wings_station" || prodForm.kitchenLabel === "chicken"
+                        ? "bg-amber-600 border-amber-600 text-white shadow-md shadow-amber-600/15"
+                        : "bg-[#FAFAF9] border-neutral-200 text-neutral-600 hover:bg-neutral-100"
+                    }`}
+                  >
+                    🍗 Wings Station
+                  </button>
+                </div>
+                <p className="text-[8px] text-neutral-400 mt-1.5 leading-normal">
+                  Determines which Kitchen View filter this product appears under.
+                </p>
               </div>
-              <p className="text-[8px] text-neutral-400 mt-1.5 leading-normal">
-                Determines which Kitchen View filter this product appears under.
-              </p>
-            </div>
+            )}
 
             {/* Pizza Sizes & Variants toggle */}
             <div className="p-3 bg-[#FAFAF9] border border-neutral-200 rounded-xl space-y-3">
@@ -814,6 +823,77 @@ export default function ProductsTab({
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Deal Items Station Assignment - ONLY when category is Deals and modifier groups are linked */}
+            {isDealsCategory && prodForm.modifierGroups.length > 0 && (
+              <div className="space-y-2.5 pt-2 border-t border-neutral-100">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[9px] font-700 text-neutral-400 uppercase tracking-wider">
+                    Deal Items Station Assignment
+                  </label>
+                  <span className="text-[8px] text-orange-600 bg-orange-50 px-2 py-0.5 rounded font-700 border border-orange-200">
+                    🔥 Deals Station Routing
+                  </span>
+                </div>
+                <p className="text-[8px] text-neutral-400 leading-normal -mt-1">
+                  Assign each deal group to Make Table (Pizzas) or Wings Station (Sides/Wings/Dessert/Dips).
+                </p>
+                <div className="border border-neutral-200 rounded-xl bg-[#FAFAF9] overflow-hidden p-2.5 space-y-2">
+                  {prodForm.modifierGroups.map((gid: string) => {
+                    const groupObj = modifiers.find((m) => ((m as any).id || (m as any)._id) === gid);
+                    const groupName = groupObj ? groupObj.name : "Modifier Group";
+                    const currentMapping = (prodForm.modifierKitchenLabels || []).find((m) => m.groupId === gid);
+                    const currentStation = currentMapping?.kitchenLabel || "make_table";
+
+                    return (
+                      <div key={gid} className="flex items-center justify-between bg-white p-2 rounded-lg border border-neutral-200 gap-2">
+                        <span className="text-[10px] font-700 text-neutral-700 truncate flex-1 min-w-0">
+                          {groupName}
+                        </span>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const curList = prodForm.modifierKitchenLabels || [];
+                              const filtered = curList.filter((m) => m.groupId !== gid);
+                              setProdForm({
+                                ...prodForm,
+                                modifierKitchenLabels: [...filtered, { groupId: gid, kitchenLabel: "make_table" }],
+                              });
+                            }}
+                            className={`px-2 py-1 rounded-md text-[9px] font-700 uppercase cursor-pointer border transition-all ${
+                              currentStation === "make_table"
+                                ? "bg-orange-500 border-orange-500 text-white shadow-xs"
+                                : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:bg-neutral-100"
+                            }`}
+                          >
+                            🍕 Make Table
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const curList = prodForm.modifierKitchenLabels || [];
+                              const filtered = curList.filter((m) => m.groupId !== gid);
+                              setProdForm({
+                                ...prodForm,
+                                modifierKitchenLabels: [...filtered, { groupId: gid, kitchenLabel: "wings_station" }],
+                              });
+                            }}
+                            className={`px-2 py-1 rounded-md text-[9px] font-700 uppercase cursor-pointer border transition-all ${
+                              currentStation === "wings_station"
+                                ? "bg-amber-600 border-amber-600 text-white shadow-xs"
+                                : "bg-neutral-50 border-neutral-200 text-neutral-500 hover:bg-neutral-100"
+                            }`}
+                          >
+                            🍗 Wings Station
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

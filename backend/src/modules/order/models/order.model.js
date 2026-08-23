@@ -13,6 +13,7 @@ const selectedModifierSchema = new mongoose.Schema(
     optionName: { type: String, required: true },
     price: { type: Number, default: 0 },
     isRoot: { type: Boolean, default: true },
+    kitchenLabel: { type: String, default: null },
   },
   { _id: false },
 );

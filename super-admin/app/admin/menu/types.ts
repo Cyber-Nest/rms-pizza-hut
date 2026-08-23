@@ -65,6 +65,7 @@ export interface Product {
   productId?: string;
   isActive?: boolean;
   kitchenLabel?: "make_table" | "wings_station" | "chicken" | "pizza";
+  modifierKitchenLabels?: { groupId: string; kitchenLabel: "make_table" | "wings_station" }[];
   displayOrder?: number;
   disabledBranches?: string[];
 }
