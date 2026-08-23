@@ -473,6 +473,10 @@ exports.getPOSMenuFeed = async (branchId = null) => {
             groupId: m.groupId ? m.groupId.toString() : "",
             kitchenLabel: m.kitchenLabel || "make_table",
           })),
+          modifierSizeCodes: (prod.modifierSizeCodes || []).map((m) => ({
+            groupId: m.groupId ? m.groupId.toString() : "",
+            sizeCode: m.sizeCode || "medium",
+          })),
           displayOrder: prod.displayOrder ?? 0,
           itemType: prod.itemType,
           hasVariants: !!prod.hasVariants,

@@ -28,6 +28,7 @@ export interface MenuItem {
   modifierGroups?: ModifierGroup[];
   kitchenLabel?: 'make_table' | 'wings_station' | 'cut_station' | 'chicken' | 'pizza';
   modifierKitchenLabels?: { groupId: string; kitchenLabel: 'make_table' | 'wings_station' | 'chicken' | 'pizza' }[];
+  modifierSizeCodes?: { groupId: string; sizeCode: string }[];
   displayOrder?: number;
   isOutOfStock?: boolean;
 }

@@ -66,6 +66,7 @@ export interface Product {
   isActive?: boolean;
   kitchenLabel?: "make_table" | "wings_station" | "chicken" | "pizza";
   modifierKitchenLabels?: { groupId: string; kitchenLabel: "make_table" | "wings_station" }[];
+  modifierSizeCodes?: { groupId: string; sizeCode: string }[];
   displayOrder?: number;
   disabledBranches?: string[];
 }

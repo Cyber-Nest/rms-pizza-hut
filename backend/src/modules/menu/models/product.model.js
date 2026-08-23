@@ -81,6 +81,16 @@ const productSchema = new mongoose.Schema({
       default: 'make_table',
     }
   }],
+  modifierSizeCodes: [{
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ModifierGroup'
+    },
+    sizeCode: {
+      type: String,
+      default: 'medium',
+    }
+  }],
   displayOrder: {
     type: Number,
     default: 0,
