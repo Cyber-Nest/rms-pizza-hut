@@ -70,6 +70,27 @@ const productSchema = new mongoose.Schema({
     enum: ['make_table', 'wings_station', 'pizza', 'chicken'],
     default: 'make_table',
   },
+  modifierKitchenLabels: [{
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ModifierGroup'
+    },
+    kitchenLabel: {
+      type: String,
+      enum: ['make_table', 'wings_station', 'pizza', 'chicken'],
+      default: 'make_table',
+    }
+  }],
+  modifierSizeCodes: [{
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ModifierGroup'
+    },
+    sizeCode: {
+      type: String,
+      default: 'medium',
+    }
+  }],
   displayOrder: {
     type: Number,
     default: 0,

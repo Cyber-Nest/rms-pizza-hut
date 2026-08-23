@@ -443,8 +443,37 @@ export default function ModifierDrawer({
       }
     }
 
-    // 2. Detect size from group/slot name if in a deal (e.g. "Recipe Pizza Med" -> medium)
+    // 2. Detect size from explicit modifierSizeCodes mapping, item name/description, or group/slot name
     let detectedSize = "medium";
+
+    if (groupId && item?.modifierSizeCodes) {
+      const explicitSizeMapping = item.modifierSizeCodes.find(
+        (m) => m.groupId === groupId,
+      );
+      if (explicitSizeMapping?.sizeCode) {
+        detectedSize = explicitSizeMapping.sizeCode;
+      }
+    }
+
+    if (detectedSize === "medium" && item) {
+      const itemStr = (
+        (item.name || "") +
+        " " +
+        (item.description || "")
+      ).toLowerCase();
+      if (itemStr.includes("panalicious")) detectedSize = "panalicious";
+      else if (itemStr.includes("large") || itemStr.includes('14"'))
+        detectedSize = "large";
+      else if (itemStr.includes("small") || itemStr.includes('9"'))
+        detectedSize = "small";
+      else if (itemStr.includes("personal") || itemStr.includes('6"'))
+        detectedSize = "personal";
+      else if (itemStr.includes("xl") || itemStr.includes("panormous"))
+        detectedSize = "xl";
+      else if (itemStr.includes("med") || itemStr.includes('12"'))
+        detectedSize = "medium";
+    }
+
     if (groupName) {
       const gLower = groupName.toLowerCase();
       if (gLower.includes("panalicious")) detectedSize = "panalicious";
@@ -770,19 +799,58 @@ export default function ModifierDrawer({
     // Detect slot size code (if selectedSize is not present e.g. for deals)
     let slotSize = selectedSize?.sizeCode;
     if (!slotSize) {
-      const gLower = displayName.toLowerCase();
-      if (gLower.includes("panalicious")) slotSize = "panalicious";
-      else if (gLower.includes("large") || gLower.includes('14"'))
-        slotSize = "large";
-      else if (gLower.includes("small") || gLower.includes('9"'))
-        slotSize = "small";
-      else if (gLower.includes("personal") || gLower.includes('6"'))
-        slotSize = "personal";
-      else if (gLower.includes("xl") || gLower.includes("panormous"))
-        slotSize = "xl";
-      else if (gLower.includes("med") || gLower.includes('12"'))
-        slotSize = "medium";
-      else slotSize = "medium";
+      const explicitMapping = item?.modifierSizeCodes?.find(
+        (m) => m.groupId === g.id,
+      );
+      if (explicitMapping?.sizeCode) {
+        slotSize = explicitMapping.sizeCode;
+      } else {
+        const itemStr = (
+          (item?.name || "") +
+          " " +
+          (item?.description || "")
+        ).toLowerCase();
+        const gLower = displayName.toLowerCase();
+
+        if (gLower.includes("panalicious") || itemStr.includes("panalicious"))
+          slotSize = "panalicious";
+        else if (
+          gLower.includes("large") ||
+          gLower.includes('14"') ||
+          itemStr.includes("large") ||
+          itemStr.includes('14"')
+        )
+          slotSize = "large";
+        else if (
+          gLower.includes("small") ||
+          gLower.includes('9"') ||
+          itemStr.includes("small") ||
+          itemStr.includes('9"')
+        )
+          slotSize = "small";
+        else if (
+          gLower.includes("personal") ||
+          gLower.includes('6"') ||
+          itemStr.includes("personal") ||
+          itemStr.includes('6"')
+        )
+          slotSize = "personal";
+        else if (
+          gLower.includes("xl") ||
+          gLower.includes("panormous") ||
+          itemStr.includes("xl") ||
+          itemStr.includes("panormous")
+        )
+          slotSize = "xl";
+        else if (
+          gLower.includes("med") ||
+          gLower.includes('12"') ||
+          itemStr.includes("med") ||
+          itemStr.includes('12"')
+        )
+          slotSize = "medium";
+        else slotSize = "medium";
+      }
     }
 
     const availableOpts = g.options.filter((opt) =>

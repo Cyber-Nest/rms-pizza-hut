@@ -113,6 +113,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         note: note || item.note,
       };
     } else {
+      const stampedModifiers = selectedModifiers.map((mod) => {
+        const modLabelMapping = (menuItem.modifierKitchenLabels || []).find((m) => m.groupId === mod.groupId);
+        return {
+          ...mod,
+          kitchenLabel: mod.kitchenLabel || modLabelMapping?.kitchenLabel || undefined,
+        };
+      });
+
       const newItem: CartItem = {
         id: cartItemId,
         menuItemId: menuItem.id,
@@ -120,11 +128,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: menuItem.name,
         image: menuItem.image,
         basePrice: menuItem.price,
-        selectedModifiers,
+        selectedModifiers: stampedModifiers,
         quantity,
         totalPrice: roundToTwo(itemUnitCost * quantity),
         note,
-        kitchenLabel: menuItem.kitchenLabel || 'chicken',
+        kitchenLabel: menuItem.kitchenLabel || 'make_table',
       };
       updatedCartItems.push(newItem);
     }

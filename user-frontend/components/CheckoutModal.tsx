@@ -451,7 +451,7 @@ function CheckoutModalInner({
         quantity: item.quantity,
         totalPrice: item.totalPrice,
         note: item.note || "",
-        kitchenLabel: item.kitchenLabel || 'chicken',
+        kitchenLabel: item.kitchenLabel || 'make_table',
       })),
       subtotal: subtotal,
       discount: promoDiscountAmount,

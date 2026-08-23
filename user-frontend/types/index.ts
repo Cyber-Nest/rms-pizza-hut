@@ -22,7 +22,8 @@ export interface MenuItem {
   modifierGroupIds?: string[];
   modifierGroups?: ModifierGroup[];
   includedToppings?: { groupId: string; optionId: string }[];
-  kitchenLabel?: 'chicken' | 'pizza';
+  kitchenLabel?: 'chicken' | 'pizza' | 'make_table' | 'wings_station';
+  modifierKitchenLabels?: { groupId: string; kitchenLabel: 'make_table' | 'wings_station' | 'chicken' | 'pizza' }[];
   isOutOfStock?: boolean;
 }
 
@@ -57,6 +58,7 @@ export interface SelectedModifier {
   optionName: string;
   price: number;
   isRoot?: boolean;
+  kitchenLabel?: 'chicken' | 'pizza' | 'make_table' | 'wings_station';
 }
 
 export interface CartItem {
@@ -71,5 +73,5 @@ export interface CartItem {
   quantity: number;
   totalPrice: number; // (basePrice + sum(selectedModifiers.price)) * quantity
   note?: string;
-  kitchenLabel?: 'chicken' | 'pizza';
+  kitchenLabel?: 'chicken' | 'pizza' | 'make_table' | 'wings_station';
 }
