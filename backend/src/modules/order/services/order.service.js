@@ -236,11 +236,27 @@ exports.createOrder = async (orderData) => {
           const dbLabel = itemKey ? prodMap.get(itemKey) : undefined;
           const groupMap = itemKey ? modLabelMap.get(itemKey) : undefined;
 
+          let currentRootLabel = dbLabel || item.kitchenLabel || "make_table";
           const updatedModifiers = (item.selectedModifiers || []).map((mod) => {
-            const mappedModLabel = groupMap && mod.groupId ? groupMap.get(mod.groupId.toString()) : undefined;
+            let mappedModLabel = groupMap && mod.groupId ? groupMap.get(mod.groupId.toString()) : undefined;
+            const isRootVal = mod.isRoot !== undefined ? mod.isRoot : true;
+            
+            if (isRootVal) {
+              if (mappedModLabel) {
+                currentRootLabel = mappedModLabel;
+              } else if (mod.kitchenLabel) {
+                currentRootLabel = mod.kitchenLabel;
+              }
+            } else {
+              // Sub-modifier (child option like "Honey Garlic" under "Boneless Bites")
+              if (!mappedModLabel && !mod.kitchenLabel) {
+                mappedModLabel = currentRootLabel;
+              }
+            }
+
             return {
               ...mod,
-              kitchenLabel: mappedModLabel || mod.kitchenLabel || null,
+              kitchenLabel: mappedModLabel || mod.kitchenLabel || currentRootLabel || null,
             };
           });
 

@@ -377,11 +377,20 @@ export const usePosStore = create<PosState>((set, get) => ({
         (menuItem as any).category ||
         "";
 
+      let currentRootStation: any = menuItem.kitchenLabel || "make_table";
       const stampedModifiers = selectedModifiers.map((mod) => {
         const modLabelMapping = (menuItem.modifierKitchenLabels || []).find((m) => m.groupId === mod.groupId);
+        const mappedLabel = modLabelMapping?.kitchenLabel || mod.kitchenLabel;
+        const isRootVal = mod.isRoot !== undefined ? mod.isRoot : true;
+        
+        if (isRootVal) {
+          if (mappedLabel) currentRootStation = mappedLabel;
+        }
+
+        const finalLabel = mappedLabel || currentRootStation || undefined;
         return {
           ...mod,
-          kitchenLabel: mod.kitchenLabel || modLabelMapping?.kitchenLabel || undefined,
+          kitchenLabel: finalLabel,
         };
       });
 
@@ -537,11 +546,20 @@ export const usePosStore = create<PosState>((set, get) => ({
       cartItems[originalIndex].categoryName ||
       "";
 
+    let currentRootStation: any = menuItem.kitchenLabel || "make_table";
     const stampedModifiers = selectedModifiers.map((mod) => {
       const modLabelMapping = (menuItem.modifierKitchenLabels || []).find((m) => m.groupId === mod.groupId);
+      const mappedLabel = modLabelMapping?.kitchenLabel || mod.kitchenLabel;
+      const isRootVal = mod.isRoot !== undefined ? mod.isRoot : true;
+      
+      if (isRootVal) {
+        if (mappedLabel) currentRootStation = mappedLabel;
+      }
+
+      const finalLabel = mappedLabel || currentRootStation || undefined;
       return {
         ...mod,
-        kitchenLabel: mod.kitchenLabel || modLabelMapping?.kitchenLabel || undefined,
+        kitchenLabel: finalLabel,
       };
     });
 

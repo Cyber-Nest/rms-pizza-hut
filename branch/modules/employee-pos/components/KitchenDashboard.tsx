@@ -344,10 +344,31 @@ export default function KitchenDashboard() {
         return baseLabel === targetStation ? item : null;
       }
 
+      let currentRootStation: 'make_table' | 'wings_station' = baseLabel;
       const matchingMods = mods.filter((m: any) => {
-        const s = getModStation(m);
-        if (s) return s === targetStation;
-        return baseLabel === targetStation;
+        let s = getModStation(m);
+        const isRootVal =
+          m.isRoot !== undefined
+            ? m.isRoot
+            : !(
+                m.groupName?.toLowerCase().includes("mix") ||
+                m.groupName?.toLowerCase().includes("white & dark")
+              );
+
+        if (isRootVal) {
+          if (s) {
+            currentRootStation = s;
+          } else {
+            currentRootStation = baseLabel;
+          }
+        } else {
+          if (!s) {
+            s = currentRootStation;
+          }
+        }
+
+        const finalStation = s || currentRootStation;
+        return finalStation === targetStation;
       });
 
       const isBaseStationMatch = baseLabel === targetStation;

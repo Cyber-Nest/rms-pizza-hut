@@ -57,7 +57,8 @@ interface GroupedModifier {
 
 const getGroupedModifiers = (modifiers: any[]): GroupedModifier[] => {
   if (!modifiers) return [];
-  const grouped: GroupedModifier[] = [];
+  const result: GroupedModifier[] = [];
+
   modifiers.forEach((mod) => {
     const isRootVal =
       mod.isRoot !== undefined
@@ -67,24 +68,55 @@ const getGroupedModifiers = (modifiers: any[]): GroupedModifier[] => {
             mod.groupName?.toLowerCase().includes("white & dark")
           );
 
-    const existing = grouped.find(
-      (g) => g.groupId === mod.groupId && g.optionId === mod.optionId,
-    );
-    if (existing) {
-      existing.quantity += 1;
+    if (isRootVal) {
+      const existingRoot = result.find(
+        (g) => g.isRoot && g.groupId === mod.groupId && g.optionId === mod.optionId,
+      );
+      if (existingRoot) {
+        existingRoot.quantity += 1;
+      } else {
+        result.push({
+          groupId: mod.groupId,
+          groupName: mod.groupName,
+          optionId: mod.optionId,
+          optionName: mod.optionName,
+          price: mod.price,
+          isRoot: true,
+          quantity: 1,
+        });
+      }
     } else {
-      grouped.push({
-        groupId: mod.groupId,
-        groupName: mod.groupName,
-        optionId: mod.optionId,
-        optionName: mod.optionName,
-        price: mod.price,
-        isRoot: isRootVal,
-        quantity: 1,
-      });
+      let lastRootIndex = -1;
+      for (let i = result.length - 1; i >= 0; i--) {
+        if (result[i].isRoot) {
+          lastRootIndex = i;
+          break;
+        }
+      }
+
+      const existingSub = result
+        .slice(lastRootIndex + 1)
+        .find(
+          (g) => !g.isRoot && g.groupId === mod.groupId && g.optionId === mod.optionId,
+        );
+
+      if (existingSub) {
+        existingSub.quantity += 1;
+      } else {
+        result.push({
+          groupId: mod.groupId,
+          groupName: mod.groupName,
+          optionId: mod.optionId,
+          optionName: mod.optionName,
+          price: mod.price,
+          isRoot: false,
+          quantity: 1,
+        });
+      }
     }
   });
-  return grouped;
+
+  return result;
 };
 
 export default function KitchenDetailModal({
@@ -106,21 +138,98 @@ export default function KitchenDetailModal({
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
 
-  const isItemVisible = (item: any) => {
+  const getModStation = (mod: any): "make_table" | "wings_station" | null => {
+    if (mod.kitchenLabel) {
+      if (mod.kitchenLabel === "wings_station" || mod.kitchenLabel === "chicken") return "wings_station";
+      if (mod.kitchenLabel === "make_table" || mod.kitchenLabel === "pizza") return "make_table";
+    }
+    const name = ((mod.groupName || "") + " " + (mod.optionName || "")).toLowerCase();
+    if (
+      name.includes("wing") ||
+      name.includes("side") ||
+      name.includes("chicken") ||
+      name.includes("dessert") ||
+      name.includes("dip") ||
+      name.includes("frosting") ||
+      name.includes("brownie")
+    ) {
+      return "wings_station";
+    }
+    if (name.includes("pizza")) {
+      return "make_table";
+    }
+    return null;
+  };
+
+  const getFilteredItemForModal = (item: any): any | null => {
     if (
       !categoryFilter ||
       categoryFilter === "all" ||
       categoryFilter === "cut_station"
-    )
-      return true;
-    const label = item.kitchenLabel || "make_table";
-    if (categoryFilter === "make_table" || categoryFilter === "pizza") {
-      return label === "make_table" || label === "pizza";
+    ) {
+      return item;
     }
-    if (categoryFilter === "wings_station" || categoryFilter === "chicken") {
-      return label === "wings_station" || label === "chicken";
+    const targetStation =
+      categoryFilter === "wings_station" || categoryFilter === "chicken"
+        ? "wings_station"
+        : "make_table";
+
+    const getItemBaseLabel = (i: any): "make_table" | "wings_station" => {
+      if (i.kitchenLabel === "wings_station" || i.kitchenLabel === "chicken")
+        return "wings_station";
+      if (i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza")
+        return "make_table";
+      return "make_table";
+    };
+
+    const baseLabel = getItemBaseLabel(item);
+    const mods = item.selectedModifiers || [];
+    const hasExplicitModLabels = mods.some(
+      (m: any) => getModStation(m) !== null,
+    );
+
+    if (!hasExplicitModLabels) {
+      return baseLabel === targetStation ? item : null;
     }
-    return true;
+
+    let currentRootStation: "make_table" | "wings_station" = baseLabel;
+    const matchingMods = mods.filter((m: any) => {
+      let s = getModStation(m);
+      const isRootVal =
+        m.isRoot !== undefined
+          ? m.isRoot
+          : !(
+              m.groupName?.toLowerCase().includes("mix") ||
+              m.groupName?.toLowerCase().includes("white & dark")
+            );
+
+      if (isRootVal) {
+        if (s) {
+          currentRootStation = s;
+        } else {
+          currentRootStation = baseLabel;
+        }
+      } else {
+        if (!s) {
+          s = currentRootStation;
+        }
+      }
+
+      const finalStation = s || currentRootStation;
+      return finalStation === targetStation;
+    });
+
+    const isBaseStationMatch = baseLabel === targetStation;
+    const hasMatchingMods = matchingMods.length > 0;
+
+    if (isBaseStationMatch || hasMatchingMods) {
+      return {
+        ...item,
+        selectedModifiers: matchingMods,
+      };
+    }
+
+    return null;
   };
 
   useEffect(() => {
@@ -1045,8 +1154,9 @@ export default function KitchenDetailModal({
 
                 <div className="flex flex-col divider-y divider-neutral-100">
                   {isEditing
-                    ? editItems.map((item, idx) => {
-                        if (!isItemVisible(item)) return null;
+                    ? editItems.map((rawItem, idx) => {
+                        const item = getFilteredItemForModal(rawItem);
+                        if (!item) return null;
                         return (
                           <div
                             key={idx}
@@ -1156,8 +1266,9 @@ export default function KitchenDetailModal({
                           </div>
                         );
                       })
-                    : localOrder.items.map((item, idx) => {
-                        if (!isItemVisible(item)) return null;
+                    : localOrder.items.map((rawItem, idx) => {
+                        const item = getFilteredItemForModal(rawItem);
+                        if (!item) return null;
                         return (
                           <div
                             key={idx}

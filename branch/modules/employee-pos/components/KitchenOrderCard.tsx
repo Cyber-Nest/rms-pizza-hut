@@ -22,7 +22,8 @@ interface GroupedModifier {
 
 const getGroupedModifiers = (modifiers: any[]): GroupedModifier[] => {
   if (!modifiers) return [];
-  const grouped: GroupedModifier[] = [];
+  const result: GroupedModifier[] = [];
+
   modifiers.forEach((mod) => {
     const isRootVal =
       mod.isRoot !== undefined
@@ -32,24 +33,55 @@ const getGroupedModifiers = (modifiers: any[]): GroupedModifier[] => {
             mod.groupName?.toLowerCase().includes("white & dark")
           );
 
-    const existing = grouped.find(
-      (g) => g.groupId === mod.groupId && g.optionId === mod.optionId,
-    );
-    if (existing) {
-      existing.quantity += 1;
+    if (isRootVal) {
+      const existingRoot = result.find(
+        (g) => g.isRoot && g.groupId === mod.groupId && g.optionId === mod.optionId,
+      );
+      if (existingRoot) {
+        existingRoot.quantity += 1;
+      } else {
+        result.push({
+          groupId: mod.groupId,
+          groupName: mod.groupName,
+          optionId: mod.optionId,
+          optionName: mod.optionName,
+          price: mod.price,
+          isRoot: true,
+          quantity: 1,
+        });
+      }
     } else {
-      grouped.push({
-        groupId: mod.groupId,
-        groupName: mod.groupName,
-        optionId: mod.optionId,
-        optionName: mod.optionName,
-        price: mod.price,
-        isRoot: isRootVal,
-        quantity: 1,
-      });
+      let lastRootIndex = -1;
+      for (let i = result.length - 1; i >= 0; i--) {
+        if (result[i].isRoot) {
+          lastRootIndex = i;
+          break;
+        }
+      }
+
+      const existingSub = result
+        .slice(lastRootIndex + 1)
+        .find(
+          (g) => !g.isRoot && g.groupId === mod.groupId && g.optionId === mod.optionId,
+        );
+
+      if (existingSub) {
+        existingSub.quantity += 1;
+      } else {
+        result.push({
+          groupId: mod.groupId,
+          groupName: mod.groupName,
+          optionId: mod.optionId,
+          optionName: mod.optionName,
+          price: mod.price,
+          isRoot: false,
+          quantity: 1,
+        });
+      }
     }
   });
-  return grouped;
+
+  return result;
 };
 
 export default function KitchenOrderCard({
@@ -180,29 +212,59 @@ export default function KitchenOrderCard({
                       <p className="text-neutral-800 font-700 text-[15px] leading-tight truncate">
                         {item.name}
                       </p>
-                      {(item.kitchenLabel === "wings_station" ||
-                        item.kitchenLabel === "chicken") && (
-                        <span
-                          className={`text-[8px] font-800 px-1 py-0.2 rounded border uppercase flex-shrink-0 ${
-                            order.wingsStatus === "completed"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      {(() => {
+                        const hasWingsMods =
+                          item.kitchenLabel === "wings_station" ||
+                          item.kitchenLabel === "chicken" ||
+                          (item.selectedModifiers || []).some((m: any) => {
+                            if (
+                              m.kitchenLabel === "wings_station" ||
+                              m.kitchenLabel === "chicken"
+                            )
+                              return true;
+                            const name = (
+                              (m.groupName || "") +
+                              " " +
+                              (m.optionName || "")
+                            ).toLowerCase();
+                            return (
+                              name.includes("wing") ||
+                              name.includes("side") ||
+                              name.includes("chicken") ||
+                              name.includes("strip") ||
+                              name.includes("bites") ||
+                              name.includes("dessert") ||
+                              name.includes("dip") ||
+                              name.includes("frosting") ||
+                              name.includes("brownie")
+                            );
+                          });
+
+                        if (!hasWingsMods) return null;
+
+                        return (
+                          <span
+                            className={`text-[8px] font-800 px-1 py-0.2 rounded border uppercase flex-shrink-0 ${
+                              order.wingsStatus === "completed"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : order.wingsStatus === "ready"
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                  : order.wingsStatus === "preparing"
+                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                            }`}
+                          >
+                            Wings:{" "}
+                            {order.wingsStatus === "completed"
+                              ? "Done"
                               : order.wingsStatus === "ready"
-                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                ? "Ready"
                                 : order.wingsStatus === "preparing"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}
-                        >
-                          Wings:{" "}
-                          {order.wingsStatus === "completed"
-                            ? "Done"
-                            : order.wingsStatus === "ready"
-                              ? "Ready"
-                              : order.wingsStatus === "preparing"
-                                ? "Prep"
-                                : "Pending"}
-                        </span>
-                      )}
+                                  ? "Prep"
+                                  : "Pending"}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <span className="text-[12.5px] font-800 text-neutral-700 flex-shrink-0">
                       $
