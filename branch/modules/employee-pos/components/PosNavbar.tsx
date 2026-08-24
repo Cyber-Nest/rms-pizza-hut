@@ -235,10 +235,10 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
           ) : null}
 
           {/* Divider */}
-          {navLinks.length > 0 && <div className="h-5 w-px bg-neutral-200 hidden lg:block" />}
+          {navLinks.length > 0 && <div className="h-5 w-px bg-neutral-200 hidden md:block" />}
 
           {/* Nav Navigation Links */}
-          <div className="hidden lg:flex items-center gap-1.5">
+          <div className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
               const isActive = pathname === link.href || (link.href === '/employee/pos' && (pathname === '/' || pathname === '/employee'));
               const Icon = link.icon;
@@ -247,14 +247,14 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-800 transition-all cursor-pointer border ${
+                  className={`flex items-center gap-1 lg:gap-1.5 px-2 lg:px-3 py-1.5 rounded-xl text-[11px] lg:text-[12px] font-800 transition-all cursor-pointer border ${
                     isActive
                       ? 'border-brand-primary/30 bg-brand-primary-light text-brand-primary shadow-xs'
                       : 'border-neutral-200 bg-neutral-50 text-black hover:border-brand-primary/30 hover:bg-brand-primary-light hover:text-brand-primary'
                   }`}
                 >
-                  <Icon size={14} className={isActive ? 'text-brand-primary' : 'text-black'} />
-                  <span>{link.name}</span>
+                  <Icon size={13} className={isActive ? 'text-brand-primary' : 'text-black'} />
+                  <span className="hidden lg:inline">{link.name}</span>
                 </Link>
               );
             })}
@@ -263,7 +263,7 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
 
         {/* ── Center: Global Search (Only shown on POS Terminal page) ── */}
         {pathname === '/employee/pos' && (
-          <div className="flex-1 max-w-sm mx-4 hidden md:block">
+          <div className="flex-1 max-w-[200px] lg:max-w-sm mx-2 lg:mx-4">
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
               <input
@@ -279,7 +279,7 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
 
         {/* ── Right: Actions + Profile + Logout ── */}
         <div className="flex items-center gap-3">
-          {/* Notification Bell */}
+          {/* Notification Bell (Commented Out)
           <button className="relative w-9 h-9 flex items-center justify-center rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-500 hover:text-brand-primary hover:border-brand-primary/30 hover:bg-brand-primary-light transition-all cursor-pointer">
             <Bell size={16} />
             {orders.length > 0 && (
@@ -288,6 +288,7 @@ export default function PosNavbar({ onToggleSidebar }: PosNavbarProps) {
               </span>
             )}
           </button>
+          */}
 
           {/* Divider */}
           <div className="h-7 w-px bg-neutral-200" />

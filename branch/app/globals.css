@@ -217,6 +217,13 @@ body {
 .animate-slide-right      { animation: slideInRight  0.2s cubic-bezier(0.16,1,0.3,1) forwards; }
 .animate-drawer-slide-in  { animation: drawerSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
 
+/* ── Bottom Sheet Slide Up (Tablet/Mobile POS Panels) ── */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0.7; }
+  to   { transform: translateY(0);    opacity: 1;   }
+}
+.animate-slide-up { animation: slideUp 0.28s cubic-bezier(0.16,1,0.3,1) forwards; }
+
 /* ────────────────────────────────────────
    Focus ring (orange)
 ──────────────────────────────────────── */

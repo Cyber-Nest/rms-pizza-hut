@@ -33,7 +33,7 @@ export default function TaxFeesTab({
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 md:p-8 border border-neutral-200/90 shadow-xs max-w-4xl mx-auto">
+    <div className="bg-white rounded-2xl p-4 md:p-6 lg:p-8 border border-neutral-200/90 shadow-xs max-w-4xl mx-auto">
       
       {/* Header */}
       <div className="mb-6 flex items-center justify-between border-b border-neutral-100 pb-4">

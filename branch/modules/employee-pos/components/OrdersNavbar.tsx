@@ -116,10 +116,11 @@ export default function OrdersNavbar({ onToggleSidebar }: OrdersNavbarProps) {
       {/* ── Right: Actions + Profile ── */}
       <div className="flex items-center gap-3">
 
-        {/* Notification Bell */}
+        {/* Notification Bell (Commented Out)
         <button className="relative w-8 h-8 flex items-center justify-center rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-500 hover:text-brand-primary hover:border-brand-primary/30 hover:bg-brand-primary-light transition-all cursor-pointer">
           <Bell size={16} />
         </button>
+        */}
 
         {/* Settings */}
         {/* <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-500 hover:text-brand-primary hover:border-brand-primary/30 hover:bg-brand-primary-light transition-all cursor-pointer">
