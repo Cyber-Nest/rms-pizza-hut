@@ -12,6 +12,23 @@ import toast from 'react-hot-toast';
 import { getPusherClient } from '../../../lib/pusher';
 import { getLocalTodayStr, getLocalDateStr } from '../utils/timezone';
 
+// ── Responsive hook: how many cards to show based on screen width ──
+function useVisibleCardCount() {
+  const [count, setCount] = useState(4);
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      if (w < 640)  setCount(1);       // mobile: 1 card
+      else if (w < 1024) setCount(2);  // tablet: 2 cards
+      else setCount(4);               // desktop: 4 cards
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return count;
+}
+
 export default function KitchenDashboard() {
   // ── States ───────────────────────────────────────────────────
   const [orders, setOrders] = useState<Order[]>([]);
@@ -26,6 +43,7 @@ export default function KitchenDashboard() {
   const [startIndex, setStartIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const ordersRef = useRef(orders);
+  const visibleCardCount = useVisibleCardCount();
   useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
@@ -431,84 +449,85 @@ export default function KitchenDashboard() {
     return stationFiltered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, draftCart, statusFilter, typeFilter, stationFilter, currentTime]);
 
-  const visibleOrders = filteredOrders.slice(startIndex, startIndex + 4);
+  const visibleOrders = filteredOrders.slice(startIndex, startIndex + visibleCardCount);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-brand-bg text-neutral-900 font-sans">
       {/* Navbar */}
       <PosNavbar onToggleSidebar={() => setIsSidebarOpen(true)} />
 
-      {/* ── Filter Controls Section (Premium Low-Profile Segmented Controls) ── */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-xs flex-shrink-0 select-none">
-        
-        {/* Status Pills */}
-        <div className="flex flex-wrap gap-2 items-center">
-          {[
-            { id: "all", label: "All", count: countAll },
-            { id: "pending", label: "Pending", count: countPending },
-            { id: "confirmed", label: "Confirmed", count: countConfirmed },
-            { id: "preparing", label: "Preparing", count: countPreparing },
-            { id: "in_oven", label: "In Oven", count: countInOven },
-            { id: "ready", label: "Ready", count: countReady },
-          ].map((statusTab) => {
-            const active = statusFilter === statusTab.id;
-            return (
-              <button
-                key={statusTab.id}
-                onClick={() => setStatusFilter(statusTab.id as any)}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-750 tracking-wide uppercase transition-all duration-150 cursor-pointer border ${
-                  active
-                    ? "bg-brand-primary border-brand-primary text-white shadow-sm shadow-brand-primary/15"
-                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-brand-primary/30 hover:text-brand-primary hover:bg-orange-50/50"
-                }`}
-              >
-                {statusTab.label} ({statusTab.count})
-              </button>
-            );
-          })}
+      {/* ── Filter Controls Section ── */}
+      <div className="bg-white border-b border-neutral-200 px-3 md:px-6 py-2.5 md:py-3 flex flex-col gap-2 shadow-xs flex-shrink-0 select-none">
+        {/* Row 1: Status Pills + Station Tabs (desktop: side by side) */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+
+          {/* Status Pills - horizontally scrollable on tablet */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+            {[
+              { id: "all", label: "All", count: countAll },
+              { id: "pending", label: "Pending", count: countPending },
+              { id: "confirmed", label: "Confirmed", count: countConfirmed },
+              { id: "preparing", label: "Preparing", count: countPreparing },
+              { id: "in_oven", label: "In Oven", count: countInOven },
+              { id: "ready", label: "Ready", count: countReady },
+            ].map((statusTab) => {
+              const active = statusFilter === statusTab.id;
+              return (
+                <button
+                  key={statusTab.id}
+                  onClick={() => setStatusFilter(statusTab.id as any)}
+                  className={`flex-shrink-0 px-3 py-1 md:px-3.5 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-750 tracking-wide uppercase transition-all duration-150 cursor-pointer border ${
+                    active
+                      ? "bg-brand-primary border-brand-primary text-white shadow-sm shadow-brand-primary/15"
+                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-brand-primary/30 hover:text-brand-primary hover:bg-orange-50/50"
+                  }`}
+                >
+                  {statusTab.label} ({statusTab.count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Kitchen Station Segment Bar */}
+          <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl border border-neutral-200 flex-shrink-0">
+            {[
+              { id: "cut_station", label: "Cut", labelFull: "Cut Station" },
+              { id: "make_table", label: "Make", labelFull: "Make Station" },
+              { id: "wings_station", label: "Wings", labelFull: "Wings Station" },
+            ].map((stTab) => {
+              const active = stationFilter === stTab.id;
+              return (
+                <button
+                  key={stTab.id}
+                  onClick={() => setStationFilter(stTab.id as any)}
+                  className={`px-2.5 md:px-3.5 py-1 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                    active
+                      ? "bg-brand-primary text-white shadow-xs font-900"
+                      : "text-neutral-700 hover:text-brand-primary hover:bg-white"
+                  }`}
+                >
+                  <span className="hidden lg:inline">{stTab.labelFull}</span>
+                  <span className="lg:hidden">{stTab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Kitchen Station Segment Bar */}
-        <div className="flex items-center gap-1.5 bg-neutral-100 p-1 rounded-xl border border-neutral-200">
-          {[
-            { id: "cut_station", label: "Cut Station"},
-            { id: "make_table", label: "Make Station"},
-            { id: "wings_station", label: "Wings Station"},
-          ].map((stTab) => {
-            const active = stationFilter === stTab.id;
-            return (
-              <button
-                key={stTab.id}
-                onClick={() => setStationFilter(stTab.id as any)}
-                className={`px-3.5 py-1 rounded-lg text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer flex items-center gap-1.5 ${
-                  active
-                    ? "bg-brand-primary text-white shadow-xs font-900"
-                    : "text-neutral-700 hover:text-brand-primary hover:bg-white"
-                }`}
-              >
-                {/* <span className="text-[12px]">{stTab.icon}</span> */}
-                <span>{stTab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Order Types Segment Bar */}
-        <div className="flex items-center gap-1 bg-neutral-50 p-1 rounded-xl border border-neutral-200">
+        {/* Row 2: Order Type filters */}
+        <div className="flex items-center gap-1 bg-neutral-50 p-1 rounded-xl border border-neutral-200 self-start overflow-x-auto no-scrollbar">
           {[
             { id: "all", label: "All Types", count: countAll },
             { id: "takeout", label: "Takeout", count: countTakeout },
-            // { id: "drive-through", label: "Drive Thru", count: countDriveThrough },
             { id: "dine-in", label: "Dine In", count: countDineIn },
             { id: "delivery", label: "Delivery", count: countDelivery },
-            // { id: "online", label: "Online", count: countOnline },
           ].map((typeTab) => {
             const active = typeFilter === typeTab.id;
             return (
               <button
                 key={typeTab.id}
                 onClick={() => setTypeFilter(typeTab.id as any)}
-                className={`px-3 py-1 rounded-lg text-[10px] font-700 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                className={`flex-shrink-0 px-2.5 md:px-3 py-1 rounded-lg text-[10px] font-700 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
                   active
                     ? "bg-brand-primary text-white shadow-xs"
                     : "text-neutral-550 hover:text-brand-primary"
@@ -521,14 +540,12 @@ export default function KitchenDashboard() {
         </div>
       </div>
 
-      {/* ── Main Dashboard Cards Row with pagination arrows (height constrained to fill screen) ── */}
-      <div className="flex-1 p-6 flex items-stretch justify-center gap-4 min-h-0 bg-brand-bg select-none">
+      {/* ── Main Dashboard Cards Row with pagination arrows ── */}
+      <div className="flex-1 p-3 md:p-4 lg:p-6 flex items-stretch justify-center gap-2 md:gap-4 min-h-0 bg-brand-bg select-none">
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <div className="relative flex items-center justify-center">
-              {/* Outer pulsing ring */}
               <div className="absolute w-12 h-12 rounded-full border-4 border-brand-primary/10 animate-ping duration-1000" />
-              {/* Inner spinning gradient ring */}
               <div className="w-12 h-12 rounded-full border-4 border-neutral-200 border-t-brand-primary animate-spin" />
             </div>
             <div className="flex flex-col items-center gap-1">
@@ -546,18 +563,17 @@ export default function KitchenDashboard() {
             {startIndex > 0 ? (
               <button
                 onClick={() => setStartIndex((prev) => Math.max(0, prev - 1))}
-                className="self-center w-12 h-12 flex-shrink-0 bg-white hover:bg-neutral-50 text-neutral-700 hover:text-brand-primary border border-neutral-200 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
+                className="self-center w-8 h-8 md:w-12 md:h-12 flex-shrink-0 bg-white hover:bg-neutral-50 text-neutral-700 hover:text-brand-primary border border-neutral-200 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
                 title="Previous orders"
               >
-                <ChevronLeft size={24} className="stroke-[3]" />
+                <ChevronLeft size={20} className="stroke-[3]" />
               </button>
             ) : (
-              // Invisible spacer of the same size to keep the cards centered when left button is absent
-              <div className="self-center w-12 h-12 flex-shrink-0" />
+              <div className="self-center w-8 h-8 md:w-12 md:h-12 flex-shrink-0" />
             )}
 
-            {/* Grid of 4 Cards */}
-            <div className="flex-1 h-full grid grid-cols-4 gap-6 items-stretch justify-start min-h-0">
+            {/* Responsive Grid: 1 col mobile / 2 cols tablet / 4 cols desktop */}
+            <div className="flex-1 h-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 items-stretch justify-start min-h-0">
               {visibleOrders.map((order) => (
                 <div
                   key={order._id || order.orderNumber}
@@ -571,9 +587,9 @@ export default function KitchenDashboard() {
                 </div>
               ))}
 
-              {/* Empty outlines for remaining slots in the 4-column layout */}
-              {filteredOrders.length > 0 && visibleOrders.length < 4 && (
-                Array.from({ length: 4 - visibleOrders.length }).map((_, i) => (
+              {/* Empty placeholder slots */}
+              {filteredOrders.length > 0 && visibleOrders.length < visibleCardCount && (
+                Array.from({ length: visibleCardCount - visibleOrders.length }).map((_, i) => (
                   <div
                     key={`empty-${i}`}
                     className="border-2 border-dashed border-neutral-200 rounded-xl"
@@ -583,7 +599,7 @@ export default function KitchenDashboard() {
 
               {/* If no orders matching filters */}
               {filteredOrders.length === 0 && (
-                <div className="col-span-4 flex-1 flex flex-col h-full bg-white/70 rounded-xl border-2 border-dashed border-neutral-300 p-6 items-center justify-center text-center text-neutral-400">
+                <div className="col-span-1 sm:col-span-2 lg:col-span-4 flex-1 flex flex-col h-full bg-white/70 rounded-xl border-2 border-dashed border-neutral-300 p-6 items-center justify-center text-center text-neutral-400">
                   <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mb-3">
                     🍳
                   </div>
@@ -596,17 +612,16 @@ export default function KitchenDashboard() {
             </div>
 
             {/* Right Navigation Arrow */}
-            {startIndex + 4 < filteredOrders.length ? (
+            {startIndex + visibleCardCount < filteredOrders.length ? (
               <button
-                onClick={() => setStartIndex((prev) => Math.min(filteredOrders.length - 4, prev + 1))}
-                className="self-center w-12 h-12 flex-shrink-0 bg-white hover:bg-neutral-50 text-neutral-700 hover:text-brand-primary border border-neutral-200 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
+                onClick={() => setStartIndex((prev) => Math.min(filteredOrders.length - visibleCardCount, prev + 1))}
+                className="self-center w-8 h-8 md:w-12 md:h-12 flex-shrink-0 bg-white hover:bg-neutral-50 text-neutral-700 hover:text-brand-primary border border-neutral-200 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
                 title="More orders"
               >
-                <ChevronRight size={24} className="stroke-[3]" />
+                <ChevronRight size={20} className="stroke-[3]" />
               </button>
             ) : (
-              // Invisible spacer of the same size to keep the cards centered when right button is absent
-              <div className="self-center w-12 h-12 flex-shrink-0" />
+              <div className="self-center w-8 h-8 md:w-12 md:h-12 flex-shrink-0" />
             )}
           </>
         )}
