@@ -634,6 +634,14 @@ exports.silentPrintSalesSummary = async (req, res) => {
       printerName || null,
     );
 
+    if (printResult.printer === "Cloud Bypassed" && activeBranchId) {
+      await triggerPrintJob(activeBranchId, {
+        type: "sales_summary",
+        date: fileDateStr,
+        printerName: printerName || null,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: `Sales summary sent to printer successfully.`,
@@ -800,6 +808,15 @@ exports.silentPrintDepositReceipt = async (req, res) => {
       printerName || null,
     );
 
+    if (printResult.printer === "Cloud Bypassed" && activeBranchId) {
+      await triggerPrintJob(activeBranchId, {
+        type: "deposit_receipt",
+        date: fileDateStr,
+        cash, interac, visa, mastercard, giftCard, totalDeposit, comments,
+        printerName: printerName || null,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: `Deposit receipt sent to printer successfully.`,
@@ -873,6 +890,14 @@ exports.silentPrintAccountClosing = async (req, res) => {
       tempPdfPath,
       printerName || null,
     );
+
+    if (printResult.printer === "Cloud Bypassed" && activeBranchId) {
+      await triggerPrintJob(activeBranchId, {
+        type: "account_closing",
+        date: fileDateStr,
+        printerName: printerName || null,
+      });
+    }
 
     return res.status(200).json({
       success: true,
