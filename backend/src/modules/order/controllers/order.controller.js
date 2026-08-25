@@ -273,6 +273,7 @@ exports.silentPrintOrderReceipt = async (req, res) => {
       await triggerPrintJob(order.branchId, {
         orderId: order._id.toString(),
         orderNumber: order.orderNumber,
+        pdfUrl: `/api/orders/${order._id}/pdf?paperSize=${paperSize}`,
         paperSize,
         itemsFilter,
         printerName: printerName || null,
@@ -635,7 +636,12 @@ exports.silentPrintSalesSummary = async (req, res) => {
     );
 
     if (printResult.printer === "Cloud Bypassed" && activeBranchId) {
+      const pdfUrl = `/api/orders/sales-summary/pdf?date=${fileDateStr}&branchId=${activeBranchId}`;
       await triggerPrintJob(activeBranchId, {
+        orderId: "sales-summary",
+        orderNumber: `Sales Summary (${fileDateStr})`,
+        pdfUrl,
+        paperSize: "80mm",
         type: "sales_summary",
         date: fileDateStr,
         printerName: printerName || null,
@@ -809,10 +815,25 @@ exports.silentPrintDepositReceipt = async (req, res) => {
     );
 
     if (printResult.printer === "Cloud Bypassed" && activeBranchId) {
+      const depositParams = new URLSearchParams({
+        date: fileDateStr,
+        branchId: String(activeBranchId),
+        cash: String(cash || 0),
+        interac: String(interac || 0),
+        visa: String(visa || 0),
+        mastercard: String(mastercard || 0),
+        giftCard: String(giftCard || 0),
+        totalDeposit: String(totalDeposit || 0),
+        comments: comments || "",
+      });
+      const pdfUrl = `/api/orders/account-closing/deposit/pdf?${depositParams.toString()}`;
       await triggerPrintJob(activeBranchId, {
+        orderId: "deposit-receipt",
+        orderNumber: `Deposit Receipt (${fileDateStr})`,
+        pdfUrl,
+        paperSize: "80mm",
         type: "deposit_receipt",
         date: fileDateStr,
-        cash, interac, visa, mastercard, giftCard, totalDeposit, comments,
         printerName: printerName || null,
       });
     }
@@ -892,7 +913,12 @@ exports.silentPrintAccountClosing = async (req, res) => {
     );
 
     if (printResult.printer === "Cloud Bypassed" && activeBranchId) {
+      const pdfUrl = `/api/orders/account-closing/pdf?date=${fileDateStr}&branchId=${activeBranchId}`;
       await triggerPrintJob(activeBranchId, {
+        orderId: "account-closing",
+        orderNumber: `Account Closing (${fileDateStr})`,
+        pdfUrl,
+        paperSize: "80mm",
         type: "account_closing",
         date: fileDateStr,
         printerName: printerName || null,
