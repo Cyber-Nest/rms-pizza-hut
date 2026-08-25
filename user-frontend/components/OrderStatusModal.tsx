@@ -374,33 +374,15 @@ export default function OrderStatusModal({
     if (!dateStr) return "";
     try {
       const d = new Date(dateStr);
-      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-
-      const dayName = days[d.getDay()];
-      const monthName = months[d.getMonth()];
-      const dateNum = d.getDate();
-
-      let hours = d.getHours();
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      const minutes = String(d.getMinutes()).padStart(2, "0");
-
-      return `${dayName}, ${monthName} ${dateNum} at ${hours}:${minutes} ${ampm}`;
+      return d.toLocaleString("en-US", {
+        timeZone: "America/Edmonton",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
     } catch {
       return dateStr;
     }

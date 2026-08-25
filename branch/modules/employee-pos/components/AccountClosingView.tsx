@@ -21,10 +21,13 @@ import {
   Wallet,
   Edit3,
   XCircle,
+  Printer,
+  FileText,
 } from "lucide-react";
 import PosNavbar from "@/modules/employee-pos/components/PosNavbar";
 import POSSidebarDrawer from "@/modules/employee-pos/components/POSSidebarDrawer";
 import toast from "react-hot-toast";
+import { getLocalTodayStr, formatLocalTime } from "../utils/timezone";
 
 // ── Helpers ──
 const fmt = (val: number) =>
@@ -47,7 +50,7 @@ export default function AccountClosingView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab] = useState("account_closing");
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
+    getLocalTodayStr(),
   );
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -195,6 +198,66 @@ export default function AccountClosingView() {
     };
   }, [submittedDeposits, systemData]);
 
+  const [isPrintingClosing, setIsPrintingClosing] = useState(false);
+
+  const handleSilentPrintAccountClosing = async () => {
+    if (isPrintingClosing) return;
+    setIsPrintingClosing(true);
+    try {
+      const branchId = getBranchId();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      toast.loading("Printing Day-End Account Closing Receipt...", { id: "print-closing" });
+      const res = await axios.post(`${apiUrl}/orders/account-closing/print`, {
+        date: selectedDate,
+        ...(branchId ? { branchId } : {}),
+      });
+
+      if (res.data.success) {
+        toast.success("Account Closing receipt sent to printer!", { id: "print-closing" });
+      } else {
+        throw new Error(res.data.message || "Print failed");
+      }
+    } catch (err: any) {
+      toast.error("Print failed — check printer connection.", { id: "print-closing" });
+    } finally {
+      setIsPrintingClosing(false);
+    }
+  };
+
+  const handleDownloadAccountClosingPdf = () => {
+    const branchId = getBranchId();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    const downloadUrl = `${apiUrl}/orders/account-closing/pdf?date=${selectedDate}${branchId ? `&branchId=${branchId}` : ""}`;
+    window.open(downloadUrl, "_blank");
+  };
+
+  const handlePrintDeposit = async (dep: TerminalDeposit) => {
+    try {
+      const branchId = getBranchId();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      toast.loading("Printing deposit receipt...", { id: "print-deposit" });
+      const res = await axios.post(`${apiUrl}/orders/account-closing/deposit/print`, {
+        date: selectedDate,
+        branchId,
+        cash: dep.cash,
+        interac: dep.interac,
+        visa: dep.visa,
+        mastercard: dep.mastercard,
+        giftCard: dep.giftCard,
+        totalDeposit: dep.totalDeposit,
+        comments: dep.comments,
+      });
+
+      if (res.data.success) {
+        toast.success("Deposit receipt sent to printer!", { id: "print-deposit" });
+      } else {
+        throw new Error(res.data.message || "Print failed");
+      }
+    } catch (err: any) {
+      toast.error("Deposit print failed — check printer connection.", { id: "print-deposit" });
+    }
+  };
+
   // ── Add / Update Deposit Handler ──
   const handleAddOrUpdateDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,7 +276,7 @@ export default function AccountClosingView() {
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-      await axios.post(`${apiUrl}/orders/account-closing/deposit`, {
+      const depositPayload = {
         date: selectedDate,
         branchId,
         depositId: editingDepositId || undefined,
@@ -227,7 +290,9 @@ export default function AccountClosingView() {
         systemCard: systemData.card,
         systemGrandTotal: systemData.grandTotal,
         systemAccountPay: systemData.accountPay,
-      });
+      };
+
+      await axios.post(`${apiUrl}/orders/account-closing/deposit`, depositPayload);
 
       toast.success(
         editingDepositId
@@ -235,6 +300,16 @@ export default function AccountClosingView() {
           : "Deposit submitted successfully!",
         { id: toastId },
       );
+
+      // Auto-print Deposit Receipt
+      try {
+        await axios.post(`${apiUrl}/orders/account-closing/deposit/print`, {
+          ...depositPayload,
+          totalDeposit: currentFormTotal,
+        });
+      } catch (printErr) {
+        console.warn("Auto-print deposit failed:", printErr);
+      }
 
       setEditingDepositId(null);
       setEnteredCash("0");
@@ -329,6 +404,17 @@ export default function AccountClosingView() {
       });
 
       toast.success("Day Closed & Account Finalized!", { id: toastId });
+
+      // Auto-print Day-End Account Closing Receipt
+      try {
+        await axios.post(`${apiUrl}/orders/account-closing/print`, {
+          date: selectedDate,
+          branchId,
+        });
+      } catch (printErr) {
+        console.warn("Auto-print account closing failed:", printErr);
+      }
+
       fetchData(false);
     } catch (err: any) {
       toast.error(
@@ -371,18 +457,41 @@ export default function AccountClosingView() {
           )}
         </div>
 
-        {/* Date Picker */}
-        <div className="relative">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="custom-date-pill bg-white border border-neutral-300 rounded-full pl-4 pr-9 py-1 text-[11px] font-750 text-[#1E3A8A] focus:outline-none cursor-pointer shadow-sm w-[130px]"
-          />
-          <Calendar
-            size={13}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#1E3A8A] pointer-events-none"
-          />
+        <div className="flex items-center gap-3">
+          {/* Print & PDF Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSilentPrintAccountClosing}
+              disabled={isPrintingClosing}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-brand-primary hover:bg-[#b9142d] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              title="Print Day-End Account Closing Receipt"
+            >
+              <Printer size={13} />
+              <span>Print Receipt</span>
+            </button>
+
+            <button
+              onClick={handleDownloadAccountClosingPdf}
+              className="p-2 bg-neutral-800 hover:bg-black text-white rounded-xl border border-neutral-700 text-[12px] transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+              title="Download Account Closing PDF"
+            >
+              <FileText size={14} />
+            </button>
+          </div>
+
+          {/* Date Picker */}
+          <div className="relative">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="custom-date-pill bg-white border border-neutral-300 rounded-full pl-4 pr-9 py-1 text-[11px] font-750 text-[#1E3A8A] focus:outline-none cursor-pointer shadow-sm w-[130px]"
+            />
+            <Calendar
+              size={13}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#1E3A8A] pointer-events-none"
+            />
+          </div>
         </div>
       </div>
 
@@ -780,26 +889,36 @@ export default function AccountClosingView() {
                                   )}
                                 </td>
                                 <td className="py-2.5 px-3 text-center">
-                                  {!isDayClosed && (
-                                    <div className="flex items-center justify-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleStartEdit(dep)}
-                                        className="px-2 py-1 text-[10px] font-800 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-all flex items-center gap-1 cursor-pointer"
-                                        title="Edit this deposit"
-                                      >
-                                        <Edit3 size={11} /> Edit
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleVoidDeposit(depId)}
-                                        className="p-1 text-[10px] text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-all cursor-pointer"
-                                        title="Delete deposit"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </div>
-                                  )}
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePrintDeposit(dep)}
+                                      className="px-2 py-1 text-[10px] font-800 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md border border-emerald-200 transition-all flex items-center gap-1 cursor-pointer"
+                                      title="Print Deposit Receipt"
+                                    >
+                                      <Printer size={11} /> Receipt
+                                    </button>
+                                    {!isDayClosed && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleStartEdit(dep)}
+                                          className="px-2 py-1 text-[10px] font-800 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md border border-blue-200 transition-all flex items-center gap-1 cursor-pointer"
+                                          title="Edit this deposit"
+                                        >
+                                          <Edit3 size={11} /> Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleVoidDeposit(depId)}
+                                          className="p-1 text-[10px] text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-all cursor-pointer"
+                                          title="Delete deposit"
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             );

@@ -18,8 +18,9 @@ function useVisibleCardCount() {
   useEffect(() => {
     const update = () => {
       const w = window.innerWidth;
-      if (w < 640)  setCount(1);       // mobile: 1 card
-      else if (w < 1024) setCount(2);  // tablet: 2 cards
+      if (w < 640) setCount(1);       // mobile: 1 card
+      else if (w < 900) setCount(2);  // tablet portrait: 2 cards
+      else if (w < 1200) setCount(3); // tablet landscape / small laptop: 3 cards
       else setCount(4);               // desktop: 4 cards
     };
     update();
@@ -142,6 +143,117 @@ export default function KitchenDashboard() {
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
+// ── Web Audio Kitchen Notification Bell/Chime Sound ──────────
+let globalAudioCtx: AudioContext | null = null;
+
+const getAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  if (!globalAudioCtx) {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtx) {
+      globalAudioCtx = new AudioCtx();
+    }
+  }
+  if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+    globalAudioCtx.resume().catch(() => {});
+  }
+  return globalAudioCtx;
+};
+
+const playKitchenNotificationSound = () => {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const playTone = (freq: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      // Envelope: Crisp attack and smooth decay (Kitchen Order Bell)
+      gain.gain.setValueAtTime(0.01, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    // Pleasant 2-tone kitchen order bell sequence (A5 = 880Hz, D6 = 1174.66Hz)
+    playTone(880, now, 0.25);
+    playTone(1174.66, now + 0.12, 0.45);
+  } catch (err) {
+    console.warn('Audio playback error in kitchen notification:', err);
+  }
+};
+
+  const stationFilterRef = useRef(stationFilter);
+  useEffect(() => {
+    stationFilterRef.current = stationFilter;
+  }, [stationFilter]);
+
+  // Auto-unlock AudioContext on first user click/touch/keydown so background Pusher audio works 100% reliably
+  useEffect(() => {
+    const unlock = () => {
+      getAudioContext();
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('click', unlock);
+    window.addEventListener('touchstart', unlock);
+    window.addEventListener('keydown', unlock);
+    return () => {
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
+  // Check if an order is active & relevant for a specific kitchen station
+  const isOrderRelevantToStation = useCallback((orderData: any, targetStation: 'cut_station' | 'make_table' | 'wings_station') => {
+    if (!orderData || !orderData.items || !Array.isArray(orderData.items)) return true;
+    
+    const getItemKitchenLabel = (item: any): 'make_table' | 'wings_station' => {
+      if (item.kitchenLabel === 'wings_station' || item.kitchenLabel === 'chicken') return 'wings_station';
+      if (item.kitchenLabel === 'make_table' || item.kitchenLabel === 'pizza') return 'make_table';
+      
+      const lowerName = (item.name || '').toLowerCase();
+      if (
+        lowerName.includes('chicken') ||
+        lowerName.includes('wings') ||
+        lowerName.includes('strip') ||
+        lowerName.includes('side') ||
+        lowerName.includes('fries') ||
+        lowerName.includes('drink') ||
+        lowerName.includes('beverage')
+      ) {
+        return 'wings_station';
+      }
+      return 'make_table';
+    };
+
+    const hasPizza = orderData.items.some((i: any) => getItemKitchenLabel(i) === 'make_table');
+    const hasWings = orderData.items.some((i: any) => getItemKitchenLabel(i) === 'wings_station');
+
+    if (targetStation === 'make_table') {
+      return hasPizza;
+    }
+
+    if (targetStation === 'wings_station') {
+      return hasWings;
+    }
+
+    // Cut station never plays audio beep
+    return false;
+  }, []);
+
   // ── Pusher Real-time Listener ────────────────────────────────
   useEffect(() => {
     let branchId: string | undefined = undefined;
@@ -162,17 +274,23 @@ export default function KitchenDashboard() {
     // Bind to the 'new-order' event
     channel.bind('new-order', (data: any) => {
       console.log('Real-time order received via Pusher:', data);
-      // Re-fetch all active orders in the background
       fetchOrders();
-      // Show visual notification toast
-      toast.success(`New Order Received: ${data.orderNumber ? '#' + data.orderNumber : ''}`, {
-        duration: 4000,
-        position: 'top-right',
-        icon: '🍳'
-      });
+
+      const currentStation = stationFilterRef.current;
+      // Audio beep ONLY on new order creation AND only for Make Table or Wings Station (never Cut Station)
+      if (currentStation === 'make_table' || currentStation === 'wings_station') {
+        if (isOrderRelevantToStation(data, currentStation)) {
+          playKitchenNotificationSound();
+          toast.success(`New Order Received: ${data.orderNumber ? '#' + data.orderNumber : ''}`, {
+            duration: 4000,
+            position: 'top-right',
+            icon: '🍳'
+          });
+        }
+      }
     });
 
-    // Bind to the 'order-updated' event
+    // Bind to the 'order-updated' event (Status changes -> NO audio beep)
     channel.bind('order-updated', (data: any) => {
       console.log('Real-time order updated via Pusher:', data);
       
@@ -197,6 +315,7 @@ export default function KitchenDashboard() {
         }
       }
       
+      // Re-fetch order list without audio beep on status update
       fetchOrders();
     });
 
@@ -205,7 +324,7 @@ export default function KitchenDashboard() {
       channel.unbind_all();
       pusher.unsubscribe(channelName);
     };
-  }, [fetchOrders]);
+  }, [fetchOrders, isOrderRelevantToStation]);
 
   // ── LocalStorage Draft Cart Listener ──
   useEffect(() => {
@@ -425,13 +544,10 @@ export default function KitchenDashboard() {
           stationFiltered.push(o);
         }
       } else if (stationFilter === 'make_table') {
-        // Make Station: Show ONLY Pizza/Make items when makeTableStatus is pending or preparing
+        // Make Station: Show FULL order items (both Pizza & Wings/Sides) when makeTableStatus is pending or preparing
         const isMakeTableActive = mtStatus === 'pending' || mtStatus === 'preparing';
         if (isMakeTableActive && makeTableItems.length > 0) {
-          stationFiltered.push({
-            ...o,
-            items: makeTableItems,
-          });
+          stationFiltered.push(o);
         }
       } else if (stationFilter === 'wings_station') {
         // Wings Station: Show ONLY Wings/Sides items when wingsStatus is NOT completed
@@ -456,39 +572,41 @@ export default function KitchenDashboard() {
       {/* Navbar */}
       <PosNavbar onToggleSidebar={() => setIsSidebarOpen(true)} />
 
-      {/* ── Filter Controls Section ── */}
-      <div className="bg-white border-b border-neutral-200 px-3 md:px-6 py-2.5 md:py-3 flex flex-col gap-2 shadow-xs flex-shrink-0 select-none">
-        {/* Row 1: Status Pills + Station Tabs (desktop: side by side) */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+      {/* ── Filter Controls Section (1 Line on Large Screens >= 1280px, 2 Clean Lines on Laptops/Tablets < 1280px) ── */}
+      <div className="bg-white border-b border-neutral-200 px-3 md:px-5 py-2 md:py-2.5 flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 shadow-xs flex-shrink-0 select-none">
+        {/* Status Pills (Left on Large Screens, Line 1 on Medium Screens) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+          {[
+            { id: "all", label: "All", count: countAll },
+            { id: "pending", label: "Pending", count: countPending },
+            { id: "confirmed", label: "Confirmed", count: countConfirmed },
+            { id: "preparing", label: "Preparing", count: countPreparing },
+            { id: "in_oven", label: "In Oven", count: countInOven },
+            { id: "ready", label: "Ready", count: countReady },
+          ].map((statusTab) => {
+            const active = statusFilter === statusTab.id;
+            return (
+              <button
+                key={statusTab.id}
+                onClick={() => setStatusFilter(statusTab.id as any)}
+                className={`flex-shrink-0 px-3 py-1 md:px-3.5 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-750 tracking-wide uppercase transition-all duration-150 cursor-pointer border ${
+                  active
+                    ? "bg-brand-primary border-brand-primary text-white shadow-sm shadow-brand-primary/15"
+                    : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-brand-primary/30 hover:text-brand-primary hover:bg-orange-50/50"
+                }`}
+              >
+                {statusTab.label} ({statusTab.count})
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Status Pills - horizontally scrollable on tablet */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
-            {[
-              { id: "all", label: "All", count: countAll },
-              { id: "pending", label: "Pending", count: countPending },
-              { id: "confirmed", label: "Confirmed", count: countConfirmed },
-              { id: "preparing", label: "Preparing", count: countPreparing },
-              { id: "in_oven", label: "In Oven", count: countInOven },
-              { id: "ready", label: "Ready", count: countReady },
-            ].map((statusTab) => {
-              const active = statusFilter === statusTab.id;
-              return (
-                <button
-                  key={statusTab.id}
-                  onClick={() => setStatusFilter(statusTab.id as any)}
-                  className={`flex-shrink-0 px-3 py-1 md:px-3.5 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-750 tracking-wide uppercase transition-all duration-150 cursor-pointer border ${
-                    active
-                      ? "bg-brand-primary border-brand-primary text-white shadow-sm shadow-brand-primary/15"
-                      : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-brand-primary/30 hover:text-brand-primary hover:bg-orange-50/50"
-                  }`}
-                >
-                  {statusTab.label} ({statusTab.count})
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Kitchen Station Segment Bar */}
+        {/* Station Filters + Order Type Filters Container:
+            - Large Screens (xl: >= 1280px): Flows in 1 single row along with Status Pills.
+            - Medium Screens / DevTools (< 1280px): Placed together on Line 2 (Station Left, Order Type Right).
+        */}
+        <div className="flex items-center justify-between xl:justify-end gap-2 xl:gap-3 flex-wrap sm:flex-nowrap flex-shrink-0">
+          {/* Station Filters */}
           <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl border border-neutral-200 flex-shrink-0">
             {[
               { id: "cut_station", label: "Cut", labelFull: "Cut Station" },
@@ -500,43 +618,43 @@ export default function KitchenDashboard() {
                 <button
                   key={stTab.id}
                   onClick={() => setStationFilter(stTab.id as any)}
-                  className={`px-2.5 md:px-3.5 py-1 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                  className={`px-2.5 md:px-3 py-1 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer flex-shrink-0 ${
                     active
                       ? "bg-brand-primary text-white shadow-xs font-900"
                       : "text-neutral-700 hover:text-brand-primary hover:bg-white"
                   }`}
                 >
-                  <span className="hidden lg:inline">{stTab.labelFull}</span>
-                  <span className="lg:hidden">{stTab.label}</span>
+                  <span className="hidden sm:inline">{stTab.labelFull}</span>
+                  <span className="sm:hidden">{stTab.label}</span>
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Row 2: Order Type filters */}
-        <div className="flex items-center gap-1 bg-neutral-50 p-1 rounded-xl border border-neutral-200 self-start overflow-x-auto no-scrollbar">
-          {[
-            { id: "all", label: "All Types", count: countAll },
-            { id: "takeout", label: "Takeout", count: countTakeout },
-            { id: "dine-in", label: "Dine In", count: countDineIn },
-            { id: "delivery", label: "Delivery", count: countDelivery },
-          ].map((typeTab) => {
-            const active = typeFilter === typeTab.id;
-            return (
-              <button
-                key={typeTab.id}
-                onClick={() => setTypeFilter(typeTab.id as any)}
-                className={`flex-shrink-0 px-2.5 md:px-3 py-1 rounded-lg text-[10px] font-700 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
-                  active
-                    ? "bg-brand-primary text-white shadow-xs"
-                    : "text-neutral-550 hover:text-brand-primary"
-                }`}
-              >
-                {typeTab.label} ({typeTab.count})
-              </button>
-            );
-          })}
+          {/* Order Type Filters */}
+          <div className="flex items-center gap-1 bg-neutral-50 p-1 rounded-xl border border-neutral-200 flex-shrink-0">
+            {[
+              { id: "all", label: "All Types", count: countAll },
+              { id: "takeout", label: "Takeout", count: countTakeout },
+              { id: "dine-in", label: "Dine In", count: countDineIn },
+              { id: "delivery", label: "Delivery", count: countDelivery },
+            ].map((typeTab) => {
+              const active = typeFilter === typeTab.id;
+              return (
+                <button
+                  key={typeTab.id}
+                  onClick={() => setTypeFilter(typeTab.id as any)}
+                  className={`flex-shrink-0 px-2 md:px-2.5 py-1 rounded-lg text-[10px] md:text-[11px] font-700 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                    active
+                      ? "bg-brand-primary text-white shadow-xs"
+                      : "text-neutral-550 hover:text-brand-primary"
+                  }`}
+                >
+                  {typeTab.label} ({typeTab.count})
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -572,8 +690,8 @@ export default function KitchenDashboard() {
               <div className="self-center w-8 h-8 md:w-12 md:h-12 flex-shrink-0" />
             )}
 
-            {/* Responsive Grid: 1 col mobile / 2 cols tablet / 4 cols desktop */}
-            <div className="flex-1 h-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 items-stretch justify-start min-h-0">
+            {/* Responsive Grid: 1 col mobile / 2 cols small tablet / 3 cols tablet & small laptop / 4 cols large desktop */}
+            <div className="flex-1 h-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-5 items-stretch justify-start min-h-0">
               {visibleOrders.map((order) => (
                 <div
                   key={order._id || order.orderNumber}
@@ -599,7 +717,7 @@ export default function KitchenDashboard() {
 
               {/* If no orders matching filters */}
               {filteredOrders.length === 0 && (
-                <div className="col-span-1 sm:col-span-2 lg:col-span-4 flex-1 flex flex-col h-full bg-white/70 rounded-xl border-2 border-dashed border-neutral-300 p-6 items-center justify-center text-center text-neutral-400">
+                <div className="col-span-1 sm:col-span-2 md:col-span-3 xl:col-span-4 flex-1 flex flex-col h-full bg-white/70 rounded-xl border-2 border-dashed border-neutral-300 p-6 items-center justify-center text-center text-neutral-400">
                   <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mb-3">
                     🍳
                   </div>

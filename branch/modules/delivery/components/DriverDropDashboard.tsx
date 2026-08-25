@@ -33,6 +33,7 @@ import ThermalDriverCommissionSlip, {
   DriverCommissionSlipData,
 } from "./ThermalDriverCommissionSlip";
 import toast from "react-hot-toast";
+import { getLocalTodayStr } from "../../employee-pos/utils/timezone";
 
 export interface DriverInfo {
   id: string;
@@ -65,7 +66,7 @@ export default function DriverDropDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
+    getLocalTodayStr(),
   );
   const [driverSearchInput, setDriverSearchInput] = useState<string>("");
 
@@ -358,12 +359,14 @@ export default function DriverDropDashboard() {
     return {
       employeeId: selectedDriver ? selectedDriver.driverId : "0",
       employeeName: selectedDriver ? selectedDriver.name : "DRIVER",
-      reportDate: new Date(selectedDate).toLocaleDateString("en-US", {
+      reportDate: new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
+        timeZone: "America/Edmonton",
         month: "2-digit",
         day: "2-digit",
         year: "numeric",
       }),
       reportTime: new Date().toLocaleTimeString("en-US", {
+        timeZone: "America/Edmonton",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -418,12 +421,14 @@ export default function DriverDropDashboard() {
   const commissionSlipData: DriverCommissionSlipData = useMemo(() => {
     return {
       driverName: selectedDriver ? selectedDriver.name : "DRIVER",
-      reportDate: new Date(selectedDate).toLocaleDateString("en-US", {
+      reportDate: new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
+        timeZone: "America/Edmonton",
         month: "2-digit",
         day: "2-digit",
         year: "numeric",
       }),
       reportTime: new Date().toLocaleTimeString("en-US", {
+        timeZone: "America/Edmonton",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",

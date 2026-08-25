@@ -6,6 +6,7 @@ router.post("/", orderController.createOrder);
 router.get("/next-number", orderController.getNextOrderNumber);
 router.get("/sales-summary", orderController.getSalesSummary);
 router.get("/sales-summary/pdf", orderController.downloadSalesSummaryPdf);
+router.post("/sales-summary/print", orderController.silentPrintSalesSummary);
 router.get("/reports-summary", orderController.getReportsSummary);
 router.get("/export-report", orderController.exportReport);
 router.get("/item-sales-summary", orderController.getItemSalesSummary);
@@ -17,6 +18,10 @@ router.get("/customers", orderController.getUniqueCustomers);
 
 router.post("/sales-summary/deposit", orderController.saveDeposit);
 router.get("/account-closing", orderController.getAccountClosing);
+router.get("/account-closing/pdf", orderController.downloadAccountClosingPdf);
+router.post("/account-closing/print", orderController.silentPrintAccountClosing);
+router.get("/account-closing/deposit/pdf", orderController.downloadDepositReceiptPdf);
+router.post("/account-closing/deposit/print", orderController.silentPrintDepositReceipt);
 router.post("/account-closing/deposit", orderController.saveTerminalDeposit);
 router.post("/account-closing/void", orderController.voidTerminalDeposit);
 router.post(

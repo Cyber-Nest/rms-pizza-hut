@@ -308,6 +308,7 @@ export default function PromoCodesPage() {
     if (!dStr) return "Infinite / No Expiry";
     try {
       return new Date(dStr).toLocaleDateString("en-US", {
+        timeZone: "America/Edmonton",
         month: "short",
         day: "numeric",
         year: "numeric",

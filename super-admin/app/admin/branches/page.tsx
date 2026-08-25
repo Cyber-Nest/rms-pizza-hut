@@ -20,6 +20,8 @@ import {
   Radio,
   AlertCircle,
   Power,
+  Copy,
+  Check,
 } from "lucide-react";
 
 interface Branch {
@@ -63,6 +65,7 @@ export default function BranchesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [copiedId, setCopiedId] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -446,7 +449,7 @@ export default function BranchesPage() {
                 {/* Footer Controls / Go Live Button */}
                 <div className="pt-3 border-t border-neutral-100 flex items-center justify-between gap-2">
                   <span className="text-[10px] text-neutral-400 font-500">
-                    {new Date(branch.createdAt).toLocaleDateString()}
+                    {new Date(branch.createdAt).toLocaleDateString("en-US", { timeZone: "America/Edmonton", month: "2-digit", day: "2-digit", year: "numeric" })}
                   </span>
 
                   <button
@@ -509,6 +512,45 @@ export default function BranchesPage() {
               {successMsg && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-600 rounded-xl">
                   {successMsg}
+                </div>
+              )}
+
+              {/* Branch MongoDB ID (Read-only for copying) */}
+              {editingBranch && (
+                <div>
+                  <label className="block text-[11px] font-700 text-neutral-700 mb-1">
+                    Branch ID 
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      readOnly
+                      value={editingBranch._id}
+                      className="w-full bg-neutral-100 border border-neutral-200 rounded-xl pl-3 pr-24 py-2 text-xs font-mono font-700 text-neutral-600 cursor-default focus:outline-none select-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(editingBranch._id);
+                        setCopiedId(true);
+                        toast.success("Branch ID copied to clipboard!");
+                        setTimeout(() => setCopiedId(false), 2000);
+                      }}
+                      className="absolute right-1.5 px-2.5 py-1 bg-white border border-neutral-200 hover:bg-neutral-50 text-[11px] font-700 text-neutral-700 rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                    >
+                      {copiedId ? (
+                        <>
+                          <Check size={12} className="text-emerald-600" />
+                          <span className="text-emerald-600 font-800">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={12} className="text-neutral-500" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 

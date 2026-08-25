@@ -234,7 +234,7 @@ export default function CartPanel() {
           {editingOrderId ? (
             <div className="space-y-1.5 pt-0.5">
               <button
-                onClick={updateOrder}
+                onClick={handleCreate}
                 disabled={!cartItems.length || updatingOrder}
                 className={`w-full py-2.5 rounded-xl text-[11px] font-700 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
                   cartItems.length && !updatingOrder

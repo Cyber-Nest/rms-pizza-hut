@@ -1142,6 +1142,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           total: 0,
           orderNotes: "",
           updatingOrder: false,
+          checkoutOpen: false,
         });
 
         syncDraftCart([], "takeout", null, {

@@ -600,6 +600,56 @@ exports.downloadSalesSummaryPdf = async (req, res) => {
   }
 };
 
+exports.silentPrintSalesSummary = async (req, res) => {
+  let tempPdfPath = null;
+  try {
+    const { date, startDate, endDate, branchId, printerName } = req.body || {};
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const summary = await orderService.getSalesSummary({
+      date,
+      startDate,
+      endDate,
+      branchId: activeBranchId,
+    });
+
+    const fileDateStr = date || startDate || getLocalDateStr();
+    const cleanDate = fileDateStr.replace(/[^a-zA-Z0-9-]/g, "");
+    const filename = `sales-summary-${cleanDate}-${Date.now()}.pdf`;
+    tempPdfPath = silentPrintService.getTempReceiptPath(filename);
+
+    const fileStream = fs.createWriteStream(tempPdfPath);
+    await receiptPdfService.generateSalesSummaryReceiptPdf(
+      summary,
+      fileDateStr,
+      fileStream,
+      activeBranchId,
+    );
+    await new Promise((resolve, reject) => {
+      fileStream.on("finish", resolve);
+      fileStream.on("error", reject);
+    });
+
+    const printResult = await silentPrintService.printPdfSilently(
+      tempPdfPath,
+      printerName || null,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Sales summary sent to printer successfully.`,
+      printer: printResult.printer,
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  } finally {
+    if (tempPdfPath) {
+      setTimeout(() => {
+        if (fs.existsSync(tempPdfPath)) fs.unlink(tempPdfPath, () => {});
+      }, 15000);
+    }
+  }
+};
+
 exports.getNextOrderNumber = async (req, res) => {
   try {
     const { type, branchId } = req.query;
@@ -679,5 +729,163 @@ exports.finalizeAccountClosing = async (req, res) => {
     res.status(200).json({ success: true, data: closing });
   } catch (error) {
     handleError(res, error, 400);
+  }
+};
+
+exports.downloadDepositReceiptPdf = async (req, res) => {
+  try {
+    const { date, depositId, branchId, cash, interac, visa, mastercard, giftCard, totalDeposit, comments } = req.query;
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const depositData = {
+      cash: parseFloat(cash) || 0,
+      interac: parseFloat(interac) || 0,
+      visa: parseFloat(visa) || 0,
+      mastercard: parseFloat(mastercard) || 0,
+      giftCard: parseFloat(giftCard) || 0,
+      totalDeposit: parseFloat(totalDeposit) || 0,
+      comments: comments || "",
+    };
+
+    const fileDateStr = date || getLocalDateStr();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=deposit-receipt-${fileDateStr}.pdf`,
+    );
+
+    await receiptPdfService.generateDepositReceiptPdf(
+      depositData,
+      fileDateStr,
+      res,
+      activeBranchId,
+    );
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
+exports.silentPrintDepositReceipt = async (req, res) => {
+  let tempPdfPath = null;
+  try {
+    const { date, branchId, printerName, cash, interac, visa, mastercard, giftCard, totalDeposit, comments } = req.body || {};
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const depositData = {
+      cash: parseFloat(cash) || 0,
+      interac: parseFloat(interac) || 0,
+      visa: parseFloat(visa) || 0,
+      mastercard: parseFloat(mastercard) || 0,
+      giftCard: parseFloat(giftCard) || 0,
+      totalDeposit: parseFloat(totalDeposit) || 0,
+      comments: comments || "",
+    };
+
+    const fileDateStr = date || getLocalDateStr();
+    const filename = `deposit-${Date.now()}.pdf`;
+    tempPdfPath = silentPrintService.getTempReceiptPath(filename);
+
+    const fileStream = fs.createWriteStream(tempPdfPath);
+    await receiptPdfService.generateDepositReceiptPdf(
+      depositData,
+      fileDateStr,
+      fileStream,
+      activeBranchId,
+    );
+    await new Promise((resolve, reject) => {
+      fileStream.on("finish", resolve);
+      fileStream.on("error", reject);
+    });
+
+    const printResult = await silentPrintService.printPdfSilently(
+      tempPdfPath,
+      printerName || null,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Deposit receipt sent to printer successfully.`,
+      printer: printResult.printer,
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  } finally {
+    if (tempPdfPath) {
+      setTimeout(() => {
+        if (fs.existsSync(tempPdfPath)) fs.unlink(tempPdfPath, () => {});
+      }, 15000);
+    }
+  }
+};
+
+exports.downloadAccountClosingPdf = async (req, res) => {
+  try {
+    const { date, branchId } = req.query;
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const closingData = await orderService.getAccountClosingData({
+      date,
+      branchId: activeBranchId,
+    });
+
+    const fileDateStr = date || getLocalDateStr();
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=account-closing-${fileDateStr}.pdf`,
+    );
+
+    await receiptPdfService.generateAccountClosingReceiptPdf(
+      closingData,
+      fileDateStr,
+      res,
+      activeBranchId,
+    );
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
+exports.silentPrintAccountClosing = async (req, res) => {
+  let tempPdfPath = null;
+  try {
+    const { date, branchId, printerName } = req.body || {};
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const closingData = await orderService.getAccountClosingData({
+      date,
+      branchId: activeBranchId,
+    });
+
+    const fileDateStr = date || getLocalDateStr();
+    const filename = `account-closing-${Date.now()}.pdf`;
+    tempPdfPath = silentPrintService.getTempReceiptPath(filename);
+
+    const fileStream = fs.createWriteStream(tempPdfPath);
+    await receiptPdfService.generateAccountClosingReceiptPdf(
+      closingData,
+      fileDateStr,
+      fileStream,
+      activeBranchId,
+    );
+    await new Promise((resolve, reject) => {
+      fileStream.on("finish", resolve);
+      fileStream.on("error", reject);
+    });
+
+    const printResult = await silentPrintService.printPdfSilently(
+      tempPdfPath,
+      printerName || null,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Account closing receipt sent to printer successfully.`,
+      printer: printResult.printer,
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  } finally {
+    if (tempPdfPath) {
+      setTimeout(() => {
+        if (fs.existsSync(tempPdfPath)) fs.unlink(tempPdfPath, () => {});
+      }, 15000);
+    }
   }
 };

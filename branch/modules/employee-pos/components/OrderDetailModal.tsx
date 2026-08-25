@@ -88,7 +88,7 @@ export default function OrderDetailModal({
     isManagerOrAdmin &&
     isPosOrder &&
     order.status !== "cancelled" &&
-    order.paymentStatus !== "refunded";
+    order.paymentStatus === "paid";
 
   const handleExecuteRefund = async () => {
     if (refunding || !order) return;
@@ -747,15 +747,14 @@ export default function OrderDetailModal({
                     )}
 
                     {/* Cancel button */}
-                    {order.status !== "completed" &&
-                      order.status !== "cancelled" && (
-                        <button
-                          onClick={handleCancelOrder}
-                          className="w-full py-2 border border-red-200 text-red-500 text-[11.5px] font-700 rounded-full hover:bg-red-50 active:scale-[0.98] transition-all cursor-pointer uppercase tracking-wider"
-                        >
-                          Cancel Order
-                        </button>
-                      )}
+                    {order.status !== "cancelled" && (
+                      <button
+                        onClick={handleCancelOrder}
+                        className="w-full py-2 border border-red-200 text-red-500 text-[11.5px] font-700 rounded-full hover:bg-red-50 active:scale-[0.98] transition-all cursor-pointer uppercase tracking-wider"
+                      >
+                        Cancel Order
+                      </button>
+                    )}
 
                     {/* Refund button (Only for Manager / Admin on POS orders) */}
                     {canRefund && (
