@@ -82,6 +82,10 @@ export default function CheckoutModal() {
     placingOrder,
     skipLastDigits,
     setSkipLastDigits,
+    editingOrderId,
+    editingOrderNumber,
+    updateOrder,
+    updatingOrder,
   } = usePosStore();
 
   const [showOrderLater, setShowOrderLater] = useState(false);
@@ -230,23 +234,27 @@ export default function CheckoutModal() {
     }
 
     try {
-      const order = await placeOrder();
-      if (order) {
-        toast.success(
-          <div className="flex flex-col gap-0.5 text-left">
-            <span className="font-700 text-[11px] text-green-900">
-              Order Placed! 🎉
-            </span>
-            <span className="text-[10px] text-green-800">
-              {order.orderNumber} • {order.orderType.toUpperCase()}
-            </span>
-            <span className="font-600 text-[10px] text-green-950">
-              {order.paymentStatus === "unpaid"
-                ? "⏳ Payment Pending"
-                : `✓ Paid $${order.total.toFixed(2)}`}
-            </span>
-          </div>,
-        );
+      if (editingOrderId) {
+        await updateOrder();
+      } else {
+        const order = await placeOrder();
+        if (order) {
+          toast.success(
+            <div className="flex flex-col gap-0.5 text-left">
+              <span className="font-700 text-[11px] text-green-900">
+                Order Placed! 🎉
+              </span>
+              <span className="text-[10px] text-green-800">
+                {order.orderNumber} • {order.orderType.toUpperCase()}
+              </span>
+              <span className="font-600 text-[10px] text-green-950">
+                {order.paymentStatus === "unpaid"
+                  ? "⏳ Payment Pending"
+                  : `✓ Paid $${order.total.toFixed(2)}`}
+              </span>
+            </div>,
+          );
+        }
       }
     } finally {
       submittingRef.current = false;
@@ -288,9 +296,9 @@ export default function CheckoutModal() {
         {/* Modal */}
         <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-scale-up">
           {/* ── Header ── */}
-          <div className="bg-brand-primary px-5 py-3 flex items-center gap-3 flex-shrink-0">
-            <h2 className="text-[14px] font-900 text-white uppercase tracking-widest">
-              Your Order
+          <div className={`${editingOrderId ? "bg-amber-600" : "bg-brand-primary"} px-5 py-3 flex items-center gap-3 flex-shrink-0 transition-colors`}>
+            <h2 className="text-[14px] font-900 text-white uppercase tracking-widest flex items-center gap-2">
+              {editingOrderId ? `Update Order ${editingOrderNumber}` : "Your Order"}
             </h2>
 
             {/* Order type tabs */}
@@ -725,12 +733,13 @@ export default function CheckoutModal() {
                 )}
               </div>
 
-              {/* ── Place Order Button — fixed at bottom ── */}
+              {/* ── Place / Update Order Button — fixed at bottom ── */}
               <div className="flex-shrink-0 p-4 pt-0 border-t border-neutral-100">
                 <button
                   onClick={handlePlaceOrder}
                   disabled={
                     placingOrder ||
+                    updatingOrder ||
                     cartItems.length === 0 ||
                     (paymentTiming === "pay-now" &&
                       paymentType === "split" &&
@@ -738,27 +747,29 @@ export default function CheckoutModal() {
                   }
                   className={`w-full py-3 rounded-xl text-[13px] font-800 uppercase tracking-wide transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm ${
                     placingOrder ||
+                    updatingOrder ||
                     cartItems.length === 0 ||
                     (paymentTiming === "pay-now" &&
                       paymentType === "split" &&
                       splitRemaining > 0.01)
                       ? "bg-neutral-200 text-neutral-400 cursor-not-allowed shadow-none"
-                      : "bg-brand-primary hover:bg-brand-primary-hover text-white cursor-pointer shadow-brand-primary/20"
+                      : editingOrderId
+                        ? "bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-amber-600/20"
+                        : "bg-brand-primary hover:bg-brand-primary-hover text-white cursor-pointer shadow-brand-primary/20"
                   }`}
                 >
-                  {placingOrder ? (
+                  {placingOrder || updatingOrder ? (
                     <>
-                      <Loader2 size={14} className="animate-spin" /> Placing
-                      Order...
+                      <Loader2 size={14} className="animate-spin" /> {editingOrderId ? "Updating Order..." : "Placing Order..."}
                     </>
                   ) : paymentTiming === "pay-now" &&
                     paymentType === "split" &&
                     splitRemaining > 0.01 ? (
                     <>Remaining split balance: ${splitRemaining.toFixed(2)}</>
                   ) : paymentTiming === "pay-later" ? (
-                    <>Place Order (Pay Later)</>
+                    <>{editingOrderId ? "Update Order (Pay Later)" : "Place Order (Pay Later)"}</>
                   ) : (
-                    <>Place Order ${total.toFixed(2)}</>
+                    <>{editingOrderId ? `Update Order $${total.toFixed(2)}` : `Place Order $${total.toFixed(2)}`}</>
                   )}
                 </button>
               </div>
