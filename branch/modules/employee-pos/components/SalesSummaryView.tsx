@@ -108,6 +108,8 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
     }
   };
 
+  const [isPrinting, setIsPrinting] = useState(false);
+
   const handleDownloadSalesSummaryPdf = () => {
     let branchId: string | undefined = undefined;
     if (typeof window !== 'undefined') {
@@ -123,6 +125,40 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     const downloadUrl = `${apiUrl}/orders/sales-summary/pdf?date=${selectedDate}${branchId ? `&branchId=${branchId}` : ''}`;
     window.open(downloadUrl, '_blank');
+  };
+
+  const handleSilentPrintSalesSummary = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
+    try {
+      let branchId: string | undefined = undefined;
+      if (typeof window !== 'undefined') {
+        const rawBranch = localStorage.getItem('rms_branch');
+        if (rawBranch) {
+          try {
+            const b = JSON.parse(rawBranch);
+            branchId = b._id;
+          } catch (e) {}
+        }
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      toast.loading(`Printing sales summary for ${selectedDate}...`, { id: 'print-summary' });
+      const res = await axios.post(`${apiUrl}/orders/sales-summary/print`, {
+        date: selectedDate,
+        ...(branchId ? { branchId } : {}),
+      });
+
+      if (res.data.success) {
+        toast.success(`Sales summary sent to printer!`, { id: 'print-summary' });
+      } else {
+        throw new Error(res.data.message || 'Print failed');
+      }
+    } catch (err: any) {
+      toast.error('Print failed — check printer connection.', { id: 'print-summary' });
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   useEffect(() => {
@@ -191,18 +227,40 @@ export default function SalesSummaryView({ selectedDate }: SalesSummaryViewProps
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {/* Silent Thermal Print Button */}
           <button 
-            onClick={handleDownloadSalesSummaryPdf}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#e31837] hover:bg-[#b9142d] active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm"
+            onClick={handleSilentPrintSalesSummary}
+            disabled={isPrinting}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-brand-primary hover:bg-brand-primary-hover active:scale-95 text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+            title="Print Sales Summary directly to connected Thermal Printer"
           >
-            <Printer size={13} />
-            <span>Print Receipt</span>
+            {isPrinting ? (
+              <>
+                <RefreshCw size={13} className="animate-spin text-white" />
+                <span>Printing...</span>
+              </>
+            ) : (
+              <>
+                <Printer size={13} />
+                <span>Print Receipt</span>
+              </>
+            )}
           </button>
 
+          {/* PDF Download Icon Button */}
+          <button
+            onClick={handleDownloadSalesSummaryPdf}
+            className="p-2 bg-neutral-800 hover:bg-black text-white rounded-xl border border-neutral-700 text-[12px] transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center"
+            title="Download PDF Sales Summary"
+          >
+            <FileText size={14} />
+          </button>
+
+          {/* Refresh Report Button */}
           <button 
             onClick={() => fetchSummary(true)}
-            className="p-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-all cursor-pointer border border-neutral-300"
+            className="p-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-all cursor-pointer border border-neutral-300 active:scale-95 flex items-center justify-center ml-0.5"
             title="Refresh Report"
           >
             <RefreshCw size={14} />

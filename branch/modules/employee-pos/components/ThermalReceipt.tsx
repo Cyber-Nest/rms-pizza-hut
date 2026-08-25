@@ -52,18 +52,18 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
   const formattedDateStr = formatDateFormatted(order.createdAt);
 
   return (
-    <div className="thermal-receipt-container font-mono text-neutral-900 text-[11px] leading-tight select-none">
+    <div className="thermal-receipt-container font-mono text-black text-[13px] font-bold leading-tight select-none">
       {/* Printable Area - styling applied via inline / tailwind & @media print in global CSS */}
       <div className="w-[80mm] max-w-full bg-white p-4 mx-auto border border-dashed border-neutral-300 shadow-sm print:shadow-none print:border-none">
         {/* Top Branding Logo */}
         <div className="flex flex-col items-center justify-center text-center mb-2">
           <div className="flex items-center gap-1.5 justify-center mb-1">
-            <ChefHat size={22} className="text-black stroke-[2.5]" />
+            <ChefHat size={24} className="text-black stroke-[3]" />
             <div className="leading-none text-left font-sans">
-              <span className="text-sm font-900 tracking-tight block">
+              <span className="text-base font-900 tracking-tight block">
                 Pizza
               </span>
-              <span className="text-[11px] font-800 tracking-widest uppercase text-black block">
+              <span className="text-[12px] font-900 tracking-widest uppercase text-black block">
                 Hut
               </span>
             </div>
@@ -71,25 +71,25 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
         </div>
 
         {/* Store Information Box with dashed border matching photo */}
-        <div className="border border-dashed border-neutral-400 p-2 text-center text-[10px] space-y-0.5 mb-3 leading-snug">
-          <p className="font-600">{(order as any)?.branchAddress || "231 Edgefield Pl , Strathmore,"}</p>
-          <p className="font-600">{(order as any)?.branchCity || "Alberta, T1P 0E8, Canada"}</p>
-          <p className="font-600">Tel # : {(order as any)?.branchPhone || "(587) 365-5401"}</p>
-          <p className="font-600">GST# : {(order as any)?.gstNumber || (order as any)?.branchGst || "11111111"}</p>
+        <div className="border border-dashed border-neutral-400 p-2 text-center text-[11.5px] space-y-0.5 mb-3 leading-snug font-bold">
+          <p className="font-800">{(order as any)?.branchAddress || "231 Edgefield Pl , Strathmore,"}</p>
+          <p className="font-800">{(order as any)?.branchCity || "Alberta, T1P 0E8, Canada"}</p>
+          <p className="font-800">Tel # : {(order as any)?.branchPhone || "(587) 365-5401"}</p>
+          <p className="font-800">GST# : {(order as any)?.gstNumber || (order as any)?.branchGst || "11111111"}</p>
         </div>
 
         {/* Order Header */}
         <div className="text-center space-y-1 mb-3">
-          <h1 className="text-lg font-900 tracking-tight uppercase">
+          <h1 className="text-xl font-900 tracking-tight uppercase">
             Order # : {order.orderNumber.replace(/^[#A-Za-z\-]+/, "")}
           </h1>
-          <p className="text-[10px] font-600 text-neutral-800">
+          <p className="text-[11.5px] font-700 text-neutral-900">
             {formattedDateStr}
           </p>
-          <p className="text-[10.5px] font-800 tracking-wide uppercase">
+          <p className="text-[12px] font-900 tracking-wide uppercase">
             ORDER SUMMARY ({order.paymentStatus === "paid" ? "PAID" : "UNPAID"})
           </p>
-          <p className="text-[11px] font-900 tracking-widest uppercase">
+          <p className="text-[12.5px] font-900 tracking-widest uppercase">
             {(() => {
               const platformLabels: Record<string, string> = {
                 doordash: "DoorDash",
@@ -289,17 +289,9 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
           );
         })()}
 
-        {/* Footer Messages matching photo */}
-        <div className="text-center space-y-1.5 pt-1 text-[10px] text-neutral-800">
-          <p className="font-800 italic">
-            "Don't Cook Tonight, Call Pizza Hut!"
-          </p>
-          <p className="font-600">Have a nice day, Visit us again!</p>
-          <p className="text-[8.5px] leading-tight text-neutral-600 pt-1 px-1">
-            We are implementing new POS systems. If you see any discrepancy in
-            the invoice, please email the invoice to
-            accounting@chickendelight.com
-          </p>
+        {/* Footer Messages */}
+        <div className="text-center pt-2 text-[12px] text-black font-800">
+          <p className="font-800">Have a nice day, Visit us again!</p>
         </div>
       </div>
     </div>
