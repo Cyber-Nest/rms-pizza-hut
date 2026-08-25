@@ -153,9 +153,9 @@ export default function HourlySalesView({ startDate, endDate }: HourlySalesViewP
     <div className="flex-1 overflow-y-auto space-y-6 pb-10 select-none font-sans text-neutral-900 pr-1">
       {/* ── Table Segment ── */}
       <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden w-full">
-        <table className="w-full text-left text-[12px] border-collapse">
+        <table className="w-full text-left text-[12px] lg:text-[13.5px] border-collapse">
           <thead>
-            <tr className="bg-brand-dark text-white font-800 text-[10px] uppercase tracking-wider border-b border-neutral-250">
+            <tr className="bg-brand-dark text-white font-800 text-[10px] lg:text-[11.5px] uppercase tracking-wider border-b border-neutral-250">
               <th className="py-2.5 px-5 w-2/5">Time Wise Sales</th>
               <th className="py-2.5 px-4 text-center w-1/5"># Orders</th>
               <th className="py-2.5 px-5 text-right w-2/5">Total Sales</th>
@@ -172,7 +172,7 @@ export default function HourlySalesView({ startDate, endDate }: HourlySalesViewP
 
             {/* Total Footer Row matching screenshot */}
             <tr className="bg-neutral-50/50 font-850 border-t-2 border-neutral-300">
-              <td className="py-3 px-5 text-neutral-900 font-900 uppercase tracking-wide text-[11px]">
+              <td className="py-3 px-5 text-neutral-900 font-900 uppercase tracking-wide text-[11px] lg:text-[12.5px]">
                 Total
               </td>
               <td className="py-3 px-4 text-center text-neutral-900 font-900 text-[12px]">
@@ -191,7 +191,7 @@ export default function HourlySalesView({ startDate, endDate }: HourlySalesViewP
       <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-xs flex flex-col items-center">
         {/* Title and Legend matching exact layout */}
         <div className="text-center mb-4 space-y-1">
-          <h4 className="text-[12px] font-800 text-neutral-500 tracking-wide">
+          <h4 className="text-[12px] lg:text-[14px] font-800 text-neutral-500 tracking-wide">
             Hourly Sales & Order Count
           </h4>
           <div className="flex items-center justify-center gap-6 text-[10px] font-800 tracking-wider uppercase text-neutral-500 pt-1">

@@ -124,17 +124,17 @@ export default function CartPanel() {
         {/* ── Header ── */}
         <div className={`flex items-center justify-between px-3.5 py-2.5 border-b flex-shrink-0 ${editingOrderId ? "bg-amber-50/80 border-amber-200" : "border-neutral-100"}`}>
           <div>
-            <h3 className={`text-[12px] font-700 leading-tight ${editingOrderId ? "text-amber-900" : "text-neutral-900"}`}>
+            <h3 className={`text-[13px] lg:text-[15px] font-800 leading-tight ${editingOrderId ? "text-amber-900" : "text-neutral-900"}`}>
               {editingOrderId ? "Editing Order" : "Current Order"}
             </h3>
-            <span className={`text-[10px] font-700 tracking-wide mt-0.5 block ${editingOrderId ? "text-amber-800" : "text-brand-primary"}`}>
+            <span className={`text-[11px] lg:text-[13px] font-800 tracking-wide mt-0.5 block ${editingOrderId ? "text-amber-800" : "text-brand-primary"}`}>
               {orderNum}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 bg-neutral-100 px-2 py-0.5 rounded-md">
-              <Users size={9} className="text-neutral-500" />
-              <span className="text-[9px] font-700 text-neutral-600">
+              <Users size={11} className="text-neutral-500" />
+              <span className="text-[10px] lg:text-[11px] font-800 text-neutral-700">
                 {selectedCustomer ? 1 : 0}
               </span>
             </div>
@@ -143,7 +143,7 @@ export default function CartPanel() {
               className="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer"
               title={editingOrderId ? "Cancel editing" : "Clear cart"}
             >
-              <Trash2 size={14} />
+              <Trash2 size={15} />
             </button>
           </div>
         </div>
@@ -162,13 +162,13 @@ export default function CartPanel() {
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center py-8 text-center">
-              <div className="w-12 h-12 bg-neutral-50 border border-neutral-200 rounded-full flex items-center justify-center mb-2">
-                <ShoppingBag size={18} className="text-neutral-300" />
+              <div className="w-13 h-13 bg-neutral-50 border border-neutral-200 rounded-full flex items-center justify-center mb-2">
+                <ShoppingBag size={20} className="text-neutral-300" />
               </div>
-              <h4 className="text-[11px] font-600 text-neutral-600">
+              <h4 className="text-[12.5px] lg:text-[14.5px] font-800 text-neutral-700">
                 Cart is empty
               </h4>
-              <p className="text-[9px] text-neutral-400 mt-1 leading-normal">
+              <p className="text-[10px] lg:text-[12px] text-neutral-400 mt-1 leading-normal">
                 Select items from the menu
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function CartPanel() {
         </div>
 
         {/* ── Footer ── */}
-        <div className="border-t border-neutral-100 px-3.5 py-3 space-y-2.5 flex-shrink-0">
+        <div className="border-t border-neutral-100 px-3.5 py-3 space-y-3 flex-shrink-0">
           {/* Add More */}
           <button
             onClick={() =>
@@ -184,9 +184,9 @@ export default function CartPanel() {
                 .getElementById("menu-grid-section")
                 ?.scrollIntoView({ behavior: "smooth" })
             }
-            className="w-full py-1.5 rounded-lg border border-dashed border-neutral-300 text-neutral-500 hover:border-brand-primary hover:text-brand-primary text-[9.5px] font-600 flex items-center justify-center gap-1 hover:bg-orange-50/30 transition-all cursor-pointer"
+            className="w-full py-2 rounded-lg border border-dashed border-neutral-300 text-neutral-600 hover:border-brand-primary hover:text-brand-primary text-[11px] lg:text-[12px] font-700 flex items-center justify-center gap-1.5 hover:bg-orange-50/30 transition-all cursor-pointer"
           >
-            <Plus size={10} />
+            <Plus size={12} />
             Add More Items
           </button>
 
@@ -196,12 +196,12 @@ export default function CartPanel() {
               {
                 label: "Subtotal",
                 value: `$${subtotal.toFixed(2)}`,
-                cls: "text-neutral-700",
+                cls: "text-neutral-800",
               },
               {
                 label: `Tax (${activeTaxRatePercent}%)`,
                 value: `$${tax.toFixed(2)}`,
-                cls: "text-neutral-500",
+                cls: "text-neutral-600",
               },
               ...(discount > 0
                 ? [
@@ -214,17 +214,17 @@ export default function CartPanel() {
                 : []),
             ].map(({ label, value, cls }) => (
               <div key={label} className="flex items-center justify-between">
-                <span className="text-[10px] font-500 text-neutral-500">
+                <span className="text-[11px] lg:text-[13px] font-600 text-neutral-500">
                   {label}
                 </span>
-                <span className={`text-[10px] font-600 ${cls}`}>{value}</span>
+                <span className={`text-[11px] lg:text-[13px] font-700 ${cls}`}>{value}</span>
               </div>
             ))}
-            <div className="flex items-center justify-between pt-1.5 border-t border-neutral-100 mt-1">
-              <span className="text-[11px] font-700 text-neutral-900 uppercase tracking-wide">
+            <div className="flex items-center justify-between pt-2 border-t border-neutral-100 mt-1">
+              <span className="text-[12.5px] lg:text-[14.5px] font-900 text-neutral-900 uppercase tracking-wide">
                 Total
               </span>
-              <span className="text-[14px] font-800 text-brand-primary">
+              <span className="text-[16px] lg:text-[20px] font-900 text-brand-primary">
                 ${total.toFixed(2)}
               </span>
             </div>
@@ -236,13 +236,13 @@ export default function CartPanel() {
               <button
                 onClick={handleCreate}
                 disabled={!cartItems.length || updatingOrder}
-                className={`w-full py-2.5 rounded-xl text-[11px] font-700 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
+                className={`w-full py-3 rounded-xl text-[13px] lg:text-[14.5px] font-900 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
                   cartItems.length && !updatingOrder
                     ? "bg-amber-600 text-white hover:bg-amber-700 shadow-amber-600/20"
                     : "bg-neutral-100 text-neutral-400 cursor-not-allowed shadow-none"
                 }`}
               >
-                {updatingOrder ? "Updating Order..." : `Update Order ${editingOrderNumber}`} <ChevronRight size={13} strokeWidth={2.5} />
+                {updatingOrder ? "Updating Order..." : `Update Order ${editingOrderNumber}`} <ChevronRight size={15} strokeWidth={2.5} />
               </button>
               <button
                 onClick={cancelEditingOrder}
@@ -256,13 +256,13 @@ export default function CartPanel() {
               <button
                 onClick={handleCreate}
                 disabled={!cartItems.length}
-                className={`w-full py-2.5 rounded-xl text-[11px] font-700 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
+                className={`w-full py-3 lg:py-3.5 rounded-xl text-[13px] lg:text-[14.5px] font-900 flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-[0.99] cursor-pointer ${
                   cartItems.length
                     ? "bg-brand-primary text-white hover:bg-brand-primary-hover shadow-brand-primary/20"
                     : "bg-neutral-100 text-neutral-400 cursor-not-allowed shadow-none"
                 }`}
               >
-                Create Order <ChevronRight size={13} strokeWidth={2.5} />
+                Create Order <ChevronRight size={15} strokeWidth={2.5} />
               </button>
             </div>
           )}

@@ -141,22 +141,22 @@ export default function OrderCard({ order }: OrderCardProps) {
             <User size={14} />
           </div>
           <div className="flex flex-col">
-            <span className="text-[13px] font-semibold text-neutral-900 leading-tight">
+            <span className="text-[13px] lg:text-[14.5px] font-semibold text-neutral-900 leading-tight">
               {order.customerName}
             </span>
-            <span className="flex items-center gap-1 text-[11px] text-neutral-500 tabular-nums">
+            <span className="flex items-center gap-1 text-[11px] lg:text-[12.5px] text-neutral-500 tabular-nums">
               <Phone size={10} />
               {order.customerPhone}
             </span>
           </div>
         </div>
-        <span className="text-[11px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-md tracking-wide">
+        <span className="text-[11px] lg:text-[13px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-md tracking-wide">
           {order.orderNumber}
         </span>
       </div>
 
       {/* Address */}
-      <div className="flex items-start gap-1.5 text-[11.5px] text-neutral-600 mb-2 leading-snug">
+      <div className="flex items-start gap-1.5 text-[11.5px] lg:text-[13px] text-neutral-600 mb-2 leading-snug">
         <MapPin size={12} className="shrink-0 mt-0.5 text-neutral-400" />
         <span>{order.deliveryAddress}</span>
       </div>

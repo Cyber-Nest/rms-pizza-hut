@@ -70,7 +70,8 @@ const getGroupedModifiers = (modifiers: any[]): GroupedModifier[] => {
 
     if (isRootVal) {
       const existingRoot = result.find(
-        (g) => g.isRoot && g.groupId === mod.groupId && g.optionId === mod.optionId,
+        (g) =>
+          g.isRoot && g.groupId === mod.groupId && g.optionId === mod.optionId,
       );
       if (existingRoot) {
         existingRoot.quantity += 1;
@@ -97,7 +98,10 @@ const getGroupedModifiers = (modifiers: any[]): GroupedModifier[] => {
       const existingSub = result
         .slice(lastRootIndex + 1)
         .find(
-          (g) => !g.isRoot && g.groupId === mod.groupId && g.optionId === mod.optionId,
+          (g) =>
+            !g.isRoot &&
+            g.groupId === mod.groupId &&
+            g.optionId === mod.optionId,
         );
 
       if (existingSub) {
@@ -140,10 +144,19 @@ export default function KitchenDetailModal({
 
   const getModStation = (mod: any): "make_table" | "wings_station" | null => {
     if (mod.kitchenLabel) {
-      if (mod.kitchenLabel === "wings_station" || mod.kitchenLabel === "chicken") return "wings_station";
-      if (mod.kitchenLabel === "make_table" || mod.kitchenLabel === "pizza") return "make_table";
+      if (
+        mod.kitchenLabel === "wings_station" ||
+        mod.kitchenLabel === "chicken"
+      )
+        return "wings_station";
+      if (mod.kitchenLabel === "make_table" || mod.kitchenLabel === "pizza")
+        return "make_table";
     }
-    const name = ((mod.groupName || "") + " " + (mod.optionName || "")).toLowerCase();
+    const name = (
+      (mod.groupName || "") +
+      " " +
+      (mod.optionName || "")
+    ).toLowerCase();
     if (
       name.includes("wing") ||
       name.includes("side") ||
@@ -1491,7 +1504,9 @@ export default function KitchenDetailModal({
                       Order Date:
                     </span>
                     <span className="text-neutral-800 font-800 bg-neutral-100/80 px-2 py-0.5 rounded border border-neutral-200/50 font-mono">
-                      {new Date(localOrder.createdAt).toLocaleString("en-US", { timeZone: "America/Edmonton" })}
+                      {new Date(localOrder.createdAt).toLocaleString("en-US", {
+                        timeZone: "America/Edmonton",
+                      })}
                     </span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-neutral-50 last:border-b-0 items-center">
@@ -1499,7 +1514,11 @@ export default function KitchenDetailModal({
                       Order Due Date:
                     </span>
                     <span className="text-brand-primary font-900 bg-orange-50/50 px-2 py-0.5 rounded border border-orange-100/60 font-mono">
-                      {dueDate ? dueDate.toLocaleString("en-US", { timeZone: "America/Edmonton" }) : "N/A"}
+                      {dueDate
+                        ? dueDate.toLocaleString("en-US", {
+                            timeZone: "America/Edmonton",
+                          })
+                        : "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-neutral-50 last:border-b-0 items-center">
@@ -1507,7 +1526,15 @@ export default function KitchenDetailModal({
                       Report Date:
                     </span>
                     <span className="text-neutral-800 font-800 bg-neutral-100/80 px-2 py-0.5 rounded border border-neutral-200/50 font-mono">
-                      {new Date(localOrder.createdAt).toLocaleDateString("en-US", { timeZone: "America/Edmonton", month: "2-digit", day: "2-digit", year: "numeric" })}
+                      {new Date(localOrder.createdAt).toLocaleDateString(
+                        "en-US",
+                        {
+                          timeZone: "America/Edmonton",
+                          month: "2-digit",
+                          day: "2-digit",
+                          year: "numeric",
+                        },
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-neutral-50 last:border-b-0">
@@ -1633,7 +1660,9 @@ export default function KitchenDetailModal({
                       Order Created: New order placed
                     </span>
                     <span className="text-[10px] text-neutral-400 font-mono">
-                      {new Date(localOrder.createdAt).toLocaleString("en-US", { timeZone: "America/Edmonton" })}
+                      {new Date(localOrder.createdAt).toLocaleString("en-US", {
+                        timeZone: "America/Edmonton",
+                      })}
                     </span>
                   </div>
                   {localOrder.statusHistory &&
@@ -1671,9 +1700,10 @@ export default function KitchenDetailModal({
                                 </span>
                               </span>
                               <span className="text-[10px] text-neutral-400 font-mono">
-                                {new Date(
-                                  historyItem.changedAt,
-                                ).toLocaleString("en-US", { timeZone: "America/Edmonton" })}
+                                {new Date(historyItem.changedAt).toLocaleString(
+                                  "en-US",
+                                  { timeZone: "America/Edmonton" },
+                                )}
                               </span>
                             </div>
                           );

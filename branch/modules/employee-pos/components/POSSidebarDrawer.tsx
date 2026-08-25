@@ -155,7 +155,7 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
                   {activeEmployee ? `Staff Terminal (${activeEmployee.employeeId})` : 'User Account'}
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-sm font-900 text-white truncate">
+                  <span className="text-sm lg:text-[15px] font-900 text-white truncate">
                     Hi, {activeEmployee ? activeEmployee.name : 'Manager'}
                   </span>
                   {activeEmployee && (
@@ -223,7 +223,7 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={onClose}
-                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-800 tracking-wide transition-all cursor-pointer ${
+                      className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs lg:text-[13.5px] font-800 tracking-wide transition-all cursor-pointer ${
                         isActive 
                           ? 'bg-brand-primary text-white shadow-md' 
                           : item.isLogout
@@ -311,7 +311,7 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
                       }
                       onClose();
                     }}
-                    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-800 tracking-wide transition-all cursor-pointer ${
+                    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs lg:text-[13.5px] font-800 tracking-wide transition-all cursor-pointer ${
                       isActive 
                         ? 'bg-brand-primary text-white shadow-md' 
                         : item.isLogout

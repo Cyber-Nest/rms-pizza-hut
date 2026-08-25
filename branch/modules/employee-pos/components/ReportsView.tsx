@@ -165,12 +165,12 @@ export default function ReportsView() {
           
           {/* 1. SALES SUMMARY BY CATEGORY */}
           <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
-            <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
+            <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] lg:text-[13.5px] uppercase tracking-wider flex items-center justify-between">
               <span>Sales Summary By Category</span>
-              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-700">Total</span>
+              <span className="text-[10px] lg:text-[11.5px] bg-white/20 px-2 py-0.5 rounded font-700">Total</span>
             </div>
             <div className="p-0">
-              <table className="w-full text-left text-[12px]">
+              <table className="w-full text-left text-[12px] lg:text-[13.5px]">
                 <tbody className="divide-y divide-neutral-200/60 font-660">
                   {categorySales && categorySales.length > 0 ? (
                     categorySales.map((cat: any) => (
@@ -228,10 +228,10 @@ export default function ReportsView() {
 
           {/* 2. SALES RECEIVED (Left Table) */}
           <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
-            <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider">
+            <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] lg:text-[13.5px] uppercase tracking-wider">
               Sales Received
             </div>
-            <table className="w-full text-left text-[12px]">
+            <table className="w-full text-left text-[12px] lg:text-[13.5px]">
               <thead>
                 <tr className="bg-neutral-100/80 text-neutral-600 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200/80">
                   <th className="py-2 px-4">Payment Type</th>

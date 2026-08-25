@@ -138,10 +138,10 @@ export default function CheckInOutModal({
               <Clock size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-900 tracking-wide text-white">
+              <h3 className="text-sm lg:text-base font-900 tracking-wide text-white">
                 Check-In / Out Terminal
               </h3>
-              <p className="text-[11px] text-neutral-400 font-500">
+              <p className="text-[11px] lg:text-xs text-neutral-400 font-500">
                 Staff Shift & Break Portal
               </p>
             </div>
@@ -170,7 +170,7 @@ export default function CheckInOutModal({
                   placeholder="e.g. 001"
                   required
                   autoFocus
-                  className="w-full pl-9 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-mono font-800 text-neutral-900 tracking-wider focus:outline-none focus:border-brand-primary focus:bg-white transition-all uppercase"
+                  className="w-full pl-9 pr-4 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs lg:text-sm font-mono font-800 text-neutral-900 tracking-wider focus:outline-none focus:border-brand-primary focus:bg-white transition-all uppercase"
                 />
                 <UserCheck size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
               </div>

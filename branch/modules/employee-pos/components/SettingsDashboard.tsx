@@ -253,7 +253,7 @@ export default function SettingsDashboard() {
             
             <button
               onClick={() => setActiveTab('main_settings')}
-              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'main_settings'
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-neutral-500 hover:text-brand-primary'
@@ -264,7 +264,7 @@ export default function SettingsDashboard() {
 
             <button
               onClick={() => setActiveTab('tax_fees')}
-              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'tax_fees'
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-neutral-500 hover:text-brand-primary'
@@ -275,7 +275,7 @@ export default function SettingsDashboard() {
 
             <button
               onClick={() => setActiveTab('terminal_setup')}
-              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'terminal_setup'
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-neutral-500 hover:text-brand-primary'
@@ -286,7 +286,7 @@ export default function SettingsDashboard() {
 
             <button
               onClick={() => setActiveTab('till_setup')}
-              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'till_setup'
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-neutral-500 hover:text-brand-primary'
@@ -297,7 +297,7 @@ export default function SettingsDashboard() {
 
             <button
               onClick={() => setActiveTab('store_timings')}
-              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'store_timings'
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-neutral-500 hover:text-brand-primary'
@@ -308,7 +308,7 @@ export default function SettingsDashboard() {
 
             <button
               onClick={() => setActiveTab('store_timings_update')}
-              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'store_timings_update'
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-neutral-500 hover:text-brand-primary'
@@ -319,7 +319,7 @@ export default function SettingsDashboard() {
 
             <button
               onClick={() => setActiveTab('holidays')}
-              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'holidays'
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-neutral-500 hover:text-brand-primary'

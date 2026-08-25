@@ -603,7 +603,7 @@ export default function OrdersDashboard() {
       <div className="bg-white border-b border-neutral-200 px-6 py-3.5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 shadow-sm flex-shrink-0 select-none">
         {/* Left Side: Sub-tabs and Main Header Text */}
         <div className="flex items-center gap-4 flex-wrap">
-          <h1 className="text-xl font-900 text-neutral-900 tracking-tight leading-none min-w-[140px]">
+          <h1 className="text-xl lg:text-2xl font-900 text-neutral-900 tracking-tight leading-none min-w-[140px]">
             {activeSubTab === "dashboard"
               ? "Dashboard"
               : activeSubTab === "orders"
@@ -647,7 +647,7 @@ export default function OrdersDashboard() {
                   setStartDate(singleDate);
                   setEndDate(singleDate);
                 }}
-                className={`px-4 py-1.5 rounded-lg text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                className={`px-4 py-1.5 rounded-lg text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
                   activeSubTab === "dashboard"
                     ? "bg-brand-primary text-white shadow-sm"
                     : "text-neutral-500 hover:text-brand-primary"
@@ -666,7 +666,7 @@ export default function OrdersDashboard() {
                   setStartDate(singleDate);
                   setEndDate(singleDate);
                 }}
-                className={`px-4 py-1.5 rounded-lg text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                className={`px-4 py-1.5 rounded-lg text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
                   activeSubTab === "orders"
                     ? "bg-brand-primary text-white shadow-sm"
                     : "text-neutral-500 hover:text-brand-primary"
@@ -685,7 +685,7 @@ export default function OrdersDashboard() {
                   setStartDate(singleDate);
                   setEndDate(singleDate);
                 }}
-                className={`px-4 py-1.5 rounded-lg text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                className={`px-4 py-1.5 rounded-lg text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
                   activeSubTab === "sales_summary"
                     ? "bg-brand-primary text-white shadow-sm"
                     : "text-neutral-500 hover:text-brand-primary"
@@ -700,7 +700,7 @@ export default function OrdersDashboard() {
               <div className="relative">
                 <button
                   onClick={() => setIsMoreDropdownOpen(!isMoreDropdownOpen)}
-                  className={`px-4 py-1.5 rounded-lg text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer flex items-center gap-1 ${
+                  className={`px-4 py-1.5 rounded-lg text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer flex items-center gap-1 ${
                     isMoreTabActive
                       ? "bg-brand-primary text-white shadow-sm"
                       : "text-neutral-500 hover:text-brand-primary"

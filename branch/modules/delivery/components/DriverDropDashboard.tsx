@@ -65,9 +65,7 @@ interface OrderRow {
 export default function DriverDropDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<string>(
-    getLocalTodayStr(),
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalTodayStr());
   const [driverSearchInput, setDriverSearchInput] = useState<string>("");
 
   // Modals state
@@ -86,8 +84,7 @@ export default function DriverDropDashboard() {
     useState<boolean>(false);
   const [additionalCommission, setAdditionalCommission] =
     useState<string>("0.00");
-  const [additionalReason, setAdditionalReason] =
-    useState<string>("");
+  const [additionalReason, setAdditionalReason] = useState<string>("");
 
   // Live Drivers & Orders State
   const [drivers, setDrivers] = useState<DriverInfo[]>([]);
@@ -190,7 +187,10 @@ export default function DriverDropDashboard() {
               Number(settlement.terminalTips || 0).toFixed(2),
             );
             setCashSalesInput(Number(settlement.cashSales || 0).toFixed(2));
-            if (settlement.additionalCommission && Number(settlement.additionalCommission) > 0) {
+            if (
+              settlement.additionalCommission &&
+              Number(settlement.additionalCommission) > 0
+            ) {
               setHasAdditionalCommissionToggle(true);
               setAdditionalCommission(
                 Number(settlement.additionalCommission).toFixed(2),
@@ -277,12 +277,16 @@ export default function DriverDropDashboard() {
         terminalTips: s.terminalTips || 0,
         cashSales: s.cashSales || 0,
         saleDue: s.saleDue || 0,
-        driverBaseCommission: s.driverBaseCommission || ((s.totalOrders || 0) * 6),
+        driverBaseCommission:
+          s.driverBaseCommission || (s.totalOrders || 0) * 6,
         driverAdditionalCommission: s.additionalCommission || 0,
-        driverTotalCommission: s.driverTotalCommission || ((s.driverBaseCommission || 0) + (s.additionalCommission || 0)),
+        driverTotalCommission:
+          s.driverTotalCommission ||
+          (s.driverBaseCommission || 0) + (s.additionalCommission || 0),
         totalTipsEarned: s.totalTipsEarned || 0,
         totalDriverEarning: s.totalDriverEarning || 0,
-        netCashPayoutToDriver: s.netCashPayoutToDriver || s.totalDriverEarning || 0,
+        netCashPayoutToDriver:
+          s.netCashPayoutToDriver || s.totalDriverEarning || 0,
         ratePerOrder: 6.0,
       };
     }
@@ -352,19 +356,25 @@ export default function DriverDropDashboard() {
   ]);
 
   // Submit button disabled if no driver selected OR Sale Due > 0 OR driver already settled
-  const isSubmitDisabled = !selectedDriver || calculations.saleDue > 0 || Boolean(selectedDriver?.isSettled);
+  const isSubmitDisabled =
+    !selectedDriver ||
+    calculations.saleDue > 0 ||
+    Boolean(selectedDriver?.isSettled);
 
   // Data for Thermal Sales Report
   const salesReportData: DriverDropSummaryData = useMemo(() => {
     return {
       employeeId: selectedDriver ? selectedDriver.driverId : "0",
       employeeName: selectedDriver ? selectedDriver.name : "DRIVER",
-      reportDate: new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
-        timeZone: "America/Edmonton",
-        month: "2-digit",
-        day: "2-digit",
-        year: "numeric",
-      }),
+      reportDate: new Date(selectedDate + "T12:00:00").toLocaleDateString(
+        "en-US",
+        {
+          timeZone: "America/Edmonton",
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+        },
+      ),
       reportTime: new Date().toLocaleTimeString("en-US", {
         timeZone: "America/Edmonton",
         hour: "2-digit",
@@ -421,12 +431,15 @@ export default function DriverDropDashboard() {
   const commissionSlipData: DriverCommissionSlipData = useMemo(() => {
     return {
       driverName: selectedDriver ? selectedDriver.name : "DRIVER",
-      reportDate: new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", {
-        timeZone: "America/Edmonton",
-        month: "2-digit",
-        day: "2-digit",
-        year: "numeric",
-      }),
+      reportDate: new Date(selectedDate + "T12:00:00").toLocaleDateString(
+        "en-US",
+        {
+          timeZone: "America/Edmonton",
+          month: "2-digit",
+          day: "2-digit",
+          year: "numeric",
+        },
+      ),
       reportTime: new Date().toLocaleTimeString("en-US", {
         timeZone: "America/Edmonton",
         hour: "2-digit",
@@ -479,17 +492,21 @@ export default function DriverDropDashboard() {
           } catch (e) {}
         }
       }
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const slipType = activePrintModal || "both";
-      const response = await axios.get(`${apiUrl}/delivery/driver-drop/receipt/pdf`, {
-        params: {
-          driverId: selectedDriver.id,
-          date: selectedDate,
-          type: slipType,
-          ...(branchId ? { branchId } : {}),
+      const response = await axios.get(
+        `${apiUrl}/delivery/driver-drop/receipt/pdf`,
+        {
+          params: {
+            driverId: selectedDriver.id,
+            date: selectedDate,
+            type: slipType,
+            ...(branchId ? { branchId } : {}),
+          },
+          responseType: "blob",
         },
-        responseType: "blob",
-      });
+      );
 
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
@@ -497,7 +514,7 @@ export default function DriverDropDashboard() {
       link.href = url;
       link.setAttribute(
         "download",
-        `Driver_Receipt_${slipType}_${selectedDriver.driverId || selectedDriver.id.slice(-4)}_${selectedDate}.pdf`
+        `Driver_Receipt_${slipType}_${selectedDriver.driverId || selectedDriver.id.slice(-4)}_${selectedDate}.pdf`,
       );
       document.body.appendChild(link);
       link.click();
@@ -593,7 +610,7 @@ export default function DriverDropDashboard() {
       <div className="bg-white border-b border-neutral-200 px-6 py-3.5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 shadow-sm flex-shrink-0 select-none">
         {/* Left Side: Title */}
         <div className="flex items-center gap-4 flex-wrap">
-          <h1 className="text-xl font-900 text-neutral-900 tracking-tight leading-none min-w-[140px] flex items-center gap-2">
+          <h1 className="text-xl lg:text-2xl font-900 text-neutral-900 tracking-tight leading-none min-w-[140px] flex items-center gap-2">
             <span>Driver Drop</span>
           </h1>
         </div>
@@ -622,7 +639,7 @@ export default function DriverDropDashboard() {
               setActivePrintModal("sales");
             }}
             disabled={!selectedDriver}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-[12px] lg:text-[13.5px] font-800 transition-all cursor-pointer shadow-sm select-none ${
               selectedDriver
                 ? "bg-[#e31837] hover:bg-[#b9142d] active:scale-95"
                 : "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
@@ -641,7 +658,7 @@ export default function DriverDropDashboard() {
               setActivePrintModal("commission");
             }}
             disabled={!selectedDriver}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-[12px] font-800 transition-all cursor-pointer shadow-sm select-none ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-white text-[12px] lg:text-[13.5px] font-800 transition-all cursor-pointer shadow-sm select-none ${
               selectedDriver
                 ? "bg-[#e31837] hover:bg-[#b9142d] active:scale-95"
                 : "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
@@ -657,7 +674,7 @@ export default function DriverDropDashboard() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-12 select-none">
         {/* ── Section 1: Driver Selection & Profile Card ── */}
         <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
-          <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
+          <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] lg:text-[13.5px] uppercase tracking-wider flex items-center justify-between">
             <span className="flex items-center gap-2">
               <User size={15} />
               <span>Driver Selection & Profile</span>
@@ -754,7 +771,7 @@ export default function DriverDropDashboard() {
                             setDriverSearchInput("");
                           }
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-800 uppercase transition-all cursor-pointer border flex items-center gap-2 ${
+                        className={`px-3 py-1.5 rounded-lg text-[11px] lg:text-[12.5px] font-800 uppercase transition-all cursor-pointer border flex items-center gap-2 ${
                           isSelected
                             ? "bg-brand-primary text-white border-brand-primary shadow-xs"
                             : d.isSettled
@@ -792,15 +809,21 @@ export default function DriverDropDashboard() {
                         .slice(0, 2) || "DR"}
                     </div>
                     <div>
-                      <h2 className="text-sm font-900 text-neutral-900 tracking-tight flex items-center gap-2">
+                      <h2 className="text-sm lg:text-[15px] font-900 text-neutral-900 tracking-tight flex items-center gap-2">
                         {selectedDriver.name}
                         <span className="text-[10px] font-800 px-2 py-0.5 rounded bg-brand-primary-light text-brand-primary border border-brand-primary-muted uppercase">
                           ID: {selectedDriver.driverId}
                         </span>
                       </h2>
                       <p className="text-[11px] text-neutral-500 font-600 flex items-center gap-3.5 mt-0.5">
-                        <span className="flex items-center gap-1"><Phone size={12} className="text-neutral-400" /> {selectedDriver.phone}</span>
-                        <span className="flex items-center gap-1"><Car size={12} className="text-neutral-400" /> {selectedDriver.vehicle}</span>
+                        <span className="flex items-center gap-1">
+                          <Phone size={12} className="text-neutral-400" />{" "}
+                          {selectedDriver.phone}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Car size={12} className="text-neutral-400" />{" "}
+                          {selectedDriver.vehicle}
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -1207,8 +1230,8 @@ export default function DriverDropDashboard() {
                         selectedDriver?.isSettled
                           ? "bg-emerald-700 text-white cursor-not-allowed opacity-90 shadow-xs"
                           : isSubmitDisabled || isSubmitting
-                          ? "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
-                          : "bg-[#e31837] hover:bg-[#b9142d] text-white cursor-pointer active:scale-95 shadow-md"
+                            ? "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
+                            : "bg-[#e31837] hover:bg-[#b9142d] text-white cursor-pointer active:scale-95 shadow-md"
                       }`}
                     >
                       {selectedDriver?.isSettled ? (
@@ -1218,11 +1241,15 @@ export default function DriverDropDashboard() {
                         </>
                       ) : (
                         <>
-                          {isSubmitDisabled && !isSubmitting && <Lock size={13} />}
+                          {isSubmitDisabled && !isSubmitting && (
+                            <Lock size={13} />
+                          )}
                           {isSubmitting && (
                             <RefreshCw size={13} className="animate-spin" />
                           )}
-                          <span>{isSubmitting ? "SUBMITTING..." : "SUBMIT"}</span>
+                          <span>
+                            {isSubmitting ? "SUBMITTING..." : "SUBMIT"}
+                          </span>
                         </>
                       )}
                     </button>
@@ -1260,7 +1287,9 @@ export default function DriverDropDashboard() {
                       orders.map((o) => (
                         <tr key={o.id} className="hover:bg-neutral-50/70">
                           <td className="py-2.5 px-4 font-800 text-neutral-900">
-                            {o.ticketName || `${o.orderNumber || ""} ${o.customerName || ""}`.trim() || `Order #${o.id || ""}`}
+                            {o.ticketName ||
+                              `${o.orderNumber || ""} ${o.customerName || ""}`.trim() ||
+                              `Order #${o.id || ""}`}
                           </td>
                           <td className="py-2.5 px-4">
                             <p className="font-700 text-neutral-900">

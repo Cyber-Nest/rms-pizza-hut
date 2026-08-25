@@ -87,21 +87,21 @@ export default function CarriersPanel() {
                   </div>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] font-semibold text-neutral-900">{driver.name}</span>
+                      <span className="text-[13px] lg:text-[14.5px] font-semibold text-neutral-900">{driver.name}</span>
                       {driver.driverId && (
                         <span className="text-[10px] font-bold text-neutral-500 bg-neutral-100 border border-neutral-200 px-1.5 py-0.2 rounded font-mono">
                           #{driver.driverId}
                         </span>
                       )}
                     </div>
-                    <span className="flex items-center gap-1 text-[11px] text-neutral-500">
+                    <span className="flex items-center gap-1 text-[11px] lg:text-[12.5px] text-neutral-500">
                       <Phone size={10} />
                       {driver.phone}
                     </span>
                   </div>
                 </div>
                 <span
-                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide border ${
+                  className={`text-[10px] lg:text-[11.5px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide border ${
                     driver.status === 'available'
                       ? 'text-green-600 bg-green-50 border-green-200'
                       : driver.status === 'offline'
@@ -125,7 +125,7 @@ export default function CarriersPanel() {
               <div className="flex flex-col gap-1.5">
                 {driver.assignedVehicle ? (
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11.5px] font-semibold text-neutral-700 bg-neutral-100 px-2.5 py-1 rounded-md">
+                    <div className="flex items-center gap-1.5 text-[11.5px] lg:text-[13px] font-semibold text-neutral-700 bg-neutral-100 px-2.5 py-1 rounded-md">
                       <Car size={13} />
                       <span>Vehicle #{driver.assignedVehicle.number}</span>
                     </div>

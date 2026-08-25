@@ -225,7 +225,7 @@ export default function EmployeeManagementView() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by Name, ID, Phone..."
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3 py-1.5 text-[12px] text-neutral-700 placeholder-neutral-400 focus:outline-none focus:border-brand-primary hover:border-neutral-355 focus:bg-white transition-all"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3 py-1.5 text-[12px] lg:text-[13.5px] text-neutral-700 placeholder-neutral-400 focus:outline-none focus:border-brand-primary hover:border-neutral-355 focus:bg-white transition-all"
             />
           </div>
 
@@ -234,7 +234,7 @@ export default function EmployeeManagementView() {
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="appearance-none bg-neutral-50 border border-neutral-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] font-600 text-neutral-700 hover:border-neutral-355 focus:outline-none focus:border-brand-primary cursor-pointer transition-all"
+              className="appearance-none bg-neutral-50 border border-neutral-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] lg:text-[13.5px] font-600 text-neutral-700 hover:border-neutral-355 focus:outline-none focus:border-brand-primary cursor-pointer transition-all"
             >
               <option value="">All Roles</option>
               <option value="manager">Manager</option>
@@ -252,7 +252,7 @@ export default function EmployeeManagementView() {
             <select
               value={activeFilter}
               onChange={(e) => setActiveFilter(e.target.value)}
-              className="appearance-none bg-neutral-50 border border-neutral-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] font-600 text-neutral-700 hover:border-neutral-355 focus:outline-none focus:border-brand-primary cursor-pointer transition-all"
+              className="appearance-none bg-neutral-50 border border-neutral-200 rounded-lg pl-3 pr-8 py-1.5 text-[12px] lg:text-[13.5px] font-600 text-neutral-700 hover:border-neutral-355 focus:outline-none focus:border-brand-primary cursor-pointer transition-all"
             >
               <option value="true">Active Only</option>
               <option value="false">Inactive Only</option>
@@ -299,7 +299,7 @@ export default function EmployeeManagementView() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-neutral-50 border-b border-neutral-100 text-[11px] font-800 uppercase tracking-wider text-neutral-500">
+                  <tr className="bg-neutral-50 border-b border-neutral-100 text-[11px] lg:text-[12.5px] font-800 uppercase tracking-wider text-neutral-500">
                     <th className="py-3.5 px-5">EMP ID</th>
                     <th className="py-3.5 px-5">Employee Name</th>
                     <th className="py-3.5 px-5">Role</th>
@@ -309,7 +309,7 @@ export default function EmployeeManagementView() {
                     <th className="py-3.5 px-5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-neutral-100 text-xs">
+                <tbody className="divide-y divide-neutral-100 text-xs lg:text-[13px]">
                   {employees.map((emp) => {
                     const roleBadge = getRoleBadgeStyle(emp.role);
                     const RoleIcon = roleBadge.icon;
@@ -325,13 +325,13 @@ export default function EmployeeManagementView() {
 
                         {/* Name */}
                         <td className="py-4 px-5">
-                          <div className="font-800 text-neutral-900">{emp.name}</div>
-                          <div className="text-[10px] text-neutral-400 font-500">4-digit PIN set</div>
+                          <div className="font-800 text-neutral-900 text-[13px] lg:text-[14.5px]">{emp.name}</div>
+                          <div className="text-[10px] lg:text-[11.5px] text-neutral-400 font-500">4-digit PIN set</div>
                         </td>
 
                         {/* Role Badge */}
                         <td className="py-4 px-5">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-800 border ${roleBadge.bg}`}>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] lg:text-[12.5px] font-800 border ${roleBadge.bg}`}>
                             <RoleIcon size={12} />
                             <span>{roleBadge.label}</span>
                           </span>
@@ -346,7 +346,7 @@ export default function EmployeeManagementView() {
                             </div>
                           )}
                           {emp.email && (
-                            <div className="flex items-center gap-1.5 text-neutral-500 font-500 text-[11px]">
+                            <div className="flex items-center gap-1.5 text-neutral-500 font-500 text-[11px] lg:text-[12.5px]">
                               <Mail size={11} className="text-neutral-400" />
                               <span>{emp.email}</span>
                             </div>

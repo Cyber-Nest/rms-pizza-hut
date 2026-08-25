@@ -71,7 +71,7 @@ export default function OrdersTableView({
     }
 
     return (
-      <span className={`px-2.5 py-1 rounded-full text-[10px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 border ${styles}`}>
+      <span className={`px-2.5 py-1 rounded-full text-[10px] lg:text-[12px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 border ${styles}`}>
         <span className="w-1.5 h-1.5 rounded-full bg-current" />
         {label}
       </span>
@@ -82,14 +82,14 @@ export default function OrdersTableView({
   const renderPaymentStatusBadge = (status: string) => {
     if (status === 'paid') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+        <span className="px-2.5 py-1 rounded-full text-[10px] lg:text-[12px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Paid
         </span>
       );
     } else {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-red-50 text-red-750 border border-red-200/60">
+        <span className="px-2.5 py-1 rounded-full text-[10px] lg:text-[12px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-red-50 text-red-750 border border-red-200/60">
           <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
           Unpaid
         </span>
@@ -132,8 +132,8 @@ export default function OrdersTableView({
       
       {/* Table Container */}
       <div className="overflow-x-auto overflow-y-auto flex-1 min-h-[400px]">
-        <table className="w-full text-left text-[11px] text-neutral-600 font-600 border-collapse table-auto">
-          <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
+        <table className="w-full text-left text-[11px] lg:text-[13px] text-neutral-600 font-600 border-collapse table-auto">
+          <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
             <tr>
               <th className="px-5 py-3.5">Order #</th>
               <th className="px-5 py-3.5">Customer</th>
@@ -195,7 +195,7 @@ export default function OrdersTableView({
                   >
                     {/* Order Number in a nice mono tag */}
                     <td className="px-5 py-4">
-                      <span className="font-mono text-[10.5px] font-700 text-neutral-700 bg-neutral-100/80 px-2.5 py-1 rounded border border-neutral-200/80 tracking-wide shadow-3xs">
+                      <span className="font-mono text-[10.5px] lg:text-[12.5px] font-700 text-neutral-700 bg-neutral-100/80 px-2.5 py-1 rounded border border-neutral-200/80 tracking-wide shadow-3xs">
                         {shortNum}
                       </span>
                     </td>
@@ -203,11 +203,11 @@ export default function OrdersTableView({
                     {/* Customer with profile avatar initials */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-800 uppercase border ${avatarClass}`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] lg:text-[11px] font-800 uppercase border ${avatarClass}`}>
                           {customerInitials}
                         </div>
                         <div className="leading-tight">
-                          <p className={`text-[11.5px] ${
+                           <p className={`text-[11.5px] lg:text-[13px] ${
                             isSkipOrder || hasCustomer
                               ? 'font-800 text-neutral-800'
                               : 'font-700 text-neutral-400'
@@ -215,7 +215,7 @@ export default function OrdersTableView({
                             {isSkipOrder ? (order.customer?.name || 'No Digits') : (hasCustomer ? order.customer?.name : 'No Name')}
                           </p>
                           {!isSkipOrder && hasCustomer && hasPhone && (
-                            <p className="text-[9.5px] text-neutral-400 font-550 mt-0.5">
+                            <p className="text-[9.5px] lg:text-[11px] text-neutral-400 font-550 mt-0.5">
                               {order.customer?.phone}
                             </p>
                           )}
@@ -224,20 +224,20 @@ export default function OrdersTableView({
                     </td>
 
                     {/* Sub Total */}
-                    <td className="px-5 py-4 text-right font-700 text-neutral-450 text-[11.5px]">
+                    <td className="px-5 py-4 text-right font-700 text-neutral-450 text-[11.5px] lg:text-[13px]">
                       ${subTotalDisplay.toFixed(2)}
                     </td>
 
                     {/* Grand Total */}
                     <td className="px-5 py-4 text-right">
-                      <span className="font-900 text-[12.5px] text-neutral-900">
+                      <span className="font-900 text-[12.5px] lg:text-[14px] text-neutral-900">
                         ${grandTotalDisplay.toFixed(2)}
                       </span>
                     </td>
 
                     {/* Order Type */}
                     <td className="px-5 py-4">
-                      <span className={`px-2.5 py-0.5 rounded-full border text-[9.5px] font-750 uppercase tracking-wider ${typeBadgeClass}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full border text-[9.5px] lg:text-[11px] font-750 uppercase tracking-wider ${typeBadgeClass}`}>
                         {formattedType}
                       </span>
                     </td>
@@ -283,7 +283,7 @@ export default function OrdersTableView({
                     </td>
 
                     {/* Date */}
-                    <td className="px-5 py-4 text-neutral-450 font-550 text-[11px]">
+                    <td className="px-5 py-4 text-neutral-450 font-550 text-[11px] lg:text-[12.5px]">
                       {formatDate(order.createdAt)}
                     </td>
 
@@ -321,7 +321,7 @@ export default function OrdersTableView({
       </div>
       
       {/* Table Pagination Footer */}
-      <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-700 text-neutral-500 select-none">
+      <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] lg:text-[12.5px] font-700 text-neutral-500 select-none">
         
         {/* Left: Entries dropdown */}
         <div className="flex items-center gap-1.5">
@@ -343,7 +343,7 @@ export default function OrdersTableView({
         </div>
 
         {/* Middle: Count text */}
-        <div className="text-neutral-400 font-550 text-[11.5px]">
+        <div className="text-neutral-400 font-550 text-[11.5px] lg:text-[13px]">
           {totalEntriesCount > 0 ? (
             <span>Showing {startIndex + 1} to {endIndex} of {totalEntriesCount} entries</span>
           ) : (

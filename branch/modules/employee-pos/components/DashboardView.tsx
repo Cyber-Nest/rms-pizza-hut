@@ -61,7 +61,7 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
 
   if (!mounted) {
     return (
-      <div className="flex-1 flex items-center justify-center text-neutral-400 font-600 text-[12px] p-12">
+      <div className="flex-1 flex items-center justify-center text-neutral-400 font-600 text-[12px] lg:text-[14px] p-12">
         Initializing Dashboard metrics...
       </div>
     );
@@ -79,10 +79,10 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
             <ShoppingBag size={20} strokeWidth={2.5} />
           </div>
           <div>
-            <span className="text-[10px] text-neutral-450 font-800 tracking-wider uppercase block">
+            <span className="text-[10px] lg:text-[12px] text-neutral-450 font-800 tracking-wider uppercase block">
               Total Orders
             </span>
-            <span className="text-xl font-900 text-neutral-900 block leading-tight">
+            <span className="text-xl lg:text-2xl font-900 text-neutral-900 block leading-tight">
               {totalOrders}
             </span>
           </div>
@@ -94,10 +94,10 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
             <DollarSign size={20} strokeWidth={2.5} />
           </div>
           <div>
-            <span className="text-[10px] text-neutral-450 font-800 tracking-wider uppercase block">
+            <span className="text-[10px] lg:text-[12px] text-neutral-450 font-800 tracking-wider uppercase block">
               Total Earning
             </span>
-            <span className="text-xl font-900 text-neutral-900 block leading-tight">
+            <span className="text-xl lg:text-2xl font-900 text-neutral-900 block leading-tight">
               ${totalEarnings.toFixed(2)}
             </span>
           </div>
@@ -109,10 +109,10 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
             <Users size={20} strokeWidth={2.5} />
           </div>
           <div>
-            <span className="text-[10px] text-neutral-450 font-800 tracking-wider uppercase block">
+            <span className="text-[10px] lg:text-[12px] text-neutral-450 font-800 tracking-wider uppercase block">
               New Customer
             </span>
-            <span className="text-xl font-900 text-neutral-900 block leading-tight">
+            <span className="text-xl lg:text-2xl font-900 text-neutral-900 block leading-tight">
               {newCustomers}
             </span>
           </div>
@@ -124,10 +124,10 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
             <UserCheck size={20} strokeWidth={2.5} />
           </div>
           <div>
-            <span className="text-[10px] text-neutral-450 font-800 tracking-wider uppercase block">
+            <span className="text-[10px] lg:text-[12px] text-neutral-450 font-800 tracking-wider uppercase block">
               Returning Customer
             </span>
-            <span className="text-xl font-900 text-neutral-900 block leading-tight">
+            <span className="text-xl lg:text-2xl font-900 text-neutral-900 block leading-tight">
               {returningCustomers}
             </span>
           </div>
@@ -140,7 +140,7 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
         
         {/* Most Popular Days Card */}
         <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm flex flex-col">
-          <h3 className="text-neutral-850 font-850 text-[13px] uppercase tracking-wide border-b border-neutral-100 pb-3 mb-4">
+          <h3 className="text-neutral-850 font-850 text-[13px] lg:text-[15px] uppercase tracking-wide border-b border-neutral-100 pb-3 mb-4">
             Most Popular Days (Last 30 Days)
           </h3>
           <div className="h-[280px] w-full flex items-center justify-center">
@@ -167,7 +167,7 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
                     verticalAlign="middle" 
                     iconType="circle"
                     iconSize={8}
-                    wrapperStyle={{ fontSize: '11px', fontWeight: 650, color: '#44403C' }}
+                    wrapperStyle={{ fontSize: '12px', fontWeight: 650, color: '#44403C' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -179,7 +179,7 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
 
         {/* Most Popular Food Card */}
         <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm flex flex-col">
-          <h3 className="text-neutral-850 font-850 text-[13px] uppercase tracking-wide border-b border-neutral-100 pb-3 mb-4">
+          <h3 className="text-neutral-850 font-850 text-[13px] lg:text-[15px] uppercase tracking-wide border-b border-neutral-100 pb-3 mb-4">
             Most Popular Food (Last 30 Days)
           </h3>
           <div className="h-[280px] w-full flex items-center justify-center">
@@ -206,7 +206,7 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
                     verticalAlign="middle" 
                     iconType="circle"
                     iconSize={8}
-                    wrapperStyle={{ fontSize: '11px', fontWeight: 650, color: '#44403C' }}
+                    wrapperStyle={{ fontSize: '12px', fontWeight: 650, color: '#44403C' }}
                   />
                 </PieChart>
               </ResponsiveContainer>

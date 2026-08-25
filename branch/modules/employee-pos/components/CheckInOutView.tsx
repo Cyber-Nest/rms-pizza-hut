@@ -133,10 +133,10 @@ export default function CheckInOutView() {
             <Clock size={20} />
           </div>
           <div>
-            <h1 className="text-base font-900 text-neutral-900 tracking-tight">
+            <h1 className="text-base lg:text-lg font-900 text-neutral-900 tracking-tight">
               Staff Attendance & Check-In
             </h1>
-            <p className="text-xs text-neutral-500 font-500">
+            <p className="text-xs lg:text-sm text-neutral-500 font-500">
               Today's shift tracking and break records
             </p>
           </div>
@@ -225,7 +225,7 @@ export default function CheckInOutView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-neutral-50 border-b border-neutral-100 text-[11px] font-800 uppercase tracking-wider text-neutral-500">
+                <tr className="bg-neutral-50 border-b border-neutral-100 text-[11px] lg:text-[12.5px] font-800 uppercase tracking-wider text-neutral-500">
                   <th className="py-3.5 px-5">EMP ID</th>
                   <th className="py-3.5 px-5">Employee Name</th>
                   <th className="py-3.5 px-5">Role</th>
@@ -249,7 +249,7 @@ export default function CheckInOutView() {
                         </span>
                       </td>
 
-                      <td className="py-4 px-5 font-800 text-neutral-900">
+                      <td className="py-4 px-5 font-800 text-neutral-900 text-xs lg:text-sm">
                         {emp.name}
                       </td>
 

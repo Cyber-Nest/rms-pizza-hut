@@ -63,7 +63,7 @@ export default function DeliveryNavbar({
             <Truck size={20} />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-[13px] font-bold tracking-tight text-white">
+            <span className="text-[13px] lg:text-[15px] font-bold tracking-tight text-white">
               {branchName}
             </span>
             <span className="text-[10px] font-medium text-white/50 uppercase tracking-widest">
@@ -74,14 +74,14 @@ export default function DeliveryNavbar({
       </div>
 
       {/* Center */}
-      <div className="flex items-center gap-1.5 text-[13px] font-medium text-white/60 tabular-nums">
+      <div className="flex items-center gap-1.5 text-[13px] lg:text-[14.5px] font-medium text-white/60 tabular-nums">
         <Clock size={14} className="opacity-50" />
         <span>{currentTime}</span>
       </div>
 
       {/* Right */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-brand-primary rounded-lg text-xs font-semibold text-white">
+        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-brand-primary rounded-lg text-xs lg:text-[13px] font-semibold text-white">
           <Truck size={16} />
           <span>Delivery Orders</span>
           <span className="bg-white text-brand-primary text-[11px] font-extrabold rounded-md px-1.5 py-0.5 min-w-[22px] text-center">
@@ -95,7 +95,7 @@ export default function DeliveryNavbar({
         {/* Employee Profile */}
         <div className="flex items-center gap-2.5">
           <div className="text-right leading-none">
-            <p className="text-[12px] font-700 text-white">Hi, Manager</p>
+            <p className="text-[12px] lg:text-[14px] font-700 text-white">Hi, Manager</p>
             <span className="text-[10px] font-600 text-brand-primary leading-tight uppercase tracking-wide">
               Manager
             </span>

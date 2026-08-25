@@ -45,17 +45,17 @@ export default function CategoryCarousel() {
               <button
                 key={cat.id}
                 onClick={() => setCategory(cat.id)}
-                className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[82px] pt-2 pb-1.5 px-1 rounded-xl border transition-all duration-150 cursor-pointer active:scale-95 ${
+                className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[88px] lg:w-[96px] pt-2 pb-1.5 px-1 rounded-xl border transition-all duration-150 cursor-pointer active:scale-95 ${
                   active
                     ? 'bg-brand-primary border-brand-primary text-white shadow-sm shadow-brand-primary/20'
                     : 'bg-white border-neutral-200 text-black hover:border-brand-primary/40 hover:bg-orange-50/50'
                 }`}
               >
                 {/* Image / Icon */}
-                <div className="w-12 h-9 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                <div className="w-13 h-10 lg:w-14 lg:h-10.5 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                   {cat.id === 'all' ? (
                     <div className={`flex items-center justify-center w-full h-full rounded-lg ${active ? 'bg-white/20' : 'bg-orange-50'}`}>
-                      <LayoutGrid size={20} className={active ? 'text-white' : 'text-brand-primary'} strokeWidth={2} />
+                      <LayoutGrid size={22} className={active ? 'text-white' : 'text-brand-primary'} strokeWidth={2} />
                     </div>
                   ) : (
                     <img 
@@ -70,7 +70,7 @@ export default function CategoryCarousel() {
                 </div>
 
                 {/* Label */}
-                <span className={`text-[10px] font-800 uppercase tracking-tight leading-tight text-center line-clamp-2 w-full px-0.5 ${active ? 'text-white' : 'text-black'}`}>
+                <span className={`text-[11px] lg:text-[13px] font-800 uppercase tracking-tight leading-tight text-center line-clamp-2 w-full px-0.5 ${active ? 'text-white' : 'text-black'}`}>
                   {cat.name}
                 </span>
               </button>

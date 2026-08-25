@@ -115,7 +115,7 @@ export default function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpen
         
         {/* Header Strip with brand primary orange */}
         <div className="bg-brand-primary text-white px-6 py-4 flex items-center justify-between shadow-xs">
-          <h2 className="text-sm font-900 uppercase tracking-wider">EXPENSE/PAYOUT</h2>
+          <h2 className="text-sm lg:text-base font-900 uppercase tracking-wider">EXPENSE/PAYOUT</h2>
           <button 
             type="button"
             onClick={onClose}
@@ -130,7 +130,7 @@ export default function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpen
           
           {/* Category */}
           <div>
-            <label className="block text-neutral-700 font-750 mb-1.5 text-[12px]">
+            <label className="block text-neutral-700 font-750 mb-1.5 text-[12px] lg:text-[13.5px]">
               Category <span className="text-red-500">*</span>
             </label>
             <select
@@ -151,7 +151,7 @@ export default function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpen
 
           {/* Expense Type matching reference pill input container */}
           <div>
-            <label className="block text-neutral-700 font-750 mb-1.5 text-[12px]">
+            <label className="block text-neutral-700 font-750 mb-1.5 text-[12px] lg:text-[13.5px]">
               Expense Type <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-8 font-650 text-neutral-700 bg-white px-5 py-3 rounded-full border border-neutral-300 shadow-2xs">
@@ -193,7 +193,7 @@ export default function AddExpenseModal({ isOpen, onClose, onSuccess }: AddExpen
 
           {/* Payment Mode */}
           <div>
-            <label className="block text-neutral-700 font-750 mb-1.5 text-[12px]">
+            <label className="block text-neutral-700 font-750 mb-1.5 text-[12px] lg:text-[13.5px]">
               Payment Mode <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-8 font-650 text-neutral-700 bg-white px-5 py-3 rounded-full border border-neutral-300 shadow-2xs">

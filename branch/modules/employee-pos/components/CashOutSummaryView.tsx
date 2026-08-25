@@ -92,13 +92,13 @@ export default function CashOutSummaryView({
         <table className="w-full text-left text-[11px] text-neutral-600 font-600 border-collapse table-auto">
           <thead>
             {/* Brand Orange Header Bar */}
-            <tr className="bg-brand-primary text-white font-900 uppercase text-[10px] tracking-wider text-center border-b border-brand-primary-muted/20">
+            <tr className="bg-brand-primary text-white font-900 uppercase text-[10px] lg:text-[11.5px] tracking-wider text-center border-b border-brand-primary-muted/20">
               <th colSpan={5} className="py-2.5">
                 Cash Out By Employee
               </th>
             </tr>
             {/* Table Column Headers */}
-            <tr className="bg-neutral-900 text-white font-800 uppercase tracking-wider text-[10px] border-b border-neutral-800">
+            <tr className="bg-neutral-900 text-white font-800 uppercase tracking-wider text-[10px] lg:text-[11.5px] border-b border-neutral-800">
               <th className="px-5 py-3.5 text-left">Employee</th>
               <th className="px-5 py-3.5 text-center"># of Orders</th>
               <th className="px-5 py-3.5 text-center">Cash Out Date & Time</th>
@@ -114,22 +114,22 @@ export default function CashOutSummaryView({
                   className="hover:bg-neutral-50/50 transition-colors bg-white last:border-b-0"
                 >
                   {/* Employee Name */}
-                  <td className="px-5 py-4 text-left font-800 text-neutral-800 text-[11.5px]">
+                  <td className="px-5 py-4 text-left font-800 text-neutral-800 text-[11.5px] lg:text-[13.5px]">
                     {item.employeeName}
                   </td>
 
                   {/* Number of Orders */}
-                  <td className="px-5 py-4 text-center font-700 text-neutral-600">
+                  <td className="px-5 py-4 text-center font-700 text-neutral-600 text-[11px] lg:text-[13px]">
                     {item.orderCount}
                   </td>
 
                   {/* Cash Out Time */}
-                  <td className="px-5 py-4 text-center text-neutral-450 font-550">
+                  <td className="px-5 py-4 text-center text-neutral-450 font-550 text-[11px] lg:text-[12.5px]">
                     {formatDate(item.lastCashOut)}
                   </td>
 
                   {/* Total Amount */}
-                  <td className="px-5 py-4 text-right font-900 text-neutral-900 text-[12.5px]">
+                  <td className="px-5 py-4 text-right font-900 text-neutral-900 text-[12.5px] lg:text-[14.5px]">
                     ${item.totalAmount.toFixed(2)}
                   </td>
 

@@ -93,7 +93,7 @@ export default function ExpenseDashboardView() {
       <div className="bg-white border border-neutral-200/90 rounded-2xl p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
         
         {/* Show entries */}
-        <div className="flex items-center gap-2 text-xs font-700 text-neutral-600">
+        <div className="flex items-center gap-2 text-xs lg:text-[13.5px] font-700 text-neutral-600">
           <span>Show</span>
           <select 
             value={entriesPerPage}
@@ -171,9 +171,9 @@ export default function ExpenseDashboardView() {
       {/* Main Table */}
       <div className="bg-white border border-neutral-200/90 rounded-2xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs whitespace-nowrap">
+          <table className="w-full text-left text-xs lg:text-[13px] whitespace-nowrap">
             <thead>
-              <tr className="bg-neutral-900 text-white font-800 text-[10px] uppercase tracking-wider border-b border-neutral-800">
+              <tr className="bg-neutral-900 text-white font-800 text-[10px] lg:text-[11.5px] uppercase tracking-wider border-b border-neutral-800">
                 <th className="py-3 px-4">Expense Type</th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4">Description</th>
@@ -224,7 +224,7 @@ export default function ExpenseDashboardView() {
         </div>
 
         {/* Footer Pagination Bar */}
-        <div className="px-4 py-3 bg-neutral-50/80 border-t border-neutral-200/80 flex items-center justify-between text-xs text-neutral-500 font-600">
+        <div className="px-4 py-3 bg-neutral-50/80 border-t border-neutral-200/80 flex items-center justify-between text-xs lg:text-[13px] text-neutral-500 font-600">
           <span>Showing {expenses.length} to {expenses.length} of {expenses.length} entries</span>
           <div className="flex items-center gap-1">
             <button disabled className="px-3 py-1 rounded-lg border border-neutral-200 bg-white opacity-50 cursor-not-allowed">Previous</button>
