@@ -176,10 +176,10 @@ export default function KitchenOrderCard({
       {/* ── Ticket Header ── */}
       <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between bg-white">
         <div className="flex flex-col gap-0.5">
-          <span className="font-800 text-[13px] text-neutral-800 tracking-wide">
+          <span className="font-900 text-[14px] lg:text-[15.5px] text-neutral-850 tracking-wide">
             {order.orderNumber}
           </span>
-          <span className="text-[10px] text-neutral-400 font-500">
+          <span className="text-[11px] lg:text-[12px] text-neutral-500 font-600">
             {new Date(order.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -187,7 +187,7 @@ export default function KitchenOrderCard({
           </span>
         </div>
         <span
-          className={`px-2 py-0.5 rounded-full border text-[9px] font-700 uppercase tracking-wider ${typeBadgeClass}`}
+          className={`px-2.5 py-0.5 rounded-full border text-[10px] lg:text-[11px] font-800 uppercase tracking-wider ${typeBadgeClass}`}
         >
           {formattedType}
         </span>
@@ -199,17 +199,17 @@ export default function KitchenOrderCard({
           {order.items.map((item, idx) => (
             <div
               key={idx}
-              className="text-[12px] pb-2 border-b border-neutral-100 last:border-b-0 last:pb-0"
+              className="text-[13px] lg:text-[14px] pb-2 border-b border-neutral-100 last:border-b-0 last:pb-0"
             >
               {/* Item Title & Qty */}
               <div className="flex items-start gap-2">
-                <span className="w-6 h-6 flex-shrink-0 rounded-full bg-orange-50 border border-orange-100 text-[12px] font-800 text-brand-primary flex items-center justify-center">
+                <span className="w-7 h-7 flex-shrink-0 rounded-full bg-orange-50 border border-orange-100 text-[13px] font-900 text-brand-primary flex items-center justify-center">
                   {item.quantity}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <p className="text-neutral-800 font-700 text-[15px] leading-tight truncate">
+                      <p className="text-neutral-900 font-800 text-[16px] lg:text-[17px] leading-tight truncate">
                         {item.name}
                       </p>
                       {(() => {

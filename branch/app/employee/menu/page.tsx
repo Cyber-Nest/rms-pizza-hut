@@ -201,7 +201,7 @@ export default function BranchMenuPage() {
             <UtensilsCrossed size={16} />
           </div>
           <div>
-            <h1 className="text-xl font-900 text-neutral-900 tracking-tight leading-none">
+            <h1 className="text-xl lg:text-2xl font-900 text-neutral-900 tracking-tight leading-none">
               Branch Menu Items
             </h1>
           </div>
@@ -220,7 +220,7 @@ export default function BranchMenuPage() {
                 setCurrentPage(1);
               }}
               placeholder="Search product, category, or ID"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-8 py-1.5 text-[12px] text-neutral-700 placeholder-neutral-400 focus:outline-none focus:border-brand-primary hover:border-neutral-300 focus:bg-white transition-all"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-8 py-1.5 text-[12px] lg:text-[13.5px] text-neutral-700 placeholder-neutral-400 focus:outline-none focus:border-brand-primary hover:border-neutral-300 focus:bg-white transition-all"
             />
             {searchQuery && (
               <button
@@ -240,7 +240,7 @@ export default function BranchMenuPage() {
                 setStatusFilter('all');
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 border rounded-full text-[10px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
+              className={`px-3 py-1.5 border rounded-full text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
                 statusFilter === 'all'
                   ? 'bg-neutral-800 text-white border-neutral-800 shadow-sm ring-2 ring-neutral-400/30'
                   : 'bg-neutral-50 text-neutral-600 border-neutral-200 hover:bg-neutral-100 hover:border-neutral-300'
@@ -254,7 +254,7 @@ export default function BranchMenuPage() {
                 setStatusFilter('active');
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 border rounded-full text-[10px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
+              className={`px-3 py-1.5 border rounded-full text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
                 statusFilter === 'active'
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-400/30'
                   : 'bg-emerald-50 text-emerald-700 border-emerald-200/60 hover:bg-emerald-100 hover:border-emerald-300'
@@ -268,7 +268,7 @@ export default function BranchMenuPage() {
                 setStatusFilter('outOfStock');
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 border rounded-full text-[10px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
+              className={`px-3 py-1.5 border rounded-full text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
                 statusFilter === 'outOfStock'
                   ? 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-400/30'
                   : 'bg-amber-50 text-amber-700 border-amber-200/60 hover:bg-amber-100 hover:border-amber-300'
@@ -282,7 +282,7 @@ export default function BranchMenuPage() {
                 setStatusFilter('inactive');
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 border rounded-full text-[10px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
+              className={`px-3 py-1.5 border rounded-full text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95 ${
                 statusFilter === 'inactive'
                   ? 'bg-red-600 text-white border-red-600 shadow-sm ring-2 ring-red-400/30'
                   : 'bg-red-50 text-red-750 border-red-200/60 hover:bg-red-100 hover:border-red-300'
@@ -336,8 +336,8 @@ export default function BranchMenuPage() {
             <>
               {/* Table Container */}
               <div className="overflow-x-auto overflow-y-auto flex-1 min-h-[400px]">
-                <table className="w-full text-left text-[11px] text-neutral-600 font-600 border-collapse table-auto">
-                  <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
+                <table className="w-full text-left text-[11px] lg:text-[13px] text-neutral-600 font-600 border-collapse table-auto">
+                  <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
                     <tr>
                       <th className="px-5 py-3.5 w-16 text-center">Image</th>
                       <th className="px-5 py-3.5">Item Name</th>
@@ -376,8 +376,8 @@ export default function BranchMenuPage() {
                         {/* Name & Type */}
                         <td className="px-5 py-3.5">
                           <div className="flex flex-col">
-                            <span className="font-800 text-neutral-800 text-[11.5px] uppercase">{product.name}</span>
-                            <span className="text-[7.5px] font-800 uppercase text-neutral-400 mt-0.5 tracking-wider">
+                            <span className="font-800 text-neutral-800 text-[11.5px] lg:text-[13.5px] uppercase">{product.name}</span>
+                            <span className="text-[7.5px] lg:text-[9px] font-800 uppercase text-neutral-400 mt-0.5 tracking-wider">
                               {product.itemType === 'combo' ? 'Combo Meal' : 'Simple Item'}
                             </span>
                           </div>
@@ -385,20 +385,20 @@ export default function BranchMenuPage() {
 
                         {/* Product ID (Clean matching style) */}
                         <td className="px-5 py-3.5 text-center">
-                          <span className="font-mono text-[10px] font-700 text-neutral-800 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
+                          <span className="font-mono text-[10px] lg:text-[11.5px] font-700 text-neutral-800 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
                             {product.productId || 'M----'}
                           </span>
                         </td>
 
                         {/* Category (Soft color style matching project) */}
                         <td className="px-5 py-3.5">
-                          <span className="inline-flex px-2.5 py-0.5 rounded-full border text-[9.5px] font-750 uppercase tracking-wider bg-orange-50 text-brand-primary border-orange-100/70">
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full border text-[9.5px] lg:text-[11px] font-750 uppercase tracking-wider bg-orange-50 text-brand-primary border-orange-100/70">
                             {product.categoryId?.name || 'Uncategorized'}
                           </span>
                         </td>
 
                         {/* Price */}
-                        <td className="px-5 py-3.5 text-right font-750 text-neutral-500 text-[11.5px]">
+                        <td className="px-5 py-3.5 text-right font-750 text-neutral-500 text-[11.5px] lg:text-[13.5px]">
                           ${product.price.toFixed(2)}
                         </td>
 
@@ -462,7 +462,7 @@ export default function BranchMenuPage() {
               </div>
 
               {/* Pagination Footer */}
-              <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-700 text-neutral-500 select-none">
+              <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] lg:text-[12.5px] font-700 text-neutral-500 select-none">
                 {/* Left Entries dropdown */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-neutral-450 font-550">Show</span>

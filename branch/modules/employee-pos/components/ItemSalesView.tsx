@@ -116,10 +116,10 @@ export default function ItemSalesView({ startDate, endDate }: ItemSalesViewProps
     <div className="flex-1 overflow-y-auto space-y-6 pb-10 select-none font-sans text-neutral-900 pr-1">
       {/* Table Container Card */}
       <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden w-full">
-        <table className="w-full text-left text-[12px] border-collapse">
+        <table className="w-full text-left text-[12px] lg:text-[13.5px] border-collapse">
           {/* Main Table Head */}
           <thead>
-            <tr className="bg-neutral-100 text-neutral-600 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200">
+            <tr className="bg-neutral-100 text-neutral-600 font-800 text-[10px] lg:text-[11.5px] uppercase tracking-wider border-b border-neutral-200">
               <th className="py-2.5 px-5 w-2/5">Item Sales</th>
               <th className="py-2.5 px-4 text-center w-1/5">Product ID</th>
               <th className="py-2.5 px-4 text-center w-1/10"># Sold</th>
@@ -134,7 +134,7 @@ export default function ItemSalesView({ startDate, endDate }: ItemSalesViewProps
               <React.Fragment key={catIdx}>
                 {/* Category Header Banner */}
                 <tr className="bg-brand-primary text-white">
-                  <td colSpan={5} className="py-2.5 px-5 font-950 text-[11px] uppercase tracking-wider">
+                  <td colSpan={5} className="py-2.5 px-5 font-950 text-[11px] lg:text-[12.5px] uppercase tracking-wider">
                     {category.categoryName}
                   </td>
                 </tr>

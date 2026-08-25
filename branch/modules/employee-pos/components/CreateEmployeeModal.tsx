@@ -264,7 +264,7 @@ export default function CreateEmployeeModal({
               <User size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-900 tracking-wide text-white">
+              <h3 className="text-sm lg:text-base font-900 tracking-wide text-white">
                 {employeeToEdit ? "Edit Employee Account" : "Create New Employee Account"}
               </h3>
               <p className="text-[11px] text-neutral-400 font-500">
@@ -306,7 +306,7 @@ export default function CreateEmployeeModal({
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. John Smith"
                     required
-                    className="w-full pl-9 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-600 text-neutral-800 focus:outline-none focus:border-brand-primary focus:bg-white transition-all"
+                    className="w-full pl-9 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs lg:text-sm font-600 text-neutral-800 focus:outline-none focus:border-brand-primary focus:bg-white transition-all"
                   />
                   <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                 </div>

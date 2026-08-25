@@ -143,8 +143,8 @@ export default function RefundOrdersView({
       
       {/* Table Container */}
       <div className="overflow-x-auto overflow-y-auto flex-1">
-        <table className="w-full text-left text-[11px] text-neutral-600 font-600 border-collapse table-auto">
-          <thead className="bg-neutral-900 text-white border-b border-neutral-200 text-[10px] font-800 uppercase tracking-wider sticky top-0 z-10">
+        <table className="w-full text-left text-[11px] lg:text-[13px] text-neutral-600 font-600 border-collapse table-auto">
+          <thead className="bg-neutral-900 text-white border-b border-neutral-200 text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider sticky top-0 z-10">
             <tr>
               <th className="px-5 py-3.5">Order #</th>
               <th className="px-5 py-3.5">Customer Name</th>
@@ -230,13 +230,13 @@ export default function RefundOrdersView({
                     </td>
 
                     {/* Sub Total */}
-                    <td className="px-5 py-4 text-right font-750 text-neutral-500 text-[11.5px]">
+                    <td className="px-5 py-4 text-right font-750 text-neutral-500 text-[11.5px] lg:text-[13.5px]">
                       ${order.subtotal.toFixed(2)}
                     </td>
 
                     {/* Grand Total */}
                     <td className="px-5 py-4 text-right">
-                      <span className="font-900 text-[12.5px] text-neutral-900">
+                      <span className="font-900 text-[12.5px] lg:text-[14.5px] text-neutral-900">
                         ${order.total.toFixed(2)}
                       </span>
                     </td>
@@ -320,7 +320,7 @@ export default function RefundOrdersView({
 
       {/* Pagination Footer */}
       {totalEntries > 0 && (
-        <div className="bg-white border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-neutral-500 font-600 select-none">
+        <div className="bg-white border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] lg:text-[12.5px] text-neutral-500 font-600 select-none">
           
           <div className="flex items-center gap-2">
             <span>Show</span>

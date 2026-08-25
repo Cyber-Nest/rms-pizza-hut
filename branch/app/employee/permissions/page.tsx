@@ -445,10 +445,10 @@ export default function PermissionsPage() {
               <ShieldCheck size={18} className="text-brand-primary" />
             </div>
             <div>
-              <h1 className="text-sm font-900 text-neutral-900 leading-tight">
+              <h1 className="text-sm lg:text-base font-900 text-neutral-900 leading-tight">
                 Employee Permissions Matrix
               </h1>
-              <p className="text-[10.5px] text-neutral-500 font-500">
+              <p className="text-[10.5px] lg:text-xs text-neutral-500 font-500">
                 Manage tab and feature access control per staff member
               </p>
             </div>
@@ -498,7 +498,7 @@ export default function PermissionsPage() {
               <table className="w-full text-left border-collapse min-w-[1300px] relative">
                 <thead>
                   {/* Category Headers Row */}
-                  <tr className="bg-neutral-100/90 border-b border-neutral-200 text-[10px] font-900 uppercase tracking-wider text-neutral-600 select-none sticky top-0 z-30">
+                  <tr className="bg-neutral-100/90 border-b border-neutral-200 text-[10px] lg:text-[11.5px] font-900 uppercase tracking-wider text-neutral-600 select-none sticky top-0 z-30">
                     <th className="px-4 py-2 sticky left-0 top-0 z-40 bg-neutral-100 border-r border-neutral-200/80 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] min-w-[210px]">
                       Staff Details
                     </th>
@@ -542,7 +542,7 @@ export default function PermissionsPage() {
                         className="px-2 py-2 text-center border-r border-neutral-200/60 font-750 hover:bg-neutral-100 transition-colors"
                         title={`${perm.label}: ${perm.description}`}
                       >
-                        <span className="text-[10px] text-neutral-800 whitespace-nowrap">
+                        <span className="text-[10px] lg:text-[11.5px] text-neutral-800 whitespace-nowrap">
                           {perm.shortLabel}
                         </span>
                       </th>
@@ -593,7 +593,7 @@ export default function PermissionsPage() {
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-800 text-neutral-900 text-xs truncate max-w-[100px]">
+                                <span className="font-800 text-neutral-900 text-xs lg:text-sm truncate max-w-[100px]">
                                   {emp.name}
                                 </span>
                                 <span

@@ -589,7 +589,7 @@ const playKitchenNotificationSound = () => {
               <button
                 key={statusTab.id}
                 onClick={() => setStatusFilter(statusTab.id as any)}
-                className={`flex-shrink-0 px-3 py-1 md:px-3.5 md:py-1.5 rounded-full text-[10px] md:text-[11px] font-750 tracking-wide uppercase transition-all duration-150 cursor-pointer border ${
+                className={`flex-shrink-0 px-3 py-1 md:px-3.5 md:py-1.5 rounded-full text-[10px] md:text-[11px] lg:text-[12.5px] font-750 tracking-wide uppercase transition-all duration-150 cursor-pointer border ${
                   active
                     ? "bg-brand-primary border-brand-primary text-white shadow-sm shadow-brand-primary/15"
                     : "bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-brand-primary/30 hover:text-brand-primary hover:bg-orange-50/50"
@@ -618,7 +618,7 @@ const playKitchenNotificationSound = () => {
                 <button
                   key={stTab.id}
                   onClick={() => setStationFilter(stTab.id as any)}
-                  className={`px-2.5 md:px-3 py-1 rounded-lg text-[10px] md:text-[11px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer flex-shrink-0 ${
+                  className={`px-2.5 md:px-3 py-1 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer flex-shrink-0 ${
                     active
                       ? "bg-brand-primary text-white shadow-xs font-900"
                       : "text-neutral-700 hover:text-brand-primary hover:bg-white"
@@ -644,7 +644,7 @@ const playKitchenNotificationSound = () => {
                 <button
                   key={typeTab.id}
                   onClick={() => setTypeFilter(typeTab.id as any)}
-                  className={`flex-shrink-0 px-2 md:px-2.5 py-1 rounded-lg text-[10px] md:text-[11px] font-700 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+                  className={`flex-shrink-0 px-2 md:px-2.5 py-1 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-700 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
                     active
                       ? "bg-brand-primary text-white shadow-xs"
                       : "text-neutral-550 hover:text-brand-primary"

@@ -70,8 +70,8 @@ export default function MenuGrid({ onOpenModifiers }: MenuGridProps) {
       {/* Header */}
       <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200 flex-shrink-0">
         <div>
-          <h2 className="text-[13px] font-700 text-neutral-900">{catName}</h2>
-          <p className="text-[10px] text-neutral-400 font-500 mt-0.5">
+          <h2 className="text-[14px] lg:text-[15.5px] font-900 text-neutral-900">{catName}</h2>
+          <p className="text-[11px] lg:text-[12px] text-neutral-500 font-600 mt-0.5">
             {items.length} item{items.length !== 1 ? "s" : ""} available
           </p>
         </div>

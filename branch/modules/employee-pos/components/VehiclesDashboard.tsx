@@ -238,7 +238,7 @@ export default function VehiclesDashboard() {
       {/* Control Bar */}
       <div className="bg-white border-b border-neutral-200 px-6 py-3.5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 shadow-sm flex-shrink-0 select-none">
         <div className="flex items-center gap-4 flex-wrap">
-          <h1 className="text-xl font-900 text-neutral-900 tracking-tight leading-none min-w-[140px] flex items-center gap-2">
+          <h1 className="text-xl lg:text-2xl font-900 text-neutral-900 tracking-tight leading-none min-w-[140px] flex items-center gap-2">
             <span>Vehicle Number</span>
             <span className="bg-neutral-100 border border-neutral-200 text-neutral-600 text-[11px] font-extrabold rounded-md px-1.5 py-0.5 min-w-[22px] text-center">
               {vehicles.length}
@@ -259,7 +259,7 @@ export default function VehiclesDashboard() {
                 setCurrentPage(1);
               }}
               placeholder="Search By Number or Label"
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3 py-1.5 text-[12px] text-neutral-700 placeholder-neutral-400 focus:outline-none focus:border-brand-primary hover:border-neutral-355 focus:bg-white transition-all"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-3 py-1.5 text-[12px] lg:text-[13.5px] text-neutral-700 placeholder-neutral-400 focus:outline-none focus:border-brand-primary hover:border-neutral-355 focus:bg-white transition-all"
             />
             {searchKeyword && (
               <button
@@ -277,7 +277,7 @@ export default function VehiclesDashboard() {
               setEditingVehicle(null);
               setIsModalOpen(true);
             }}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[12px] font-800 uppercase rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-[12px] lg:text-[13.5px] font-800 uppercase rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm"
           >
             <Plus size={14} />
             <span>Add Vehicle</span>
@@ -297,8 +297,8 @@ export default function VehiclesDashboard() {
             
             {/* Table Container */}
             <div className="overflow-x-auto overflow-y-auto flex-1 min-h-[400px]">
-              <table className="w-full text-left text-[11px] text-neutral-600 font-600 border-collapse table-auto">
-                <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
+              <table className="w-full text-left text-[11px] lg:text-[13px] text-neutral-600 font-600 border-collapse table-auto">
+                <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
                   <tr>
                     <th className="px-5 py-3.5">Vehicle Label</th>
                     <th className="px-5 py-3.5">Vehicle Number</th>
@@ -324,25 +324,25 @@ export default function VehiclesDashboard() {
                               <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-800 uppercase border bg-brand-primary-light border-brand-primary-muted text-brand-primary">
                                 <Car size={13} />
                               </div>
-                              <span className="font-800 text-neutral-800 text-[11.5px] uppercase">
+                              <span className="font-800 text-neutral-800 text-[11.5px] lg:text-[13.5px] uppercase">
                                 {vehicle.label}
                               </span>
                             </div>
                           </td>
 
                           {/* Number */}
-                          <td className="px-5 py-4 font-800 text-neutral-800 text-[11.5px] uppercase tracking-wider font-mono">
+                          <td className="px-5 py-4 font-800 text-neutral-800 text-[11.5px] lg:text-[13.5px] uppercase tracking-wider font-mono">
                             {vehicle.number}
                           </td>
 
                           {/* Status */}
-                          <td className="px-5 py-4 font-700 text-neutral-600 text-[11.5px]">
+                          <td className="px-5 py-4 font-700 text-neutral-600 text-[11.5px] lg:text-[13px]">
                             {vehicle.isAssigned && driver ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] lg:text-[11.5px] font-bold bg-red-50 text-red-600 border border-red-100">
                                 Assigned to {driver.name}
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-600 border border-green-100">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] lg:text-[11.5px] font-bold bg-green-50 text-green-600 border border-green-100">
                                 Available
                               </span>
                             )}
@@ -388,7 +388,7 @@ export default function VehiclesDashboard() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-700 text-neutral-500 select-none">
+            <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] lg:text-[12.5px] font-700 text-neutral-500 select-none">
               
               {/* Left Entries dropdown */}
               <div className="flex items-center gap-1.5">

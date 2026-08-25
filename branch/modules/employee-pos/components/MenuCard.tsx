@@ -4,6 +4,7 @@ import React from "react";
 import { ShoppingCart, Plus } from "lucide-react";
 import { MenuItem } from "../types";
 import { usePosStore } from "../store/pos.store";
+import { getLocalDayName } from "../utils/timezone";
 
 interface MenuCardProps {
   item: MenuItem;
@@ -22,15 +23,7 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
   const isOutOfStock = !!item.isOutOfStock;
 
   const getItemEffectivePrice = () => {
-    const today = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ][new Date().getDay()];
+    const today = getLocalDayName();
     const prodId = (item.id || (item as any)._id || item.productId) as string;
     const deals = (item as any).dealsOfTheDay || [];
     const matchedDeal = deals.find(
@@ -80,7 +73,7 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
       )}
 
       {/* Image */}
-      <div className="h-[90px] w-full overflow-hidden bg-neutral-100 relative flex-shrink-0">
+      <div className="h-[100px] lg:h-[115px] w-full overflow-hidden bg-neutral-100 relative flex-shrink-0">
         <img
           src={item.image || 'https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60'}
           alt={item.name}
@@ -92,7 +85,7 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
         {/* Out of Stock Overlay */}
         {isOutOfStock && (
           <div className="absolute inset-0 bg-neutral-900/50 z-20 flex items-center justify-center">
-            <span className="bg-neutral-800 text-white text-[9px] font-900 uppercase tracking-wider px-2 py-0.5 rounded-md border border-neutral-700/80 shadow-sm">
+            <span className="bg-neutral-800 text-white text-[9px] lg:text-[10px] font-900 uppercase tracking-wider px-2 py-0.5 rounded-md border border-neutral-700/80 shadow-sm">
               Out of stock
             </span>
           </div>
@@ -102,12 +95,12 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
           <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
             <button
               onClick={handleAdd}
-              className="p-2 bg-white text-brand-primary hover:bg-brand-primary hover:text-white rounded-full shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all duration-200 cursor-pointer"
+              className="p-2.5 bg-white text-brand-primary hover:bg-brand-primary hover:text-white rounded-full shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all duration-200 cursor-pointer"
             >
               {hasModifiers ? (
-                <Plus size={15} strokeWidth={2.5} />
+                <Plus size={17} strokeWidth={2.5} />
               ) : (
-                <ShoppingCart size={15} strokeWidth={2} />
+                <ShoppingCart size={17} strokeWidth={2} />
               )}
             </button>
           </div>
@@ -115,28 +108,20 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
       </div>
 
       {/* Body */}
-      <div className="p-2.5 flex-1 flex flex-col justify-between gap-1.5">
+      <div className="p-3 flex-1 flex flex-col justify-between gap-1.5">
         <div>
-          <h4 className={`text-[13px] font-900 leading-tight transition-colors line-clamp-1 ${isOutOfStock ? "text-neutral-450" : "text-black group-hover:text-brand-primary"}`}>
+          <h4 className={`text-[14px] lg:text-[16px] font-900 leading-tight transition-colors line-clamp-1 ${isOutOfStock ? "text-neutral-450" : "text-black group-hover:text-brand-primary"}`}>
             {item.name}
           </h4>
-          <p className="text-[9px] text-neutral-400 font-400 leading-snug line-clamp-2 mt-0.5">
+          <p className="text-[10px] lg:text-[12px] text-neutral-400 font-400 leading-snug line-clamp-2 mt-0.5">
             {item.description}
           </p>
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className={`text-[12px] font-700 ${isOutOfStock ? "text-neutral-400" : "text-neutral-900"}`}>
+        <div className="flex items-center justify-between mt-1">
+          <span className={`text-[13px] lg:text-[15px] font-800 ${isOutOfStock ? "text-neutral-400" : "text-neutral-900"}`}>
             {(() => {
-              const today = [
-                "sunday",
-                "monday",
-                "tuesday",
-                "wednesday",
-                "thursday",
-                "friday",
-                "saturday",
-              ][new Date().getDay()];
+              const today = getLocalDayName();
               const prodId = (item.id || (item as any)._id || item.productId) as string;
               const deals = (item as any).dealsOfTheDay || [];
               const matchedDeal = deals.find(
@@ -165,7 +150,7 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
                 );
                 return (
                   <>
-                    <span className="text-[9px] font-600 text-neutral-400">From </span>
+                    <span className="text-[10px] font-600 text-neutral-400">From </span>
                     ${minPrice.toFixed(2)}
                   </>
                 );
@@ -174,7 +159,7 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
               if (simpleDealPrice !== null) {
                 return (
                   <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-neutral-400 line-through">
+                    <span className="text-[11px] text-neutral-400 line-through">
                       ${item.price.toFixed(2)}
                     </span>
                     <span className="text-brand-primary font-900">
@@ -190,16 +175,16 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
           {!isOutOfStock ? (
             <button
               onClick={handleAdd}
-              className="w-6 h-6 rounded-md border border-neutral-200 flex items-center justify-center text-neutral-400 group-hover:border-brand-primary group-hover:text-brand-primary hover:bg-orange-50 transition-all cursor-pointer active:scale-90"
+              className="w-7 h-7 rounded-lg border border-neutral-200 flex items-center justify-center text-neutral-500 group-hover:border-brand-primary group-hover:text-brand-primary hover:bg-orange-50 transition-all cursor-pointer active:scale-90"
             >
               {hasModifiers ? (
-                <Plus size={11} strokeWidth={2.5} />
+                <Plus size={13} strokeWidth={2.5} />
               ) : (
-                <ShoppingCart size={11} strokeWidth={2} />
+                <ShoppingCart size={13} strokeWidth={2} />
               )}
             </button>
           ) : (
-            <span className="text-[8px] font-800 uppercase text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200/50">
+            <span className="text-[9px] font-800 uppercase text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded border border-neutral-200/50">
               Unavailable
             </span>
           )}

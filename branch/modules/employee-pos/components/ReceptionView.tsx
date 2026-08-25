@@ -317,17 +317,17 @@ export default function ReceptionView() {
             <TrendingUp size={16} />
           </div>
           <div>
-            <h2 className="text-[13px] font-850 uppercase tracking-wider text-neutral-800">
+            <h2 className="text-[13px] lg:text-[15px] font-850 uppercase tracking-wider text-neutral-800">
               Live Reception
             </h2>
-            <p className="text-[10px] font-600 text-neutral-450">
+            <p className="text-[10px] lg:text-[12px] font-600 text-neutral-450">
               Track incoming & kitchen-active orders
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200 flex items-center gap-2 text-[11px] font-750 text-neutral-650">
+          <div className="bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200 flex items-center gap-2 text-[11px] lg:text-[12.5px] font-750 text-neutral-650">
             <span>Active Orders:</span>
             <span className="bg-brand-primary text-white px-2 py-0.5 rounded-md text-[10px] font-800">
               {orders.length}
@@ -371,7 +371,7 @@ export default function ReceptionView() {
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-neutral-50/70 text-neutral-500 font-800 text-[10px] tracking-wider uppercase border-b border-neutral-200 sticky top-0 z-10 select-none">
+              <tr className="bg-neutral-50/70 text-neutral-500 font-800 text-[10px] lg:text-[11.5px] tracking-wider uppercase border-b border-neutral-200 sticky top-0 z-10 select-none">
                 <th className="px-6 py-3.5">Order #</th>
                 <th className="px-6 py-3.5">Source</th>
                 <th className="px-6 py-3.5">Order Type</th>
@@ -389,7 +389,7 @@ export default function ReceptionView() {
                   >
                     {/* Order Number */}
                     <td className="px-6 py-4.5">
-                      <span className="text-[13px] font-800 text-neutral-850 group-hover:text-brand-primary transition-colors">
+                      <span className="text-[13px] lg:text-[15px] font-800 text-neutral-850 group-hover:text-brand-primary transition-colors">
                         #{order.orderNumber}
                       </span>
                     </td>
@@ -401,7 +401,7 @@ export default function ReceptionView() {
 
                     {/* Order Type */}
                     <td className="px-6 py-4.5">
-                      <span className="text-[12.5px] font-700 text-neutral-700">
+                      <span className="text-[12.5px] lg:text-[14px] font-700 text-neutral-700">
                         {getFormattedOrderType(order)}
                       </span>
                     </td>
@@ -409,7 +409,7 @@ export default function ReceptionView() {
                     {/* Kitchen Status Badge */}
                     <td className="px-6 py-4.5 text-center">
                       <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10.5px] font-800 border uppercase ${statusCfg.bg}`}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10.5px] lg:text-[12px] font-800 border uppercase ${statusCfg.bg}`}
                       >
                         {/* <span
                           className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`}

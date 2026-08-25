@@ -38,11 +38,11 @@ export default function TaxFeesTab({
       {/* Header */}
       <div className="mb-6 flex items-center justify-between border-b border-neutral-100 pb-4">
         <div>
-          <h2 className="text-base font-900 text-neutral-900 uppercase tracking-wide flex items-center gap-2">
+          <h2 className="text-base lg:text-lg font-900 text-neutral-900 uppercase tracking-wide flex items-center gap-2">
             <Receipt className="text-brand-primary" size={20} />
             <span>Tax & Delivery Charges Settings</span>
           </h2>
-          <p className="text-xs text-neutral-500 font-500 mt-1">
+          <p className="text-xs lg:text-sm text-neutral-500 font-500 mt-1">
             Configure active tax rates (% GST, PST, HST) and default delivery charges applied to branch checkout & receipts.
           </p>
         </div>
@@ -55,12 +55,12 @@ export default function TaxFeesTab({
           
           {/* Delivery Fee ($) */}
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-800 uppercase tracking-wider text-neutral-700 flex items-center gap-1.5">
+            <label className="block text-[11px] lg:text-[13px] font-800 uppercase tracking-wider text-neutral-700 flex items-center gap-1.5">
               <Truck size={14} className="text-brand-primary" />
               <span>Delivery Fee ($) <span className="text-red-500">*</span></span>
             </label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 font-700 text-xs">$</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 font-700 text-xs lg:text-sm">$</span>
               <input
                 type="number"
                 step="0.01"
@@ -69,7 +69,7 @@ export default function TaxFeesTab({
                 value={taxFeesSettings.deliveryFee}
                 onChange={(e) => handleChange('deliveryFee', e.target.value)}
                 placeholder="4.99"
-                className={`w-full pl-8 pr-4 py-2.5 rounded-xl border text-xs font-700 transition-all ${
+                className={`w-full pl-8 pr-4 py-2.5 rounded-xl border text-xs lg:text-sm font-700 transition-all ${
                   isEditing
                     ? 'bg-white border-brand-primary/40 text-neutral-900 focus:outline-none focus:border-brand-primary'
                     : 'bg-neutral-100/70 border-neutral-200 text-neutral-600 cursor-not-allowed'
@@ -84,7 +84,7 @@ export default function TaxFeesTab({
 
           {/* GST Tax Rate (%) */}
           <div className="space-y-1.5">
-            <label className="block text-[11px] font-800 uppercase tracking-wider text-neutral-700 flex items-center gap-1.5">
+            <label className="block text-[11px] lg:text-[13px] font-800 uppercase tracking-wider text-neutral-700 flex items-center gap-1.5">
               <Percent size={14} className="text-brand-primary" />
               <span>GST Tax Rate (%) <span className="text-red-500">*</span></span>
             </label>
@@ -98,14 +98,14 @@ export default function TaxFeesTab({
                 value={taxFeesSettings.gstTaxRate}
                 onChange={(e) => handleChange('gstTaxRate', e.target.value)}
                 placeholder="5.00"
-                className={`w-full pl-4 pr-8 py-2.5 rounded-xl border text-xs font-700 transition-all ${
+                className={`w-full pl-4 pr-8 py-2.5 rounded-xl border text-xs lg:text-sm font-700 transition-all ${
                   isEditing
                     ? 'bg-white border-brand-primary/40 text-neutral-900 focus:outline-none focus:border-brand-primary'
                     : 'bg-neutral-100/70 border-neutral-200 text-neutral-600 cursor-not-allowed'
                 }`}
                 required
               />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 font-700 text-xs">%</span>
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 font-700 text-xs lg:text-sm">%</span>
             </div>
             <p className="text-[10px] text-neutral-400 font-500">
               Goods & Services Tax percentage.

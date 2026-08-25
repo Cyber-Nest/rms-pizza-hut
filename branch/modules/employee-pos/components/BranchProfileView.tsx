@@ -33,7 +33,7 @@ export default function BranchProfileView() {
       {/* Control Bar - Matching Vehicles Dashboard Header */}
       <div className="bg-white border-b border-neutral-200/90 px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs flex-shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-900 text-neutral-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-lg lg:text-xl font-900 text-neutral-900 tracking-tight flex items-center gap-2">
             <span>Branch Account &amp; Security</span>
           </h1>
           <span className="hidden sm:flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded-md text-[10.5px] font-800 text-emerald-800">
@@ -46,7 +46,7 @@ export default function BranchProfileView() {
         <div className="flex items-center gap-1 bg-neutral-100/80 p-1 rounded-xl border border-neutral-200">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs lg:text-[13.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
               activeTab === 'profile'
                 ? 'bg-brand-primary text-white shadow-xs'
                 : 'text-neutral-600 hover:text-neutral-900'
@@ -58,7 +58,7 @@ export default function BranchProfileView() {
 
           <button
             onClick={() => setActiveTab('password')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs lg:text-[13.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer ${
               activeTab === 'password'
                 ? 'bg-brand-primary text-white shadow-xs'
                 : 'text-neutral-600 hover:text-neutral-900'

@@ -54,7 +54,7 @@ export default function DispatchPanel() {
       {/* Tab Headers */}
       <div className="flex border-b border-neutral-200 bg-neutral-50 px-1">
         <button
-          className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-xs font-semibold text-neutral-500 hover:text-neutral-700 hover:bg-brand-primary/5 border-b-2 border-transparent transition-all cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-xs lg:text-[13.5px] font-semibold text-neutral-500 hover:text-neutral-700 hover:bg-brand-primary/5 border-b-2 border-transparent transition-all cursor-pointer ${
             activeTab === 'orders' ? 'text-brand-primary border-b-brand-primary' : ''
           }`}
           onClick={() => setActiveTab('orders')}
@@ -63,7 +63,7 @@ export default function DispatchPanel() {
           Orders
         </button>
         <button
-          className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-xs font-semibold text-neutral-500 hover:text-neutral-700 hover:bg-brand-primary/5 border-b-2 border-transparent transition-all cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-xs lg:text-[13.5px] font-semibold text-neutral-500 hover:text-neutral-700 hover:bg-brand-primary/5 border-b-2 border-transparent transition-all cursor-pointer ${
             activeTab === 'carriers' ? 'text-brand-primary border-b-brand-primary' : ''
           }`}
           onClick={() => setActiveTab('carriers')}
@@ -72,7 +72,7 @@ export default function DispatchPanel() {
           Carriers
         </button>
         <button
-          className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-xs font-semibold text-neutral-500 hover:text-neutral-700 hover:bg-brand-primary/5 border-b-2 border-transparent transition-all cursor-pointer ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-3.5 text-xs lg:text-[13.5px] font-semibold text-neutral-500 hover:text-neutral-700 hover:bg-brand-primary/5 border-b-2 border-transparent transition-all cursor-pointer ${
             activeTab === 'ta' ? 'text-brand-primary border-b-brand-primary' : ''
           }`}
           onClick={() => setActiveTab('ta')}
@@ -90,7 +90,7 @@ export default function DispatchPanel() {
             {/* Status Filters */}
             <div className="flex gap-1.5 px-3.5 py-3 border-b border-neutral-100">
               <button
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border-[1.5px] transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs lg:text-[13px] font-semibold border-[1.5px] transition-all cursor-pointer ${
                   activeFilter === 'assign'
                     ? 'bg-brand-primary text-white border-brand-primary hover:bg-brand-primary-hover hover:border-brand-primary-hover'
                     : 'bg-white text-neutral-600 border-neutral-300 hover:border-neutral-400'
@@ -100,7 +100,7 @@ export default function DispatchPanel() {
                 Assign ({counts.assign})
               </button>
               <button
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border-[1.5px] transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs lg:text-[13px] font-semibold border-[1.5px] transition-all cursor-pointer ${
                   activeFilter === 'en-route'
                     ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:border-blue-700'
                     : 'bg-white text-neutral-600 border-neutral-300 hover:border-neutral-400'
@@ -110,7 +110,7 @@ export default function DispatchPanel() {
                 En Route ({counts.enRoute})
               </button>
               <button
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border-[1.5px] transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs lg:text-[13px] font-semibold border-[1.5px] transition-all cursor-pointer ${
                   activeFilter === 'delivered'
                     ? 'bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700'
                     : 'bg-white text-neutral-600 border-neutral-300 hover:border-neutral-400'
@@ -148,7 +148,7 @@ export default function DispatchPanel() {
                 <Clock size={20} />
               </div>
               <div className="flex flex-col">
-                <span className="text-[11px] font-semibold text-neutral-500">Avg. Delivery Time</span>
+                <span className="text-[11px] lg:text-[13px] font-semibold text-neutral-500">Avg. Delivery Time</span>
                 <span className="text-xl font-extrabold text-neutral-900 leading-tight tracking-tight">{avgDeliveryTime}</span>
               </div>
             </div>
@@ -157,7 +157,7 @@ export default function DispatchPanel() {
                 <CheckCircle size={20} />
               </div>
               <div className="flex flex-col">
-                <span className="text-[11px] font-semibold text-neutral-500">Total Delivered</span>
+                <span className="text-[11px] lg:text-[13px] font-semibold text-neutral-500">Total Delivered</span>
                 <span className="text-xl font-extrabold text-neutral-900 leading-tight tracking-tight">{totalDelivered}</span>
               </div>
             </div>
@@ -166,7 +166,7 @@ export default function DispatchPanel() {
                 <Truck size={20} />
               </div>
               <div className="flex flex-col">
-                <span className="text-[11px] font-semibold text-neutral-500">Currently En Route</span>
+                <span className="text-[11px] lg:text-[13px] font-semibold text-neutral-500">Currently En Route</span>
                 <span className="text-xl font-extrabold text-neutral-900 leading-tight tracking-tight">{enRouteCount}</span>
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function DispatchPanel() {
                 <TrendingUp size={20} />
               </div>
               <div className="flex flex-col">
-                <span className="text-[11px] font-semibold text-neutral-500">Total Orders Today</span>
+                <span className="text-[11px] lg:text-[13px] font-semibold text-neutral-500">Total Orders Today</span>
                 <span className="text-xl font-extrabold text-neutral-900 leading-tight tracking-tight">{visibleOrdersList.length}</span>
               </div>
             </div>

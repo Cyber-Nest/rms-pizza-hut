@@ -202,8 +202,8 @@ export default function CustomersDashboard() {
             
             {/* Table Container */}
             <div className="overflow-x-auto overflow-y-auto flex-1 min-h-[400px]">
-              <table className="w-full text-left text-[11px] text-neutral-600 font-600 border-collapse table-auto">
-                <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
+              <table className="w-full text-left text-[11px] lg:text-[13px] text-neutral-600 font-600 border-collapse table-auto">
+                <thead className="bg-neutral-50/75 border-b border-neutral-200 text-neutral-550 text-[10px] lg:text-[11.5px] font-800 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
                   <tr>
                     <th className="px-5 py-3.5">First Name</th>
                     <th className="px-5 py-3.5">Last Name</th>
@@ -230,34 +230,34 @@ export default function CustomersDashboard() {
                               <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-800 uppercase border bg-brand-primary-light border-brand-primary-muted text-brand-primary">
                                 {initials || 'NN'}
                               </div>
-                              <span className="font-800 text-neutral-800 text-[11.5px] uppercase">
+                              <span className="font-800 text-neutral-800 text-[11.5px] lg:text-[13px] uppercase">
                                 {customer.firstName}
                               </span>
                             </div>
                           </td>
 
                           {/* Last Name */}
-                          <td className="px-5 py-4 font-800 text-neutral-800 text-[11.5px] uppercase">
+                          <td className="px-5 py-4 font-800 text-neutral-800 text-[11.5px] lg:text-[13px] uppercase">
                             {customer.lastName}
                           </td>
 
                           {/* Email */}
-                          <td className="px-5 py-4 font-700 text-neutral-600 text-[11.5px]">
+                          <td className="px-5 py-4 font-700 text-neutral-600 text-[11.5px] lg:text-[13px]">
                             {customer.email}
                           </td>
 
                           {/* Phone No */}
-                          <td className="px-5 py-4 font-700 text-neutral-700 text-[11.5px] font-mono">
+                          <td className="px-5 py-4 font-700 text-neutral-700 text-[11.5px] lg:text-[13px] font-mono">
                             {customer.phone}
                           </td>
 
                           {/* Updated Date */}
-                          <td className="px-5 py-4 text-neutral-450 font-550 text-[11px]">
+                          <td className="px-5 py-4 text-neutral-450 font-550 text-[11px] lg:text-[12.5px]">
                             {formatDate(customer.updatedDate)}
                           </td>
 
                           {/* Last Order Date */}
-                          <td className="px-5 py-4 text-neutral-450 font-550 text-[11px]">
+                          <td className="px-5 py-4 text-neutral-450 font-550 text-[11px] lg:text-[12.5px]">
                             {formatDate(customer.lastOrderDate)}
                           </td>
 
@@ -298,7 +298,7 @@ export default function CustomersDashboard() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-700 text-neutral-500 select-none">
+            <div className="bg-neutral-50/50 border-t border-neutral-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] lg:text-[12.5px] font-700 text-neutral-500 select-none">
               
               {/* Left Entries dropdown */}
               <div className="flex items-center gap-1.5">
@@ -320,7 +320,7 @@ export default function CustomersDashboard() {
               </div>
 
               {/* Middle count */}
-              <div className="text-neutral-400 font-550 text-[11.5px]">
+              <div className="text-neutral-400 font-550 text-[11.5px] lg:text-[13px]">
                 {totalEntries > 0 ? (
                   <span>Showing {startIndex + 1} to {endIndex} of {totalEntries} entries</span>
                 ) : (

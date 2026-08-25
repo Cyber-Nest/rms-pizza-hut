@@ -41,7 +41,7 @@ export default function OrderTypePanel() {
             <path d="M60 18C60 16 62 14 62 12" stroke="#D6D3D1" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </div>
-        <p className="text-[11.5px] font-800 text-black text-center leading-tight">Choose order type</p>
+        <p className="text-[12.5px] lg:text-[14.5px] font-900 text-black text-center leading-tight">Choose order type</p>
       </div>
 
       {/* ── Order Type Grid ── */}
@@ -52,7 +52,7 @@ export default function OrderTypePanel() {
             <button
               key={id}
               onClick={() => handleTypeChange(id)}
-              className={`py-2 px-1 rounded-lg border text-[11px] font-800 text-center tracking-wide transition-all relative ${
+              className={`py-2.5 px-1 rounded-lg border text-[12px] lg:text-[14px] font-800 text-center tracking-wide transition-all relative ${
                 active
                   ? 'bg-neutral-900 border-neutral-900 text-white shadow-sm cursor-pointer active:scale-95'
                   : 'bg-white border-neutral-200 text-black hover:border-neutral-400 hover:bg-neutral-50 cursor-pointer active:scale-95'
@@ -72,16 +72,16 @@ export default function OrderTypePanel() {
         <div className="rounded-lg border border-dashed border-neutral-200 p-2.5 bg-neutral-50/50">
           {cartItems.length === 0 ? (
             <div className="text-center space-y-0.5">
-              <p className="text-[11px] font-800 text-black">No order in process</p>
-              <p className="text-[9.5px] text-neutral-500 font-600">Select items from the menu.</p>
+              <p className="text-[12px] lg:text-[14px] font-800 text-black">No order in process</p>
+              <p className="text-[10px] lg:text-[12px] text-neutral-500 font-600">Select items from the menu.</p>
             </div>
           ) : (
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-green-600">
-                <Radio size={10} className="animate-pulse" />
-                <span className="text-[9.5px] font-800 uppercase tracking-wide">Order Active</span>
+                <Radio size={12} className="animate-pulse" />
+                <span className="text-[10px] lg:text-[11px] font-800 uppercase tracking-wide">Order Active</span>
               </div>
-              <p className="text-[10px] text-black font-800">
+              <p className="text-[11px] lg:text-[13px] text-black font-800">
                 {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in {orderType} cart
               </p>
             </div>
@@ -91,13 +91,13 @@ export default function OrderTypePanel() {
           {orderType === 'delivery' && selectedCustomer && (
             <div className="mt-2 p-2 bg-orange-50 border border-orange-100 rounded-lg space-y-0.5">
               <div className="flex items-center gap-1 text-brand-primary">
-                <UserCheck size={10} />
-                <span className="text-[9px] font-700 uppercase">Customer Attached</span>
+                <UserCheck size={12} />
+                <span className="text-[10px] font-700 uppercase">Customer Attached</span>
               </div>
-              <p className="text-[10px] text-black font-800">{selectedCustomer.name}</p>
-              <p className="text-[9px] text-neutral-600 font-700">{selectedCustomer.phone}</p>
+              <p className="text-[11px] lg:text-[12px] text-black font-800">{selectedCustomer.name}</p>
+              <p className="text-[10px] text-neutral-600 font-700">{selectedCustomer.phone}</p>
               {selectedCustomer.address && (
-                <p className="text-[8.5px] text-neutral-600 font-600 leading-tight truncate">{selectedCustomer.address}</p>
+                <p className="text-[9.5px] text-neutral-600 font-600 leading-tight truncate">{selectedCustomer.address}</p>
               )}
             </div>
           )}
@@ -106,13 +106,13 @@ export default function OrderTypePanel() {
           {orderType !== 'delivery' && selectedCustomer && (
             <div className="mt-2 p-2 bg-orange-50 border border-orange-100 rounded-lg space-y-0.5">
               <div className="flex items-center gap-1 text-brand-primary">
-                <UserCheck size={10} />
-                <span className="text-[9px] font-700 uppercase">Customer Attached</span>
+                <UserCheck size={12} />
+                <span className="text-[10px] font-700 uppercase">Customer Attached</span>
               </div>
-              <p className="text-[10px] text-black font-800">{selectedCustomer.name}</p>
-              <p className="text-[9px] text-neutral-600 font-700">{selectedCustomer.phone}</p>
+              <p className="text-[11px] lg:text-[12px] text-black font-800">{selectedCustomer.name}</p>
+              <p className="text-[10px] text-neutral-600 font-700">{selectedCustomer.phone}</p>
               {selectedCustomer.address && (
-                <p className="text-[8.5px] text-neutral-600 font-600 leading-tight truncate">{selectedCustomer.address}</p>
+                <p className="text-[9.5px] text-neutral-600 font-600 leading-tight truncate">{selectedCustomer.address}</p>
               )}
             </div>
           )}
@@ -124,13 +124,13 @@ export default function OrderTypePanel() {
           {orderType !== 'delivery' && (
             <button
               onClick={() => setShowCustomer(true)}
-              className={`w-full py-1.5 px-2.5 rounded-lg border text-[11px] font-800 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+              className={`w-full py-2 px-2.5 rounded-lg border text-[12px] lg:text-[13px] font-800 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
                 selectedCustomer
                   ? 'bg-orange-50 border-brand-primary text-brand-primary hover:bg-orange-100'
                   : 'bg-white border-neutral-200 text-black hover:border-neutral-300 hover:bg-neutral-50'
               }`}
             >
-              <UserPlus size={12} />
+              <UserPlus size={14} />
               {selectedCustomer ? 'Edit Customer' : 'Add Customer Info'}
             </button>
           )}
