@@ -604,7 +604,7 @@ exports.silentPrintSalesSummary = async (req, res) => {
   let tempPdfPath = null;
   try {
     const { date, startDate, endDate, branchId, printerName } = req.body || {};
-    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id || req.activeBranchId || req.query?.branchId || req.body?.branchId;
     const summary = await orderService.getSalesSummary({
       date,
       startDate,
@@ -776,7 +776,7 @@ exports.silentPrintDepositReceipt = async (req, res) => {
   let tempPdfPath = null;
   try {
     const { date, branchId, printerName, cash, interac, visa, mastercard, giftCard, totalDeposit, comments } = req.body || {};
-    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id || req.activeBranchId || req.query?.branchId || req.body?.branchId;
     const depositData = {
       cash: parseFloat(cash) || 0,
       interac: parseFloat(interac) || 0,
@@ -864,7 +864,7 @@ exports.silentPrintAccountClosing = async (req, res) => {
   let tempPdfPath = null;
   try {
     const { date, branchId, printerName } = req.body || {};
-    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id;
+    const activeBranchId = branchId || req.branch?.branchId || req.branch?._id || req.activeBranchId || req.query?.branchId || req.body?.branchId;
     const closingData = await orderService.getAccountClosingData({
       date,
       branchId: activeBranchId,

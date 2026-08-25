@@ -49,9 +49,7 @@ interface TerminalDeposit {
 export default function AccountClosingView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab] = useState("account_closing");
-  const [selectedDate, setSelectedDate] = useState(
-    getLocalTodayStr(),
-  );
+  const [selectedDate, setSelectedDate] = useState(getLocalTodayStr());
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDayClosed, setIsDayClosed] = useState(false);
@@ -205,56 +203,94 @@ export default function AccountClosingView() {
     setIsPrintingClosing(true);
     try {
       const branchId = getBranchId();
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      toast.loading("Printing Day-End Account Closing Receipt...", { id: "print-closing" });
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      toast.loading("Printing Day-End Account Closing Receipt...", {
+        id: "print-closing",
+      });
       const res = await axios.post(`${apiUrl}/orders/account-closing/print`, {
         date: selectedDate,
         ...(branchId ? { branchId } : {}),
       });
 
       if (res.data.success) {
-        toast.success("Account Closing receipt sent to printer!", { id: "print-closing" });
+        toast.success("Account Closing receipt sent to printer!", {
+          id: "print-closing",
+        });
       } else {
         throw new Error(res.data.message || "Print failed");
       }
     } catch (err: any) {
-      toast.error("Print failed — check printer connection.", { id: "print-closing" });
+      toast.error("Print failed — check printer connection.", {
+        id: "print-closing",
+      });
     } finally {
       setIsPrintingClosing(false);
     }
   };
 
-  const handleDownloadAccountClosingPdf = () => {
-    const branchId = getBranchId();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-    const downloadUrl = `${apiUrl}/orders/account-closing/pdf?date=${selectedDate}${branchId ? `&branchId=${branchId}` : ""}`;
-    window.open(downloadUrl, "_blank");
+  const handleDownloadAccountClosingPdf = async () => {
+    try {
+      const branchId = getBranchId();
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const toastId = toast.loading("Generating account closing PDF...");
+      const response = await axios.get(`${apiUrl}/orders/account-closing/pdf`, {
+        params: {
+          date: selectedDate,
+          ...(branchId ? { branchId } : {}),
+        },
+        responseType: "blob",
+      });
+
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `account-closing-${selectedDate}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Account closing PDF downloaded!", { id: toastId });
+    } catch (err: any) {
+      console.error("Account closing PDF download error:", err);
+      toast.error("Failed to download account closing PDF.");
+    }
   };
 
   const handlePrintDeposit = async (dep: TerminalDeposit) => {
     try {
       const branchId = getBranchId();
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       toast.loading("Printing deposit receipt...", { id: "print-deposit" });
-      const res = await axios.post(`${apiUrl}/orders/account-closing/deposit/print`, {
-        date: selectedDate,
-        branchId,
-        cash: dep.cash,
-        interac: dep.interac,
-        visa: dep.visa,
-        mastercard: dep.mastercard,
-        giftCard: dep.giftCard,
-        totalDeposit: dep.totalDeposit,
-        comments: dep.comments,
-      });
+      const res = await axios.post(
+        `${apiUrl}/orders/account-closing/deposit/print`,
+        {
+          date: selectedDate,
+          branchId,
+          cash: dep.cash,
+          interac: dep.interac,
+          visa: dep.visa,
+          mastercard: dep.mastercard,
+          giftCard: dep.giftCard,
+          totalDeposit: dep.totalDeposit,
+          comments: dep.comments,
+        },
+      );
 
       if (res.data.success) {
-        toast.success("Deposit receipt sent to printer!", { id: "print-deposit" });
+        toast.success("Deposit receipt sent to printer!", {
+          id: "print-deposit",
+        });
       } else {
         throw new Error(res.data.message || "Print failed");
       }
     } catch (err: any) {
-      toast.error("Deposit print failed — check printer connection.", { id: "print-deposit" });
+      toast.error("Deposit print failed — check printer connection.", {
+        id: "print-deposit",
+      });
     }
   };
 
@@ -292,7 +328,10 @@ export default function AccountClosingView() {
         systemAccountPay: systemData.accountPay,
       };
 
-      await axios.post(`${apiUrl}/orders/account-closing/deposit`, depositPayload);
+      await axios.post(
+        `${apiUrl}/orders/account-closing/deposit`,
+        depositPayload,
+      );
 
       toast.success(
         editingDepositId
@@ -441,7 +480,7 @@ export default function AccountClosingView() {
       {/* ── Top Header Control Bar ── */}
       <div className="bg-white border-b border-neutral-200 px-6 py-3 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-900 text-neutral-900 tracking-tight leading-none flex items-center gap-2">
+          <h1 className="text-xl lg:text-2xl font-900 text-neutral-900 tracking-tight leading-none flex items-center gap-2">
             <FileCheck size={20} className="text-brand-primary" />
             <span>Account Closing</span>
           </h1>
@@ -516,46 +555,46 @@ export default function AccountClosingView() {
               {/* Detailed Financial Accounting Breakdown */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
                 <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-2.5">
-                  <p className="text-[9px] font-800 uppercase text-neutral-500 mb-0.5">
+                  <p className="text-[9px] lg:text-[10.5px] font-800 uppercase text-neutral-500 mb-0.5">
                     System Grand Total
                   </p>
-                  <p className="text-sm font-900 font-mono text-neutral-900">
+                  <p className="text-sm lg:text-base font-900 font-mono text-neutral-900">
                     {fmt(systemData.grandTotal)}
                   </p>
                 </div>
 
                 <div className="bg-rose-50 border border-rose-200 rounded-lg p-2.5">
-                  <p className="text-[9px] font-800 uppercase text-rose-700 mb-0.5">
+                  <p className="text-[9px] lg:text-[10.5px] font-800 uppercase text-rose-700 mb-0.5">
                     Driver Payout
                   </p>
-                  <p className="text-sm font-900 font-mono text-rose-700">
+                  <p className="text-sm lg:text-base font-900 font-mono text-rose-700">
                     -{fmt(systemData.totalDriverPayout)}
                   </p>
                 </div>
 
                 <div className="bg-rose-50 border border-rose-200 rounded-lg p-2.5">
-                  <p className="text-[9px] font-800 uppercase text-rose-700 mb-0.5">
+                  <p className="text-[9px] lg:text-[10.5px] font-800 uppercase text-rose-700 mb-0.5">
                     Store Expenses
                   </p>
-                  <p className="text-sm font-900 font-mono text-rose-700">
+                  <p className="text-sm lg:text-base font-900 font-mono text-rose-700">
                     -{fmt(systemData.totalExpensePayout)}
                   </p>
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
-                  <p className="text-[9px] font-800 uppercase text-blue-700 mb-0.5">
+                  <p className="text-[9px] lg:text-[10.5px] font-800 uppercase text-blue-700 mb-0.5">
                     Expected Net Deposit
                   </p>
-                  <p className="text-sm font-900 font-mono text-blue-900">
+                  <p className="text-sm lg:text-base font-900 font-mono text-blue-900">
                     {fmt(systemData.expectedNetDeposit)}
                   </p>
                 </div>
 
                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 col-span-2 sm:col-span-1">
-                  <p className="text-[9px] font-800 uppercase text-emerald-700 mb-0.5">
+                  <p className="text-[9px] lg:text-[10.5px] font-800 uppercase text-emerald-700 mb-0.5">
                     Total Deposited
                   </p>
-                  <p className="text-sm font-900 font-mono text-emerald-900">
+                  <p className="text-sm lg:text-base font-900 font-mono text-emerald-900">
                     {fmt(cumulativeTotals.grandTotalDeposited)}
                   </p>
                 </div>
@@ -623,7 +662,7 @@ export default function AccountClosingView() {
               {/* ==================== LEFT: DEPOSIT ENTRY FORM (4 cols) ==================== */}
               <div className="lg:col-span-4 bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
                 <div
-                  className={`px-4 py-2.5 text-white font-900 text-[12px] uppercase tracking-wider flex items-center justify-between transition-colors ${
+                  className={`px-4 py-2.5 text-white font-900 text-[12px] lg:text-[14px] uppercase tracking-wider flex items-center justify-between transition-colors ${
                     editingDepositId ? "bg-amber-600" : "bg-brand-primary"
                   }`}
                 >
@@ -660,16 +699,16 @@ export default function AccountClosingView() {
                 >
                   {/* Deposit Inputs Table */}
                   <div className="border border-neutral-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-left text-[12px]">
+                    <table className="w-full text-left text-[12px] lg:text-[14px]">
                       <thead>
-                        <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200">
+                        <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] lg:text-[12px] uppercase tracking-wider border-b border-neutral-200">
                           <th className="py-2 px-3">Category</th>
                           <th className="py-2 px-3 text-right">Amount</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-200/60 font-650">
                         <tr className="hover:bg-neutral-50/60">
-                          <td className="py-2 px-3 text-neutral-800 font-700">
+                          <td className="py-2 px-3 text-neutral-800 font-700 text-xs lg:text-sm">
                             Cash
                           </td>
                           <td className="py-1.5 px-3 text-right">
@@ -680,12 +719,12 @@ export default function AccountClosingView() {
                               value={enteredCash}
                               disabled={isDayClosed || isSubmitting}
                               onChange={(e) => setEnteredCash(e.target.value)}
-                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
+                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs lg:text-sm border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
                             />
                           </td>
                         </tr>
                         <tr className="hover:bg-neutral-50/60">
-                          <td className="py-2 px-3 text-neutral-800 font-700">
+                          <td className="py-2 px-3 text-neutral-800 font-700 text-xs lg:text-sm">
                             Interac / Debit
                           </td>
                           <td className="py-1.5 px-3 text-right">
@@ -698,12 +737,12 @@ export default function AccountClosingView() {
                               onChange={(e) =>
                                 setEnteredInterac(e.target.value)
                               }
-                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
+                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs lg:text-sm border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
                             />
                           </td>
                         </tr>
                         <tr className="hover:bg-neutral-50/60">
-                          <td className="py-2 px-3 text-neutral-800 font-700">
+                          <td className="py-2 px-3 text-neutral-800 font-700 text-xs lg:text-sm">
                             Visa
                           </td>
                           <td className="py-1.5 px-3 text-right">
@@ -714,12 +753,12 @@ export default function AccountClosingView() {
                               value={enteredVisa}
                               disabled={isDayClosed || isSubmitting}
                               onChange={(e) => setEnteredVisa(e.target.value)}
-                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
+                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs lg:text-sm border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
                             />
                           </td>
                         </tr>
                         <tr className="hover:bg-neutral-50/60">
-                          <td className="py-2 px-3 text-neutral-800 font-700">
+                          <td className="py-2 px-3 text-neutral-800 font-700 text-xs lg:text-sm">
                             Mastercard
                           </td>
                           <td className="py-1.5 px-3 text-right">
@@ -732,12 +771,12 @@ export default function AccountClosingView() {
                               onChange={(e) =>
                                 setEnteredMastercard(e.target.value)
                               }
-                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
+                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs lg:text-sm border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
                             />
                           </td>
                         </tr>
                         <tr className="hover:bg-neutral-50/60">
-                          <td className="py-2 px-3 text-neutral-800 font-700">
+                          <td className="py-2 px-3 text-neutral-800 font-700 text-xs lg:text-sm">
                             Gift Card
                           </td>
                           <td className="py-1.5 px-3 text-right">
@@ -750,7 +789,7 @@ export default function AccountClosingView() {
                               onChange={(e) =>
                                 setEnteredGiftCard(e.target.value)
                               }
-                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
+                              className="w-32 rounded-lg px-3 py-1 text-right font-800 font-mono text-xs lg:text-sm border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900"
                             />
                           </td>
                         </tr>
@@ -758,11 +797,11 @@ export default function AccountClosingView() {
                     </table>
 
                     {/* This Deposit Total */}
-                    <div className="bg-neutral-900 text-white px-3 py-2.5 flex items-center justify-between font-900 text-xs border-t border-neutral-800">
+                    <div className="bg-neutral-900 text-white px-3 py-2.5 flex items-center justify-between font-900 text-xs lg:text-sm border-t border-neutral-800">
                       <span className="uppercase tracking-wider">
                         THIS DEPOSIT TOTAL:
                       </span>
-                      <span className="text-emerald-400 font-mono text-sm">
+                      <span className="text-emerald-400 font-mono text-sm lg:text-base">
                         {fmt(currentFormTotal)}
                       </span>
                     </div>
@@ -770,7 +809,7 @@ export default function AccountClosingView() {
 
                   {/* Comments Input */}
                   <div>
-                    <label className="text-[10.5px] font-800 text-neutral-600 uppercase tracking-wide block mb-1">
+                    <label className="text-[10.5px] lg:text-[12px] font-800 text-neutral-600 uppercase tracking-wide block mb-1">
                       Comments / Notes
                     </label>
                     <textarea
@@ -779,7 +818,7 @@ export default function AccountClosingView() {
                       disabled={isDayClosed || isSubmitting}
                       onChange={(e) => setComments(e.target.value)}
                       placeholder="Optional notes for this deposit..."
-                      className="w-full rounded-lg px-3 py-2 text-xs font-600 border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900 resize-none"
+                      className="w-full rounded-lg px-3 py-2 text-xs lg:text-sm font-600 border border-neutral-300 focus:border-brand-primary focus:outline-none bg-white text-neutral-900 resize-none"
                     />
                   </div>
 
@@ -817,20 +856,20 @@ export default function AccountClosingView() {
               {/* ==================== RIGHT: SUBMITTED DEPOSITS HISTORY TABLE (8 cols) ==================== */}
               <div className="lg:col-span-8">
                 <div className="bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
-                  <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
+                  <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] lg:text-[14px] uppercase tracking-wider flex items-center justify-between">
                     <span className="flex items-center gap-2">
                       <Layers size={15} />
                       <span>Submitted Deposits History</span>
                     </span>
-                    <span className="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full font-800">
+                    <span className="text-[11px] lg:text-[13px] bg-white/20 px-2.5 py-0.5 rounded-full font-800">
                       {submittedDeposits.length} Entries
                     </span>
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-[12px] whitespace-nowrap">
+                    <table className="w-full text-left text-[12px] lg:text-[14px] whitespace-nowrap">
                       <thead>
-                        <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200">
+                        <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] lg:text-[12px] uppercase tracking-wider border-b border-neutral-200">
                           <th className="py-2.5 px-3">#</th>
                           <th className="py-2.5 px-3 text-right">Cash</th>
                           <th className="py-2.5 px-3 text-right">Interac</th>
@@ -910,7 +949,9 @@ export default function AccountClosingView() {
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => handleVoidDeposit(depId)}
+                                          onClick={() =>
+                                            handleVoidDeposit(depId)
+                                          }
                                           className="p-1 text-[10px] text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-all cursor-pointer"
                                           title="Delete deposit"
                                         >
@@ -975,19 +1016,19 @@ export default function AccountClosingView() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start pt-2">
               {/* ── DRIVER PAYOUT SUMMARY TABLE (7 cols) ── */}
               <div className="lg:col-span-7 bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
-                <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] lg:text-[14px] uppercase tracking-wider flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Truck size={15} />
                     <span>Driver Payout Summary</span>
                   </span>
-                  <span className="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full font-800">
+                  <span className="text-[11px] lg:text-[13px] bg-white/20 px-2.5 py-0.5 rounded-full font-800">
                     {driverReport.length} Drivers Settled
                   </span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-[12px] whitespace-nowrap">
+                  <table className="w-full text-left text-[12px] lg:text-[14px] whitespace-nowrap">
                     <thead>
-                      <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200">
+                      <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] lg:text-[12px] uppercase tracking-wider border-b border-neutral-200">
                         <th className="py-2.5 px-3">Driver</th>
                         <th className="py-2.5 px-3 text-center"># Delivery</th>
                         <th className="py-2.5 px-3 text-right">Total Sales</th>
@@ -1052,19 +1093,19 @@ export default function AccountClosingView() {
 
               {/* ── STORE EXPENSES SUMMARY TABLE (5 cols) ── */}
               <div className="lg:col-span-5 bg-white border border-neutral-200 rounded-xl shadow-xs overflow-hidden">
-                <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] lg:text-[14px] uppercase tracking-wider flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Receipt size={15} />
                     <span>Store Expenses Summary</span>
                   </span>
-                  <span className="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full font-800">
+                  <span className="text-[11px] lg:text-[13px] bg-white/20 px-2.5 py-0.5 rounded-full font-800">
                     {expenseReport.length} Expenses Recorded
                   </span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-[12px] whitespace-nowrap">
+                  <table className="w-full text-left text-[12px] lg:text-[14px] whitespace-nowrap">
                     <thead>
-                      <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] uppercase tracking-wider border-b border-neutral-200">
+                      <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] lg:text-[12px] uppercase tracking-wider border-b border-neutral-200">
                         <th className="py-2.5 px-3">#</th>
                         <th className="py-2.5 px-3">Description</th>
                         <th className="py-2.5 px-3">Category</th>
