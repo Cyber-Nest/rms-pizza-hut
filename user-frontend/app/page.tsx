@@ -25,6 +25,7 @@ import CheckoutModal from "../components/CheckoutModal";
 import OrderStatusModal from "../components/OrderStatusModal";
 import { fallbackCategories, fallbackMenuItems } from "../data/menuData";
 import { isBranchCurrentlyOpen } from "../lib/storeTimingUtils";
+import { getCanadaDayName } from "../lib/timezone";
 
 import StoreLandingView, { BranchStore } from "../components/StoreLandingView";
 
@@ -726,15 +727,7 @@ export default function HomePage() {
                           </p>
                           <div className="flex items-center gap-1.5">
                             {(() => {
-                              const today = [
-                                "sunday",
-                                "monday",
-                                "tuesday",
-                                "wednesday",
-                                "thursday",
-                                "friday",
-                                "saturday",
-                              ][new Date().getDay()];
+                              const today = getCanadaDayName().toLowerCase();
                               const prodId = (item.id || (item as any)._id || item.productId) as string;
                               const deals = (item as any).dealsOfTheDay || [];
                               const matchedDeal = deals.find(

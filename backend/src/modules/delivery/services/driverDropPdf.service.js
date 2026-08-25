@@ -1,5 +1,6 @@
 const PDFDocument = require("pdfkit");
 const logger = require("../../../shared/utils/logger");
+const { TIMEZONE } = require("../../../shared/utils/timezone");
 
 const fmt = (val) => (typeof val === "number" && !isNaN(val) ? val.toFixed(2) : "0.00");
 
@@ -8,8 +9,8 @@ exports.generateDriverDropPdf = async ({ driver, date, type = "both", settlement
     const driverCode = driver.driverId || "EMP-003";
     const driverName = driver.name || "DRIVER";
 
-    const formattedDate = new Date(date).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
-    const formattedTime = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    const formattedDate = new Date(date + "T12:00:00").toLocaleDateString("en-US", { timeZone: TIMEZONE, month: "2-digit", day: "2-digit", year: "numeric" });
+    const formattedTime = new Date().toLocaleTimeString("en-US", { timeZone: TIMEZONE, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
     // Calculations
     const totalOrders = settlement ? settlement.totalOrders : orders.length;

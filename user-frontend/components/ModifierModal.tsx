@@ -9,6 +9,7 @@ import {
   SelectedModifier,
 } from "../types";
 import { useCart } from "../context/CartContext";
+import { getCanadaDayName } from "../lib/timezone";
 
 interface ModifierModalProps {
   item: MenuItem | null;
@@ -384,15 +385,7 @@ export default function ModifierModal({
     optionName?: string,
   ) => {
     if (!item) return null;
-    const today = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ][new Date().getDay()];
+    const today = getCanadaDayName().toLowerCase();
     const prodId = (item.id || (item as any)._id || item.productId) as string;
 
     const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
@@ -475,15 +468,7 @@ export default function ModifierModal({
 
   const getDealPriceForVariant = (variantSizeCode?: string) => {
     if (!item) return null;
-    const today = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ][new Date().getDay()];
+    const today = getCanadaDayName().toLowerCase();
     const prodId = (item.id || (item as any)._id || item.productId) as string;
 
     const deals = (item as any).dealsOfTheDay || (item as any).deals || [];

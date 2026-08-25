@@ -59,7 +59,11 @@ const formatTimeDisplay = (dateIso?: string) => {
   if (!dateIso) return "--:--";
   try {
     const d = new Date(dateIso);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString("en-US", {
+      timeZone: "America/Edmonton",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch (e) {
     return "--:--";
   }
@@ -203,7 +207,7 @@ export default function CheckInOutView() {
             Today's Staff Log
           </h2>
           <span className="text-[11px] font-600 text-neutral-500">
-            {new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+            {new Date().toLocaleDateString("en-US", { timeZone: "America/Edmonton", weekday: "short", month: "short", day: "numeric" })}
           </span>
         </div>
 

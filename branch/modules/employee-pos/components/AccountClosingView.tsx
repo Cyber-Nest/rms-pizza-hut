@@ -27,6 +27,7 @@ import {
 import PosNavbar from "@/modules/employee-pos/components/PosNavbar";
 import POSSidebarDrawer from "@/modules/employee-pos/components/POSSidebarDrawer";
 import toast from "react-hot-toast";
+import { getLocalTodayStr, formatLocalTime } from "../utils/timezone";
 
 // ── Helpers ──
 const fmt = (val: number) =>
@@ -49,7 +50,7 @@ export default function AccountClosingView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab] = useState("account_closing");
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0],
+    getLocalTodayStr(),
   );
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);

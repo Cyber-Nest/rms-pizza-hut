@@ -1014,7 +1014,8 @@ export default function KitchenDetailModal({
                 <span>
                   Due at{" "}
                   <span className="font-900 text-brand-primary bg-orange-50 px-2 py-0.5 rounded border border-orange-100/80 font-mono">
-                    {dueDate.toLocaleTimeString([], {
+                    {dueDate.toLocaleTimeString("en-US", {
+                      timeZone: "America/Edmonton",
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
@@ -1490,7 +1491,7 @@ export default function KitchenDetailModal({
                       Order Date:
                     </span>
                     <span className="text-neutral-800 font-800 bg-neutral-100/80 px-2 py-0.5 rounded border border-neutral-200/50 font-mono">
-                      {new Date(localOrder.createdAt).toLocaleString()}
+                      {new Date(localOrder.createdAt).toLocaleString("en-US", { timeZone: "America/Edmonton" })}
                     </span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-neutral-50 last:border-b-0 items-center">
@@ -1498,7 +1499,7 @@ export default function KitchenDetailModal({
                       Order Due Date:
                     </span>
                     <span className="text-brand-primary font-900 bg-orange-50/50 px-2 py-0.5 rounded border border-orange-100/60 font-mono">
-                      {dueDate ? dueDate.toLocaleString() : "N/A"}
+                      {dueDate ? dueDate.toLocaleString("en-US", { timeZone: "America/Edmonton" }) : "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-neutral-50 last:border-b-0 items-center">
@@ -1506,7 +1507,7 @@ export default function KitchenDetailModal({
                       Report Date:
                     </span>
                     <span className="text-neutral-800 font-800 bg-neutral-100/80 px-2 py-0.5 rounded border border-neutral-200/50 font-mono">
-                      {new Date(localOrder.createdAt).toLocaleDateString()}
+                      {new Date(localOrder.createdAt).toLocaleDateString("en-US", { timeZone: "America/Edmonton", month: "2-digit", day: "2-digit", year: "numeric" })}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-neutral-50 last:border-b-0">
@@ -1632,7 +1633,7 @@ export default function KitchenDetailModal({
                       Order Created: New order placed
                     </span>
                     <span className="text-[10px] text-neutral-400 font-mono">
-                      {new Date(localOrder.createdAt).toLocaleString()}
+                      {new Date(localOrder.createdAt).toLocaleString("en-US", { timeZone: "America/Edmonton" })}
                     </span>
                   </div>
                   {localOrder.statusHistory &&
@@ -1672,7 +1673,7 @@ export default function KitchenDetailModal({
                               <span className="text-[10px] text-neutral-400 font-mono">
                                 {new Date(
                                   historyItem.changedAt,
-                                ).toLocaleString()}
+                                ).toLocaleString("en-US", { timeZone: "America/Edmonton" })}
                               </span>
                             </div>
                           );

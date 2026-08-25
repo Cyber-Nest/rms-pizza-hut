@@ -8,6 +8,7 @@ const Employee = require("../../employee/models/employee.model");
 const driverDropPdfService = require("../services/driverDropPdf.service");
 
 const logger = require("../../../shared/utils/logger");
+const { getLocalDateStr, getLocalStartOfDay, getLocalEndOfDay, formatLocalDateTime } = require("../../../shared/utils/timezone");
 const {
   authenticateChannel,
   triggerDeliveryAssigned,
@@ -182,6 +183,7 @@ exports.getDeliveryOrders = async (req, res) => {
         deliveredAt: assignment?.deliveredAt || null,
         duration: "",
         timeOrdered: new Date(order.createdAt).toLocaleTimeString("en-US", {
+          timeZone: "America/Edmonton",
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
@@ -1193,8 +1195,7 @@ exports.getDriverById = async (req, res) => {
         .lean();
 
       if (employee) {
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        const todayStr = getLocalDateStr();
         const att = await Attendance.findOne({
           branchId: employee.branchId,
           employeeId: employee._id,
@@ -1417,7 +1418,7 @@ exports.completeActiveAssignment = async (req, res) => {
 exports.getDriverDropDrivers = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
-    const dateStr = req.query.date || new Date().toISOString().split("T")[0];
+    const dateStr = req.query.date || getLocalDateStr();
 
     // Find all driver employees for this branch
     const employees = await Employee.find({
@@ -1544,9 +1545,9 @@ exports.getDriverDropSummary = async (req, res) => {
         .json({ success: false, message: "driverId is required" });
     }
 
-    const targetDate = date || new Date().toISOString().split("T")[0];
-    const startOfDay = new Date(`${targetDate}T00:00:00.000Z`);
-    const endOfDay = new Date(`${targetDate}T23:59:59.999Z`);
+    const targetDate = date || getLocalDateStr();
+    const startOfDay = getLocalStartOfDay(targetDate);
+    const endOfDay = getLocalEndOfDay(targetDate);
 
     // Check if already settled
     const existingSettlement = await DriverDropSettlement.findOne({
@@ -1617,6 +1618,7 @@ exports.getDriverDropSummary = async (req, res) => {
           phone: order.customer?.phone || "",
           address: order.customer?.address || "",
           time: new Date(order.createdAt).toLocaleTimeString("en-US", {
+            timeZone: "America/Edmonton",
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
@@ -1674,8 +1676,8 @@ exports.settleDriverDrop = async (req, res) => {
         .json({ success: false, message: "Driver not found." });
     }
 
-    const startOfDay = new Date(`${date}T00:00:00.000Z`);
-    const endOfDay = new Date(`${date}T23:59:59.999Z`);
+    const startOfDay = getLocalStartOfDay(date);
+    const endOfDay = getLocalEndOfDay(date);
 
     const assignments = await DeliveryAssignment.find({
       driverId,
@@ -1717,6 +1719,7 @@ exports.settleDriverDrop = async (req, res) => {
           phone: order.customer?.phone || "",
           address: order.customer?.address || "",
           time: new Date(order.createdAt).toLocaleTimeString("en-US", {
+            timeZone: "America/Edmonton",
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
@@ -1832,8 +1835,8 @@ exports.downloadDriverDropPdf = async (req, res) => {
       date,
     }).lean();
 
-    const startOfDay = new Date(`${date}T00:00:00.000Z`);
-    const endOfDay = new Date(`${date}T23:59:59.999Z`);
+    const startOfDay = getLocalStartOfDay(date);
+    const endOfDay = getLocalEndOfDay(date);
 
     let orders = [];
     if (settlement && settlement.orders && settlement.orders.length > 0) {

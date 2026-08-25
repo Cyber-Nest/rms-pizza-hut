@@ -1,3 +1,5 @@
+import { getCanadaDayName, getCanadaCurrentTime, getCanadaTodayStr } from "./timezone";
+
 export interface StoreTiming {
   day: string;
   startTime: string;
@@ -32,16 +34,6 @@ export interface BranchWithSettings {
   settings?: BranchStoreSettings;
 }
 
-const DAYS_OF_WEEK = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
 export function parse12HourTime(timeStr: string): {
   hours: number;
   minutes: number;
@@ -62,8 +54,7 @@ export function parse12HourTime(timeStr: string): {
 }
 
 export function getTodayBranchSchedule(branch: BranchWithSettings | null) {
-  const now = new Date();
-  const dayName = DAYS_OF_WEEK[now.getDay()];
+  const dayName = getCanadaDayName();
 
   if (
     !branch ||
@@ -152,8 +143,8 @@ export function isBranchCurrentlyOpen(branch: BranchWithSettings | null): {
     };
   }
 
-  const now = new Date();
-  const currentTotalMins = now.getHours() * 60 + now.getMinutes();
+  const { hours, minutes } = getCanadaCurrentTime();
+  const currentTotalMins = hours * 60 + minutes;
 
   const startParsed = parse12HourTime(schedule.startTime);
   const startTotalMins = startParsed.hours * 60 + startParsed.minutes;
@@ -206,17 +197,15 @@ export function generateValidTimeSlotsForBranch(
   const startParsed = parse12HourTime(schedule.startTime);
   const endParsed = parse12HourTime(schedule.endTime);
 
-  const now = new Date();
-  const tzOffset = now.getTimezoneOffset() * 60000;
-  const todayStr = new Date(now.getTime() - tzOffset)
-    .toISOString()
-    .split("T")[0];
+  const todayStr = getCanadaTodayStr();
 
   let startTime = new Date();
 
   if (selectedDateStr === todayStr) {
-    // Current time + 1 hour prep buffer (60 mins)
-    let minTime = new Date(now.getTime() + 60 * 60 * 1000);
+    // Current Canada time + 1 hour prep buffer (60 mins)
+    const { hours, minutes } = getCanadaCurrentTime();
+    let minTime = new Date();
+    minTime.setHours(hours + 1, minutes, 0, 0);
 
     // Earliest time slot allowed is 1 hour AFTER store opening time
     const storeEarliestSlotTime = new Date();
@@ -243,7 +232,7 @@ export function generateValidTimeSlotsForBranch(
     minTime.setSeconds(0, 0);
     startTime = minTime;
   } else {
-    // Future date: time slots start 1 hour after opening time (e.g. 10:00 AM opening -> 11:00 AM slot)
+    // Future date: time slots start 1 hour after opening time
     startTime.setHours(startParsed.hours + 1, startParsed.minutes, 0, 0);
   }
 

@@ -34,6 +34,7 @@ export default function DeliveryNavbar({
       const now = new Date();
       setCurrentTime(
         now.toLocaleTimeString("en-US", {
+          timeZone: "America/Edmonton",
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",

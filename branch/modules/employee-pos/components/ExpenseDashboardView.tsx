@@ -201,7 +201,7 @@ export default function ExpenseDashboardView() {
                     </td>
                     <td className="py-3.5 px-4 font-750 text-neutral-900">{item.category}</td>
                     <td className="py-3.5 px-4 text-neutral-600 max-w-xs truncate">{item.description || '-'}</td>
-                    <td className="py-3.5 px-4">{new Date(item.expenseDate).toLocaleDateString()}</td>
+                    <td className="py-3.5 px-4">{new Date(item.expenseDate).toLocaleDateString("en-US", { timeZone: "America/Edmonton", month: "2-digit", day: "2-digit", year: "numeric" })}</td>
                     <td className="py-3.5 px-4">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-800 uppercase tracking-wide ${item.paymentMode === 'card' ? 'bg-purple-100 text-purple-800 border border-purple-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}`}>
                         {item.paymentMode || 'cash'}
@@ -211,7 +211,7 @@ export default function ExpenseDashboardView() {
                     <td className="py-3.5 px-4 text-right text-neutral-500">${Number(item.pst || 0).toFixed(2)}</td>
                     <td className="py-3.5 px-4 text-right text-neutral-500">${Number(item.gst || 0).toFixed(2)}</td>
                     <td className="py-3.5 px-4 text-right text-neutral-500">${Number(item.hst || 0).toFixed(2)}</td>
-                    <td className="py-3.5 px-4 text-neutral-400 text-[11px]">{new Date(item.createdAt).toLocaleDateString()}</td>
+                    <td className="py-3.5 px-4 text-neutral-400 text-[11px]">{new Date(item.createdAt).toLocaleDateString("en-US", { timeZone: "America/Edmonton", month: "2-digit", day: "2-digit", year: "numeric" })}</td>
                   </tr>
                 ))
               ) : (

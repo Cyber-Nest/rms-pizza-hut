@@ -2628,7 +2628,7 @@ exports.getMonthlySalesSummary = async ({
     const stopDate = new Date(endDateStr);
 
     while (currentDate <= stopDate) {
-      const dateStr = currentDate.toISOString().split("T")[0];
+      const dateStr = getLocalDateStr(currentDate);
       const dateParts = dateStr.split("-");
       const reportDateFormatted = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
 
@@ -2908,9 +2908,11 @@ const calculateDaySystemTotals = async (targetDateStr, branchId) => {
     paymentMode: exp.paymentMode || "cash",
     amount: round2(exp.amount || 0),
     time: exp.createdAt
-      ? new Date(exp.createdAt).toLocaleTimeString([], {
+      ? new Date(exp.createdAt).toLocaleTimeString("en-US", {
+          timeZone: "America/Edmonton",
           hour: "2-digit",
           minute: "2-digit",
+          hour12: true,
         })
       : "",
   }));
@@ -2938,7 +2940,7 @@ exports.getAccountClosingData = async (filters = {}) => {
   try {
     const targetDateStr = filters.date
       ? String(filters.date).split("T")[0]
-      : new Date().toISOString().split("T")[0];
+      : getLocalDateStr();
 
     const closingQuery = {
       ...(filters.branchId ? { branchId: filters.branchId } : {}),
@@ -3133,9 +3135,11 @@ exports.saveTerminalDeposit = async (data) => {
         comments,
         time:
           time ||
-          new Date().toLocaleTimeString([], {
+          new Date().toLocaleTimeString("en-US", {
+            timeZone: "America/Edmonton",
             hour: "2-digit",
             minute: "2-digit",
+            hour12: true,
           }),
       });
     }

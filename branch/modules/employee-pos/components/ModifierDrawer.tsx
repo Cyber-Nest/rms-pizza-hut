@@ -18,6 +18,7 @@ import {
   CartItem,
 } from "../types";
 import { usePosStore } from "../store/pos.store";
+import { getLocalDayName } from "../utils/timezone";
 
 interface Props {
   item: MenuItem | null;
@@ -379,15 +380,7 @@ export default function ModifierDrawer({
     optionName?: string,
   ) => {
     if (!item) return null;
-    const today = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ][new Date().getDay()];
+    const today = getLocalDayName();
     const prodId = (item.id || (item as any)._id || item.productId) as string;
 
     const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
@@ -660,15 +653,7 @@ export default function ModifierDrawer({
   // Helper to resolve deal of the day price for a given size variant or simple item
   const getDealPriceForVariant = (variantSizeCode?: string) => {
     if (!item) return null;
-    const today = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ][new Date().getDay()];
+    const today = getLocalDayName();
     const prodId = (item.id || (item as any)._id || item.productId) as string;
 
     const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
