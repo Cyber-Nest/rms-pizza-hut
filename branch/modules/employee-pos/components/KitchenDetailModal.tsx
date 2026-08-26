@@ -178,7 +178,9 @@ export default function KitchenDetailModal({
     if (
       !categoryFilter ||
       categoryFilter === "all" ||
-      categoryFilter === "cut_station"
+      categoryFilter === "cut_station" ||
+      categoryFilter === "make_table" ||
+      categoryFilter === "pizza"
     ) {
       return item;
     }

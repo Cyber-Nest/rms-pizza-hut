@@ -25,7 +25,7 @@ export default function DispatchPanel() {
     return orders.filter(o => {
       if (o.orderTiming === 'later' && o.scheduledAt) {
         const schedTime = new Date(o.scheduledAt).getTime();
-        if (schedTime - currentTime > 45 * 60 * 1000) {
+        if (schedTime - currentTime > 30 * 60 * 1000) {
           return false;
         }
       }

@@ -378,7 +378,7 @@ export default function DeliveryMap() {
     return orders.filter((o) => {
       if (o.orderTiming === "later" && o.scheduledAt) {
         const schedTime = new Date(o.scheduledAt).getTime();
-        if (schedTime - currentTime > 45 * 60 * 1000) {
+        if (schedTime - currentTime > 30 * 60 * 1000) {
           return false;
         }
       }
@@ -615,7 +615,7 @@ export default function DeliveryMap() {
             let elapsedMins = 0;
             if (order.orderTiming === "later" && order.scheduledAt) {
               const showUpTime =
-                new Date(order.scheduledAt).getTime() - 45 * 60000;
+                new Date(order.scheduledAt).getTime() - 30 * 60000;
               elapsedMins = Math.floor((Date.now() - showUpTime) / 60000);
             } else {
               const start = order.createdAt

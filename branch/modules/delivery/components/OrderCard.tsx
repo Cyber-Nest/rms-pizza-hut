@@ -30,7 +30,7 @@ export default function OrderCard({ order }: OrderCardProps) {
       if (!order.createdAt) return "0 min";
       let start = new Date(order.createdAt).getTime();
       if (order.orderTiming === 'later' && order.scheduledAt) {
-        start = new Date(order.scheduledAt).getTime() - 45 * 60000;
+        start = new Date(order.scheduledAt).getTime() - 30 * 60000;
       }
       let end = Date.now();
 
@@ -76,7 +76,7 @@ export default function OrderCard({ order }: OrderCardProps) {
   let elapsedMinsFromAppearance = 0;
   if (order.status === "assign") {
     if (order.orderTiming === 'later' && order.scheduledAt) {
-      const showUpTime = new Date(order.scheduledAt).getTime() - 45 * 60000;
+      const showUpTime = new Date(order.scheduledAt).getTime() - 30 * 60000;
       elapsedMinsFromAppearance = Math.floor((Date.now() - showUpTime) / 60000);
     } else {
       const start = order.createdAt ? new Date(order.createdAt).getTime() : Date.now();
