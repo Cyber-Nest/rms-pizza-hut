@@ -75,7 +75,7 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
           <p className="font-800">{(order as any)?.branchAddress || "231 Edgefield Pl , Strathmore,"}</p>
           <p className="font-800">{(order as any)?.branchCity || "Alberta, T1P 0E8, Canada"}</p>
           <p className="font-800">Tel # : {(order as any)?.branchPhone || "(587) 365-5401"}</p>
-          <p className="font-800">GST# : {(order as any)?.gstNumber || (order as any)?.branchGst || "11111111"}</p>
+          <p className="font-800">GST# : {(order as any)?.gstNumber || (order as any)?.branchGst || (order as any)?.branch?.settings?.mainSettings?.gstNumber || ""}</p>
         </div>
 
         {/* Order Header */}
@@ -104,11 +104,21 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
           </p>
         </div>
 
-        {/* Customer Delivery Notes */}
-        {order.notes && (
-          <div className="border border-black p-2 my-2 text-center text-[10.5px] font-800 leading-snug uppercase">
-            <p className="underline mb-0.5">NOTE / DELIVERY INSTRUCTIONS:</p>
-            <p className="font-900">"{order.notes}"</p>
+        {/* Customer / Order / Driver Notes */}
+        {(order.notes || (order as any).driverNotes || (order as any).customer?.driverNotes) && (
+          <div className="border border-black p-2 my-2 text-center text-[10.5px] font-800 leading-snug uppercase space-y-1.5">
+            {order.notes && (
+              <div>
+                <p className="underline mb-0.5">ORDER NOTE:</p>
+                <p className="font-900">"{order.notes}"</p>
+              </div>
+            )}
+            {((order as any).driverNotes || (order as any).customer?.driverNotes) && (
+              <div>
+                <p className="underline mb-0.5">DRIVER NOTE:</p>
+                <p className="font-900">"{(order as any).driverNotes || (order as any).customer?.driverNotes}"</p>
+              </div>
+            )}
           </div>
         )}
 

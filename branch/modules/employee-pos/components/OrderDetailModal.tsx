@@ -501,7 +501,7 @@ export default function OrderDetailModal({
               <div>
                 <p className="text-[10px] font-900 text-amber-800 uppercase tracking-wider">
                   {order.orderType === "delivery"
-                    ? "Delivery Instructions Note:"
+                    ? "Instructions Note:"
                     : "Customer Order Note:"}
                 </p>
                 <p className="text-xs font-700 mt-0.5 leading-relaxed text-amber-950">
