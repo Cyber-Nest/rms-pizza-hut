@@ -139,8 +139,10 @@ function CheckoutModalInner({
 
   const calculatedTax = useMemo(() => {
     const rate = (branchTaxRate || 5) / 100;
-    return Math.round(discountedSubtotal * rate * 100) / 100;
-  }, [discountedSubtotal, branchTaxRate]);
+    const currentDeliveryFee = orderType === "delivery" ? (deliveryFee || 0) : 0;
+    const taxableBase = Math.max(0, discountedSubtotal) + currentDeliveryFee;
+    return Math.round(taxableBase * rate * 100) / 100;
+  }, [discountedSubtotal, branchTaxRate, orderType, deliveryFee]);
 
   // Tip state ($0, $1, $3, $5, $10, custom)
   const [tipOption, setTipOption] = useState<"0" | "1" | "3" | "5" | "10" | "custom">("3");
@@ -155,7 +157,9 @@ function CheckoutModalInner({
   }, [tipOption, customTipInput]);
 
   const finalTotal = useMemo(() => {
-    return Math.round((discountedSubtotal + calculatedTax + (orderType === "delivery" ? (deliveryFee || 0) : 0) + tipAmount) * 100) / 100;
+    const currentDeliveryFee = orderType === "delivery" ? (deliveryFee || 0) : 0;
+    const taxableBase = Math.max(0, discountedSubtotal) + currentDeliveryFee;
+    return Math.round((taxableBase + calculatedTax + tipAmount) * 100) / 100;
   }, [discountedSubtotal, calculatedTax, orderType, deliveryFee, tipAmount]);
 
   const getTodayLocalString = () => {

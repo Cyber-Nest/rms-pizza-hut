@@ -740,9 +740,10 @@ export default function KitchenDetailModal({
       0,
     );
     const discount = localOrder.discount || 0;
-    const taxableAmount = Math.max(0, subtotal - discount);
+    const deliveryFee = localOrder.orderType === "delivery" ? (localOrder.deliveryFee || 0) : 0;
+    const taxableAmount = Math.max(0, subtotal - discount) + deliveryFee;
     const tax = Math.round(taxableAmount * 0.05 * 100) / 100;
-    const total = Math.max(0, subtotal + tax - discount);
+    const total = Math.max(0, taxableAmount + tax);
     return { subtotal, tax, total };
   };
 

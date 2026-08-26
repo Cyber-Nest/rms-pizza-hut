@@ -202,6 +202,8 @@ exports.getAllPromos = async ({
   search = '',
   channel = '',
   status = '',
+  branchId = '',
+  fields = '',
   page = 1,
   limit = 50,
 } = {}) => {
@@ -219,14 +221,23 @@ exports.getAllPromos = async ({
     if (status === 'active') query.isActive = true;
     if (status === 'inactive') query.isActive = false;
 
+    if (branchId) {
+      query.$or = [
+        { applicableBranchScope: 'all_branches' },
+        { applicableBranchScope: 'specific_branches', branchIds: branchId },
+      ];
+    }
+
     const skip = (Number(page) - 1) * Number(limit);
+    const selectProjection = fields ? fields.split(',').join(' ') : null;
+
+    let dbQuery = Promo.find(query).sort({ createdAt: -1 });
+    if (selectProjection) {
+      dbQuery = dbQuery.select(selectProjection);
+    }
 
     const [promos, total] = await Promise.all([
-      Promo.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit))
-        .lean(),
+      dbQuery.skip(skip).limit(Number(limit)).lean(),
       Promo.countDocuments(query),
     ]);
 
