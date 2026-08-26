@@ -4,14 +4,9 @@ const Driver = require("../../delivery/models/Driver.model");
 const Vehicle = require("../../delivery/models/Vehicle.model");
 
 const { triggerDriverStatusChange } = require("../../../config/pusher");
+const { getLocalDateStr } = require("../../../shared/utils/timezone");
 
-const getTodayDateStr = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const getTodayDateStr = () => getLocalDateStr();
 
 // Helper: Calculate minutes between two dates
 const diffInMinutes = (start, end) => {

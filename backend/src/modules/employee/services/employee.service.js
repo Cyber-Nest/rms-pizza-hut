@@ -2,14 +2,10 @@ const Employee = require("../models/employee.model");
 const Driver = require("../../delivery/models/Driver.model");
 const Attendance = require("../models/attendance.model");
 
+const { getLocalDateStr } = require("../../../shared/utils/timezone");
+
 // Helper to get local date string YYYY-MM-DD
-const getTodayDateStr = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const getTodayDateStr = () => getLocalDateStr();
 
 // Generate next Employee ID for a branch: 001, 002, 003, etc.
 const generateNextEmployeeId = async (branchId) => {

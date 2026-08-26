@@ -86,14 +86,10 @@ exports.getDeliveryOrders = async (req, res) => {
     const { status } = req.query;
     const restaurantId = getRestaurantIdFromReq(req);
 
-    // Get today's start and end
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    // Get today's start and end using restaurant local timezone (America/Edmonton)
+    const todayStr = getLocalDateStr();
+    const startOfDay = getLocalStartOfDay(todayStr);
+    const endOfDay = getLocalEndOfDay(todayStr);
 
     const query = {
       orderType: "delivery",
@@ -223,8 +219,7 @@ exports.getDrivers = async (req, res) => {
       )
       .lean();
 
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const todayStr = getLocalDateStr();
 
     // Get all driver-role employees for this branch
     const employees = await Employee.find({
@@ -608,8 +603,7 @@ exports.assignVehicle = async (req, res) => {
       .lean();
 
     if (employee) {
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const todayStr = getLocalDateStr();
       const att = await Attendance.findOne({
         branchId: driver.restaurantId,
         employeeId: employee._id,
@@ -802,8 +796,7 @@ exports.driverLogin = async (req, res) => {
     }
 
     // ── MANDATORY POS CHECK-IN VERIFICATION ──
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const todayStr = getLocalDateStr();
 
     if (employee) {
       const todayAttendance = await Attendance.findOne({
