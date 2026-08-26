@@ -38,6 +38,7 @@ router.get("/driver-drop/drivers", protectBranch, enforceBranch, deliveryControl
 router.get("/driver-drop/summary", protectBranch, enforceBranch, deliveryController.getDriverDropSummary);
 router.post("/driver-drop/settle", protectBranch, enforceBranch, deliveryController.settleDriverDrop);
 router.get("/driver-drop/receipt/pdf", protectBranch, enforceBranch, deliveryController.downloadDriverDropPdf);
+router.post("/driver-drop/receipt/print", protectBranch, enforceBranch, deliveryController.silentPrintDriverDropPdf);
 
 // ── QR Code Routes ──
 router.post("/driver/verify-qr", deliveryController.verifyStoreQr);
