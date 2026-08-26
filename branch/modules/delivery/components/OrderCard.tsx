@@ -9,7 +9,11 @@ import {
   ChevronUp,
   Check,
   User,
+  Printer,
+  RefreshCw,
 } from "lucide-react";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { DeliveryOrder } from "../types/delivery";
 import { useDeliveryStore } from "../store/deliveryStore";
 
@@ -20,9 +24,38 @@ interface OrderCardProps {
 export default function OrderCard({ order }: OrderCardProps) {
   const [showDriverDropdown, setShowDriverDropdown] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [loadingAction, setLoadingAction] = useState<
     "assign" | "unassign" | "delivered" | "available" | null
   >(null);
+
+  const handleSilentPrint = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPrinting || !order.id) return;
+    setIsPrinting(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      toast.loading(`Printing receipt for #${order.orderNumber}...`, {
+        id: `print-${order.id}`,
+      });
+      const res = await axios.post(`${apiUrl}/orders/${order.id}/print`, {
+        paperSize: "80mm",
+      });
+      if (res.data.success) {
+        toast.success(`Receipt printed successfully!`, {
+          id: `print-${order.id}`,
+        });
+      } else {
+        throw new Error(res.data.message || "Print failed");
+      }
+    } catch (err: any) {
+      toast.error("Print failed — check printer connection.", {
+        id: `print-${order.id}`,
+      });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
   const [durationStr, setDurationStr] = useState("");
 
   React.useEffect(() => {
@@ -150,9 +183,24 @@ export default function OrderCard({ order }: OrderCardProps) {
             </span>
           </div>
         </div>
-        <span className="text-[11px] lg:text-[13px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-md tracking-wide">
-          {order.orderNumber}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={isPrinting}
+            onClick={handleSilentPrint}
+            title="Print Receipt"
+            className="p-1 text-neutral-400 hover:text-brand-primary hover:bg-neutral-100 rounded-md transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
+          >
+            {isPrinting ? (
+              <RefreshCw size={14} className="animate-spin text-brand-primary" />
+            ) : (
+              <Printer size={14} />
+            )}
+          </button>
+          <span className="text-[11px] lg:text-[13px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-md tracking-wide">
+            {order.orderNumber}
+          </span>
+        </div>
       </div>
 
       {/* Address */}
@@ -329,39 +377,65 @@ export default function OrderCard({ order }: OrderCardProps) {
         )}
 
         {order.status === "delivered" && (
-          <div className="flex items-center justify-between w-full mt-1 animate-fade-in">
+          <div className="flex items-center justify-between w-full mt-1 animate-fade-in gap-2">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600">
               <Check size={14} strokeWidth={2.5} />
               <span>Delivered</span>
             </div>
-            {order.assignmentStatus === "delivered" &&
-              assignedDriver &&
-              assignedDriver.status === "returning" && (
-                <button
-                  className="px-2.5 py-1 text-[10px] font-black text-purple-600 bg-purple-50 border border-purple-200/60 hover:bg-purple-100 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0"
-                  disabled={isUpdating}
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    setIsUpdating(true);
-                    setLoadingAction("available");
-                    try {
-                      await markDriverAvailable(assignedDriver.id);
-                    } catch (err) {
-                      console.error(err);
-                    } finally {
-                      setIsUpdating(false);
-                      setLoadingAction(null);
-                    }
-                  }}
-                >
-                  {loadingAction === "available" ? (
-                    <div className="w-2.5 h-2.5 border-[1.5px] border-purple-600 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <MapPin size={10} />
-                  )}
-                  <span>Mark Driver Available</span>
-                </button>
-              )}
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {order.assignmentStatus === "delivered" &&
+                assignedDriver &&
+                assignedDriver.status === "returning" && (
+                  <button
+                    className="px-2.5 py-1 text-[10px] font-black text-purple-600 bg-purple-50 border border-purple-200/60 hover:bg-purple-100 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 shrink-0"
+                    disabled={isUpdating}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setIsUpdating(true);
+                      setLoadingAction("available");
+                      try {
+                        await markDriverAvailable(assignedDriver.id);
+                      } catch (err) {
+                        console.error(err);
+                      } finally {
+                        setIsUpdating(false);
+                        setLoadingAction(null);
+                      }
+                    }}
+                  >
+                    {loadingAction === "available" ? (
+                      <div className="w-2.5 h-2.5 border-[1.5px] border-purple-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <MapPin size={10} />
+                    )}
+                    <span>Mark Driver Available</span>
+                  </button>
+                )}
+
+              <button
+                className="px-2.5 py-1.5 text-[10.5px] font-bold text-red-650 bg-red-50 hover:bg-red-100/80 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1 disabled:opacity-50"
+                disabled={isUpdating}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  setIsUpdating(true);
+                  setLoadingAction("unassign");
+                  try {
+                    await unassignDriver(order.id);
+                  } catch (err) {
+                    console.error(err);
+                  } finally {
+                    setIsUpdating(false);
+                    setLoadingAction(null);
+                  }
+                }}
+              >
+                {loadingAction === "unassign" && (
+                  <div className="w-2.5 h-2.5 border-[1.5px] border-red-600 border-t-transparent rounded-full animate-spin" />
+                )}
+                <span>Unassign</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
