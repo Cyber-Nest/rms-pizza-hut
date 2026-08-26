@@ -464,7 +464,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
         return { drivers: updatedDrivers };
       });
 
-      // ── Automated Geofence Checks (20m Customer Deliver & 50m Base Return) ──
+      // ── Automated Geofence Checks (100m Customer Deliver & 150m Base Return) ──
       if (lat !== undefined && lng !== undefined) {
         const numLat = Number(lat);
         const numLng = Number(lng);
@@ -472,7 +472,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
         const driver = drivers.find((d) => d.id === driverId || d._id === driverId);
 
         if (driver) {
-          // 1. Customer Proximity Check (20 Meters)
+          // 1. Customer Proximity Check (100 Meters)
           if (driver.status === "on-delivery" || driver.status === "returning") {
             const activeOrders = orders.filter(
               (o) =>
@@ -488,14 +488,14 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
                   Number(o.coordinates.lat),
                   Number(o.coordinates.lng)
                 );
-                if (distM <= 20) {
+                if (distM <= 100) {
                   get().markDelivered(o.id);
                 }
               }
             });
           }
 
-          // 2. Restaurant Base Return Proximity Check (50 Meters)
+          // 2. Restaurant Base Return Proximity Check (150 Meters)
           if (driver.status === "returning") {
             const restCoords = restaurantLocation?.coordinates;
             if (restCoords && restCoords.lat && restCoords.lng) {
@@ -505,7 +505,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
                 Number(restCoords.lat),
                 Number(restCoords.lng)
               );
-              if (distRestM <= 50) {
+              if (distRestM <= 150) {
                 get().markDriverAvailable(driver.id);
               }
             }
