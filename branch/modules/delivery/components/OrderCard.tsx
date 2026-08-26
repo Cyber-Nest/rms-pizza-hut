@@ -16,6 +16,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { DeliveryOrder } from "../types/delivery";
 import { useDeliveryStore } from "../store/deliveryStore";
+import { formatLocalTime } from "../../employee-pos/utils/timezone";
 
 interface OrderCardProps {
   order: DeliveryOrder;
@@ -224,9 +225,15 @@ export default function OrderCard({ order }: OrderCardProps) {
           <Clock size={11} />
           <span>
             Time Ordered:{" "}
-            <strong className="text-neutral-700 font-semibold">
-              {order.timeOrdered}
-            </strong>
+            {order.orderTiming === "later" && order.scheduledAt ? (
+              <span className="text-purple-700 font-800 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 inline-block">
+                Timed - {formatLocalTime(order.scheduledAt)}
+              </span>
+            ) : (
+              <strong className="text-neutral-700 font-semibold">
+                {order.timeOrdered}
+              </strong>
+            )}
           </span>
         </div>
       </div>

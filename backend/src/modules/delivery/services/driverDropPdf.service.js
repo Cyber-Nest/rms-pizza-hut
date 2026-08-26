@@ -15,25 +15,27 @@ exports.generateDriverDropPdf = async ({ driver, date, type = "both", settlement
     let branchInfo = {
       name: "Pizza Hut",
       code: "STORE",
-      address: "103-140 Maple Ave SE, Medicine Hat, AB",
-      city: "T1A 8C1, Canada. Medicine hat",
-      phone: "+14035260263",
-      gst: "123456789",
+      address: "",
+      city: "",
+      phone: "",
+      gst: "",
     };
-    if (branchId) {
-      try {
-        const b = await Branch.findById(branchId).lean();
-        if (b) {
-          if (b.name) branchInfo.name = b.name;
-          if (b.code) branchInfo.code = b.code;
-          if (b.address) branchInfo.address = b.address;
-          if (b.city) branchInfo.city = b.city;
-          if (b.phone) branchInfo.phone = b.phone;
-          if (b.gst) branchInfo.gst = b.gst;
-        }
-      } catch (err) {
-        logger.warn(`Could not fetch branch for driver drop PDF: ${err.message}`);
+    try {
+      const b = branchId
+        ? await Branch.findById(branchId).lean()
+        : await Branch.findOne().lean();
+      if (b) {
+        if (b.name) branchInfo.name = b.name;
+        if (b.code) branchInfo.code = b.code;
+        if (b.address) branchInfo.address = b.address;
+        if (b.city) branchInfo.city = b.city;
+        if (b.phone) branchInfo.phone = b.phone;
+        const gstNum =
+          b.settings?.mainSettings?.gstNumber || b.gstNumber || b.gst;
+        if (gstNum) branchInfo.gst = gstNum;
       }
+    } catch (err) {
+      logger.warn(`Could not fetch branch for driver drop PDF: ${err.message}`);
     }
 
     const formattedDate = new Date(date + "T12:00:00").toLocaleDateString("en-US", { timeZone: TIMEZONE, month: "2-digit", day: "2-digit", year: "numeric" });

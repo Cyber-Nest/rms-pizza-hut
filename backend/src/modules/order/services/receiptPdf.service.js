@@ -16,28 +16,28 @@ exports.generateReceiptPdfStream = async (
     let branchInfo = {
       name: order.branchName || "Pizza Hut",
       code: order.branchCode || "DELIGHT",
-      phone: "(587) 365-5401",
-      gst: "123456789",
+      phone: "",
+      gst: "",
     };
 
-    if (order.branchId) {
-      try {
-        const b =
-          typeof order.branchId === "object" && order.branchId.name
+    try {
+      const b = order.branchId
+        ? (typeof order.branchId === "object" && order.branchId.name
             ? order.branchId
-            : await Branch.findById(order.branchId).lean();
-        if (b) {
-          if (b.name) branchInfo.name = b.name;
-          if (b.code) branchInfo.code = b.code;
-          if (b.phone) branchInfo.phone = b.phone;
-          if (b.settings?.mainSettings?.gstNumber)
-            branchInfo.gst = b.settings.mainSettings.gstNumber;
-        }
-      } catch (err) {
-        logger.warn(
-          `Could not fetch branch info for receipt PDF: ${err.message}`,
-        );
+            : await Branch.findById(order.branchId).lean())
+        : await Branch.findOne().lean();
+      if (b) {
+        if (b.name) branchInfo.name = b.name;
+        if (b.code) branchInfo.code = b.code;
+        if (b.phone) branchInfo.phone = b.phone;
+        const gstNum =
+          b.settings?.mainSettings?.gstNumber || b.gstNumber || b.gst;
+        if (gstNum) branchInfo.gst = gstNum;
       }
+    } catch (err) {
+      logger.warn(
+        `Could not fetch branch info for receipt PDF: ${err.message}`,
+      );
     }
 
     // ── Page setup ───────────────────────────────────────────────────────────
@@ -436,8 +436,10 @@ exports.generateReceiptPdfStream = async (
     const custAddr = rawAddr.trim();
     const rawDriverNotes = order.driverNotes || order.customer?.driverNotes || "";
     const driverNotes = rawDriverNotes.trim();
+    const rawOrderNotes = order.notes || order.orderNotes || "";
+    const orderNotes = rawOrderNotes.trim();
 
-    if (showCustomer || custAddr || driverNotes) {
+    if (showCustomer || custAddr || orderNotes || driverNotes) {
       const custFs = is58mm ? 10.5 : 11.5;
       if (custName && custPhone) {
         const ry = doc.y;
@@ -467,6 +469,16 @@ exports.generateReceiptPdfStream = async (
           .fontSize(is58mm ? 10.5 : 11.5)
           .fillColor("#000000")
           .text(`Address: ${custAddr}`, startX, doc.y, { width: printableWidth });
+        doc.moveDown(0.2);
+      }
+
+      // Print Order Notes if present
+      if (orderNotes) {
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(is58mm ? 10.5 : 11.5)
+          .fillColor("#000000")
+          .text(`Order Notes: ${orderNotes}`, startX, doc.y, { width: printableWidth });
         doc.moveDown(0.2);
       }
 
@@ -605,7 +617,7 @@ exports.generateReceiptPdfStream = async (
         .font("Helvetica-Bold")
         .fontSize(totFs)
         .fillColor("#000000")
-        .text(`GST ID[#:R1 ${branchInfo.gst}`, startX, ry, {
+        .text(`GST ID: ${branchInfo.gst}`, startX, ry, {
           width: printableWidth * 0.55,
         });
       const afterLeft = doc.y;
@@ -761,31 +773,33 @@ exports.generateSalesSummaryReceiptPdf = async (
     let branchInfo = {
       name: summary.branchName || "Pizza Hut",
       code: summary.branchCode || "DELIGHT",
-      address: "231 Edgefield Pl , Strathmore,",
-      city: "Alberta, T1P 0E8, Canada",
-      phone: "(587) 365-5401",
-      gst: "123456789",
+      address: "",
+      city: "",
+      phone: "",
+      gst: "",
     };
 
     const targetBranchId = branchId || summary.branchId;
-    if (targetBranchId) {
-      try {
-        const b =
-          typeof targetBranchId === "object" && targetBranchId.name
+    try {
+      const b = targetBranchId
+        ? (typeof targetBranchId === "object" && targetBranchId.name
             ? targetBranchId
-            : await Branch.findById(targetBranchId).lean();
-        if (b) {
-          if (b.name) branchInfo.name = b.name;
-          if (b.code) branchInfo.code = b.code;
-          if (b.address) branchInfo.address = b.address;
-          if (b.city) branchInfo.city = b.city;
-          if (b.phone) branchInfo.phone = b.phone;
-        }
-      } catch (err) {
-        logger.warn(
-          `Could not fetch branch info for sales summary receipt: ${err.message}`,
-        );
+            : await Branch.findById(targetBranchId).lean())
+        : await Branch.findOne().lean();
+      if (b) {
+        if (b.name) branchInfo.name = b.name;
+        if (b.code) branchInfo.code = b.code;
+        if (b.address) branchInfo.address = b.address;
+        if (b.city) branchInfo.city = b.city;
+        if (b.phone) branchInfo.phone = b.phone;
+        const gstNum =
+          b.settings?.mainSettings?.gstNumber || b.gstNumber || b.gst;
+        if (gstNum) branchInfo.gst = gstNum;
       }
+    } catch (err) {
+      logger.warn(
+        `Could not fetch branch info for sales summary receipt: ${err.message}`,
+      );
     }
 
     const doc = new PDFDocument({ size: [226, 1600], margin: 10 });
@@ -1054,24 +1068,27 @@ exports.generateDepositReceiptPdf = async (
     let branchInfo = {
       name: depositData.branchName || "Pizza Hut",
       code: depositData.branchCode || "DELIGHT",
-      address: "231 Edgefield Pl , Strathmore,",
-      city: "Alberta, T1P 0E8, Canada",
-      phone: "(587) 365-5401",
-      gst: "123456789",
+      address: "",
+      city: "",
+      phone: "",
+      gst: "",
     };
 
-    if (branchId) {
-      try {
-        const b = await Branch.findById(branchId).lean();
-        if (b) {
-          if (b.name) branchInfo.name = b.name;
-          if (b.code) branchInfo.code = b.code;
-          if (b.address) branchInfo.address = b.address;
-          if (b.city) branchInfo.city = b.city;
-          if (b.phone) branchInfo.phone = b.phone;
-        }
-      } catch (err) {}
-    }
+    try {
+      const b = branchId
+        ? await Branch.findById(branchId).lean()
+        : await Branch.findOne().lean();
+      if (b) {
+        if (b.name) branchInfo.name = b.name;
+        if (b.code) branchInfo.code = b.code;
+        if (b.address) branchInfo.address = b.address;
+        if (b.city) branchInfo.city = b.city;
+        if (b.phone) branchInfo.phone = b.phone;
+        const gstNum =
+          b.settings?.mainSettings?.gstNumber || b.gstNumber || b.gst;
+        if (gstNum) branchInfo.gst = gstNum;
+      }
+    } catch (err) {}
 
     const printableWidth = 206;
     const startX = 10;
@@ -1210,24 +1227,27 @@ exports.generateAccountClosingReceiptPdf = async (
     let branchInfo = {
       name: closingData.branchName || "Pizza Hut",
       code: closingData.branchCode || "DELIGHT",
-      address: "231 Edgefield Pl , Strathmore,",
-      city: "Alberta, T1P 0E8, Canada",
-      phone: "(587) 365-5401",
-      gst: "123456789",
+      address: "",
+      city: "",
+      phone: "",
+      gst: "",
     };
 
-    if (branchId) {
-      try {
-        const b = await Branch.findById(branchId).lean();
-        if (b) {
-          if (b.name) branchInfo.name = b.name;
-          if (b.code) branchInfo.code = b.code;
-          if (b.address) branchInfo.address = b.address;
-          if (b.city) branchInfo.city = b.city;
-          if (b.phone) branchInfo.phone = b.phone;
-        }
-      } catch (err) {}
-    }
+    try {
+      const b = branchId
+        ? await Branch.findById(branchId).lean()
+        : await Branch.findOne().lean();
+      if (b) {
+        if (b.name) branchInfo.name = b.name;
+        if (b.code) branchInfo.code = b.code;
+        if (b.address) branchInfo.address = b.address;
+        if (b.city) branchInfo.city = b.city;
+        if (b.phone) branchInfo.phone = b.phone;
+        const gstNum =
+          b.settings?.mainSettings?.gstNumber || b.gstNumber || b.gst;
+        if (gstNum) branchInfo.gst = gstNum;
+      }
+    } catch (err) {}
 
     const sys = closingData.systemData || {};
     const closing = closingData.existingClosing || {};

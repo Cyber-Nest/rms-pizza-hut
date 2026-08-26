@@ -182,9 +182,13 @@ export default function KitchenOrderCard({
             {order.orderNumber}
           </span>
           <span className="text-[11px] lg:text-[12px] text-neutral-500 font-600">
-            {order.orderTiming === "later" && order.scheduledAt
-              ? formatLocalTime(order.scheduledAt)
-              : formatLocalTime(order.createdAt)}
+            {order.orderTiming === "later" && order.scheduledAt ? (
+              <span className="text-purple-700 font-800 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 inline-flex items-center gap-1">
+                <span>Timed - {formatLocalTime(order.scheduledAt)}</span>
+              </span>
+            ) : (
+              formatLocalTime(order.createdAt)
+            )}
           </span>
         </div>
         <span
