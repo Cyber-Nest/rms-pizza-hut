@@ -2319,7 +2319,7 @@ exports.updateDriverLocation = async (req, res) => {
     const numLat = Number(lat);
     const numLng = Number(lng);
 
-    // 1. Customer Proximity Check (20 Meters)
+    // 1. Customer Proximity Check (100 Meters)
     if (driver.status === "on-delivery" || driver.status === "returning") {
       const activeAssignments = await DeliveryAssignment.find({
         driverId: driver._id,
@@ -2332,7 +2332,7 @@ exports.updateDriverLocation = async (req, res) => {
 
         if (custLat && custLng) {
           const distMeters = calculateHaversineMeters(numLat, numLng, custLat, custLng);
-          if (distMeters <= 20) {
+          if (distMeters <= 100) {
             assignment.status = "delivered";
             assignment.deliveredAt = new Date();
             await assignment.save();
@@ -2345,7 +2345,7 @@ exports.updateDriverLocation = async (req, res) => {
                   statusHistory: {
                     status: "completed",
                     changedAt: new Date(),
-                    note: "Auto-Delivered (Driver within 20m of customer address)",
+                    note: "Auto-Delivered (Driver within 100m of customer address)",
                   },
                 },
               },
@@ -2382,7 +2382,7 @@ exports.updateDriverLocation = async (req, res) => {
       }
     }
 
-    // 2. Restaurant Base Return Proximity Check (50 Meters)
+    // 2. Restaurant Base Return Proximity Check (150 Meters)
     if (driver.status === "returning") {
       try {
         const Branch = require("../../branch/models/branch.model");
@@ -2392,7 +2392,7 @@ exports.updateDriverLocation = async (req, res) => {
 
         if (restLat && restLng) {
           const distRestMeters = calculateHaversineMeters(numLat, numLng, restLat, restLng);
-          if (distRestMeters <= 50) {
+          if (distRestMeters <= 150) {
             await DeliveryAssignment.updateMany(
               { driverId: driver._id, status: "delivered" },
               { $set: { status: "completed", completedAt: new Date() } }
