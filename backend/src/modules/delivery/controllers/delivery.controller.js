@@ -6,6 +6,8 @@ const Order = require("../../order/models/order.model");
 const Attendance = require("../../employee/models/attendance.model");
 const Employee = require("../../employee/models/employee.model");
 const driverDropPdfService = require("../services/driverDropPdf.service");
+const silentPrintService = require("../../order/services/silentPrint.service");
+const fs = require("fs");
 
 const logger = require("../../../shared/utils/logger");
 const { getLocalDateStr, getLocalStartOfDay, getLocalEndOfDay, formatLocalDateTime } = require("../../../shared/utils/timezone");
@@ -15,6 +17,7 @@ const {
   triggerDeliveryStatusUpdate,
   triggerDriverStatusChange,
   triggerOrderUpdated,
+  triggerPrintJob,
 } = require("../../../config/pusher");
 
 const jwt = require("jsonwebtoken");
@@ -1798,8 +1801,8 @@ exports.settleDriverDrop = async (req, res) => {
     const totalOrders = orders.length;
     const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
     const prepaidOrders = orders.filter((o) => o.pd === "PP");
-    const prepaidSales = prepaidOrders.reduce((sum, o) => sum + o.total, 0);
     const prepaidTips = orders.reduce((sum, o) => sum + o.prepaidTip, 0);
+    const prepaidSales = prepaidOrders.reduce((sum, o) => sum + Math.max(0, o.total - o.prepaidTip), 0);
     const totalNewSales = Math.max(0, totalSales - prepaidSales - prepaidTips);
 
     const enteredTerminalSales = parseFloat(terminalSales) || 0;
@@ -1858,12 +1861,16 @@ exports.settleDriverDrop = async (req, res) => {
     };
 
     const settlement = await DriverDropSettlement.findOneAndUpdate(
-      { branchId: restaurantId, date, driverId: driver._id },
-      { $set: settlementPayload },
-      { new: true, upsert: true, setDefaultsOnInsert: true },
+      { branchId: restaurantId, driverId: driver._id, date },
+      settlementPayload,
+      { upsert: true, new: true, runValidators: true },
     );
 
-    res.status(200).json({ success: true, data: settlement });
+    res.status(200).json({
+      success: true,
+      message: `Driver Drop settlement submitted successfully for ${driver.name}.`,
+      data: settlement,
+    });
   } catch (error) {
     handleError(res, error, 500);
   }
@@ -1871,12 +1878,21 @@ exports.settleDriverDrop = async (req, res) => {
 
 /**
  * GET: Download Driver Drop PDF Receipt (sales report, commission slip, or both)
- * Query params: driverId, date, type (sales | commission | both)
+ * Query params: driverId, date, type (sales | commission | both), terminalSales, terminalTips, cashSales, additionalCommission, additionalReason
  */
 exports.downloadDriverDropPdf = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
-    const { driverId, date, type = "both" } = req.query;
+    const {
+      driverId,
+      date,
+      type = "both",
+      terminalSales,
+      terminalTips,
+      cashSales,
+      additionalCommission,
+      additionalReason,
+    } = req.query;
 
     if (!driverId || !date) {
       return res
@@ -1948,6 +1964,14 @@ exports.downloadDriverDropPdf = async (req, res) => {
         });
     }
 
+    const liveInputs = {
+      terminalSales: terminalSales !== undefined ? parseFloat(terminalSales) : undefined,
+      terminalTips: terminalTips !== undefined ? parseFloat(terminalTips) : undefined,
+      cashSales: cashSales !== undefined ? parseFloat(cashSales) : undefined,
+      additionalCommission: additionalCommission !== undefined ? parseFloat(additionalCommission) : undefined,
+      additionalReason: additionalReason || "",
+    };
+
     const driverCode = driver.driverId || driver._id.toString().slice(-4);
     const filename = `Driver_Receipt_${type}_${driverCode}_${date}.pdf`;
 
@@ -1955,11 +1979,170 @@ exports.downloadDriverDropPdf = async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
     await driverDropPdfService.generateDriverDropPdf(
-      { driver, date, type, settlement, orders, branchId: restaurantId },
+      { driver, date, type, settlement, orders, branchId: restaurantId, liveInputs },
       res
     );
   } catch (error) {
     handleError(res, error, 500);
+  }
+};
+
+/**
+ * POST: Silent Print Driver Drop Thermal Receipt (Local print-agent / SumatraPDF)
+ * Body: { driverId, date, type, terminalSales, terminalTips, cashSales, additionalCommission, additionalReason, printerName }
+ */
+exports.silentPrintDriverDropPdf = async (req, res) => {
+  let tempPdfPath = null;
+  try {
+    const restaurantId = getRestaurantIdFromReq(req);
+    const {
+      driverId,
+      date,
+      type = "both",
+      terminalSales,
+      terminalTips,
+      cashSales,
+      additionalCommission,
+      additionalReason,
+      printerName,
+    } = req.body || {};
+
+    const targetDate = date || getLocalDateStr();
+    if (!driverId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "driverId is required." });
+    }
+
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Driver not found." });
+    }
+
+    const settlement = await DriverDropSettlement.findOne({
+      branchId: restaurantId,
+      driverId,
+      date: targetDate,
+    }).lean();
+
+    const startOfDay = getLocalStartOfDay(targetDate);
+    const endOfDay = getLocalEndOfDay(targetDate);
+
+    let orders = [];
+    if (settlement && settlement.orders && settlement.orders.length > 0) {
+      orders = settlement.orders;
+    } else {
+      const assignments = await DeliveryAssignment.find({
+        driverId,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      })
+        .populate("orderId")
+        .lean();
+
+      orders = assignments
+        .filter((a) => a.orderId)
+        .map((a) => {
+          const order = a.orderId;
+          let pd = "CS";
+          if (
+            ["online", "doordash", "skip", "ubereats"].includes(order.orderSource) ||
+            order.paymentMethod === "stripe"
+          ) {
+            pd = "PP";
+          } else if (
+            (order.payments &&
+              order.payments.some(
+                (p) =>
+                  p.method === "card" ||
+                  p.method === "debit" ||
+                  p.method === "credit",
+              )) ||
+            order.paymentMethod === "card"
+          ) {
+            pd = "TM";
+          } else {
+            pd = "CS";
+          }
+          return {
+            orderNumber: order.orderNumber,
+            ticketName: `${order.orderNumber || ""} ${order.customer?.name || "Customer"}`.trim(),
+            customerName: order.customer?.name || "Customer",
+            total: order.total || 0,
+            dc: 6.0,
+            pd,
+            prepaidTip: pd === "PP" ? order.tip || 0 : 0,
+            terminalTip: pd === "TM" ? order.tip || 0 : 0,
+          };
+        });
+    }
+
+    const driverCode = driver.driverId || driver._id.toString().slice(-4);
+    const filename = `driver-drop-${driverCode}-${targetDate}-${Date.now()}.pdf`;
+    tempPdfPath = silentPrintService.getTempReceiptPath(filename);
+
+    const fileStream = fs.createWriteStream(tempPdfPath);
+    const liveInputs = {
+      terminalSales: terminalSales !== undefined ? parseFloat(terminalSales) : undefined,
+      terminalTips: terminalTips !== undefined ? parseFloat(terminalTips) : undefined,
+      cashSales: cashSales !== undefined ? parseFloat(cashSales) : undefined,
+      additionalCommission: additionalCommission !== undefined ? parseFloat(additionalCommission) : undefined,
+      additionalReason: additionalReason || "",
+    };
+
+    await driverDropPdfService.generateDriverDropPdf(
+      { driver, date: targetDate, type, settlement, orders, branchId: restaurantId, liveInputs },
+      fileStream
+    );
+
+    await new Promise((resolve, reject) => {
+      fileStream.on("finish", resolve);
+      fileStream.on("error", reject);
+    });
+
+    const printResult = await silentPrintService.printPdfSilently(
+      tempPdfPath,
+      printerName || null
+    );
+
+    if (printResult.printer === "Cloud Bypassed" && restaurantId) {
+      const apiBase = `${req.protocol}://${req.get("host")}/api`;
+      const params = new URLSearchParams({
+        driverId: String(driverId),
+        date: targetDate,
+        type,
+        branchId: String(restaurantId),
+      });
+      if (terminalSales !== undefined) params.append("terminalSales", String(terminalSales));
+      if (terminalTips !== undefined) params.append("terminalTips", String(terminalTips));
+      if (cashSales !== undefined) params.append("cashSales", String(cashSales));
+      if (additionalCommission !== undefined) params.append("additionalCommission", String(additionalCommission));
+
+      const pdfUrl = `${apiBase}/delivery/driver-drop/receipt/pdf?${params.toString()}`;
+
+      await triggerPrintJob(restaurantId, {
+        orderId: `driver-drop-${driverCode}`,
+        orderNumber: `Driver Drop (${driver.name})`,
+        pdfUrl,
+        paperSize: "80mm",
+        type: "driver_drop",
+        date: targetDate,
+        printerName: printerName || null,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Driver Drop receipt sent to printer successfully.`,
+      printer: printResult.printer,
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  } finally {
+    if (tempPdfPath) {
+      silentPrintService.scheduleTempDelete(tempPdfPath, 15000);
+    }
   }
 };
 

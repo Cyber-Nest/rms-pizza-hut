@@ -296,22 +296,23 @@ export default function DriverDropDashboard() {
     const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
 
     const prepaidOrders = orders.filter((o) => o.pd === "PP");
-    const prepaidSales = prepaidOrders.reduce((sum, o) => sum + o.total, 0);
     const prepaidTips = orders.reduce((sum, o) => sum + o.prepaidTip, 0);
+    const prepaidSales = prepaidOrders.reduce((sum, o) => sum + Math.max(0, o.total - o.prepaidTip), 0);
 
-    const totalNewSales = totalSales - prepaidSales - prepaidTips;
+    const totalNewSales = Math.max(0, totalSales - prepaidSales - prepaidTips);
 
     // Entered Input values
     const enteredTerminalSales = parseFloat(terminalSalesInput) || 0;
     const enteredTerminalTips = parseFloat(terminalTipsInput) || 0;
     const enteredCashSales = parseFloat(cashSalesInput) || 0;
 
-    // Sale Due calculation
-    const saleDue =
+    // Sale Due calculation (rounded to 2 decimal places to prevent JS floating point precision bugs like 0.000000000000014 > 0)
+    const rawSaleDue =
       totalNewSales -
       enteredTerminalSales -
       enteredTerminalTips -
       enteredCashSales;
+    const saleDue = Math.round(rawSaleDue * 100) / 100;
 
     // Delivery Commissions ($6.00 flat per order)
     const driverBaseCommission = totalOrders * 6.0;
@@ -355,11 +356,120 @@ export default function DriverDropDashboard() {
     additionalCommission,
   ]);
 
-  // Submit button disabled if no driver selected OR Sale Due > 0 OR driver already settled
+  // Submit button disabled if no driver selected OR Sale Due > 0.009 OR driver already settled
   const isSubmitDisabled =
     !selectedDriver ||
-    calculations.saleDue > 0 ||
+    calculations.saleDue > 0.009 ||
     Boolean(selectedDriver?.isSettled);
+
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handleSilentPrintPdf = async () => {
+    if (!selectedDriver || isPrinting) return;
+    setIsPrinting(true);
+    const toastId = toast.loading("Sending to printer...", { id: "print-driver-drop" });
+    try {
+      let branchId: string | undefined = undefined;
+      if (typeof window !== "undefined") {
+        const rawBranch = localStorage.getItem("rms_branch");
+        if (rawBranch) {
+          try {
+            const b = JSON.parse(rawBranch);
+            branchId = b._id;
+          } catch (e) {}
+        }
+      }
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const slipType = activePrintModal || "both";
+      const res = await axios.post(
+        `${apiUrl}/delivery/driver-drop/receipt/print`,
+        {
+          driverId: selectedDriver.id,
+          date: selectedDate,
+          type: slipType,
+          terminalSales: parseFloat(terminalSalesInput) || 0,
+          terminalTips: parseFloat(terminalTipsInput) || 0,
+          cashSales: parseFloat(cashSalesInput) || 0,
+          additionalCommission: hasAdditionalCommissionToggle
+            ? parseFloat(additionalCommission) || 0
+            : 0,
+          additionalReason: hasAdditionalCommissionToggle ? additionalReason : "",
+          ...(branchId ? { branchId } : {}),
+        }
+      );
+
+      if (res.data.success) {
+        toast.success("Driver Drop receipt sent to printer!", { id: "print-driver-drop" });
+      } else {
+        throw new Error(res.data.message || "Print failed");
+      }
+    } catch (err: any) {
+      console.error("Failed to print Driver Drop receipt", err);
+      toast.error("Print failed — check printer connection.", { id: "print-driver-drop" });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!selectedDriver || isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    const toastId = toast.loading("Generating PDF receipt...");
+    try {
+      let branchId: string | undefined = undefined;
+      if (typeof window !== "undefined") {
+        const rawBranch = localStorage.getItem("rms_branch");
+        if (rawBranch) {
+          try {
+            const b = JSON.parse(rawBranch);
+            branchId = b._id;
+          } catch (e) {}
+        }
+      }
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const slipType = activePrintModal || "both";
+      const response = await axios.get(
+        `${apiUrl}/delivery/driver-drop/receipt/pdf`,
+        {
+          params: {
+            driverId: selectedDriver.id,
+            date: selectedDate,
+            type: slipType,
+            terminalSales: parseFloat(terminalSalesInput) || 0,
+            terminalTips: parseFloat(terminalTipsInput) || 0,
+            cashSales: parseFloat(cashSalesInput) || 0,
+            additionalCommission: hasAdditionalCommissionToggle
+              ? parseFloat(additionalCommission) || 0
+              : 0,
+            additionalReason: hasAdditionalCommissionToggle ? additionalReason : "",
+            ...(branchId ? { branchId } : {}),
+          },
+          responseType: "blob",
+        },
+      );
+
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Driver_Receipt_${slipType}_${selectedDriver.driverId || selectedDriver.id.slice(-4)}_${selectedDate}.pdf`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("PDF receipt downloaded successfully!", { id: toastId });
+    } catch (err) {
+      console.error("Failed to download PDF receipt", err);
+      toast.error("Failed to download PDF receipt.", { id: toastId });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   // Data for Thermal Sales Report
   const salesReportData: DriverDropSummaryData = useMemo(() => {
@@ -473,61 +583,7 @@ export default function DriverDropDashboard() {
     additionalReason,
   ]);
 
-  const handleTriggerPrint = () => {
-    window.print();
-  };
 
-  const handleDownloadPdf = async () => {
-    if (!selectedDriver || isDownloadingPdf) return;
-    setIsDownloadingPdf(true);
-    const toastId = toast.loading("Generating PDF receipt...");
-    try {
-      let branchId: string | undefined = undefined;
-      if (typeof window !== "undefined") {
-        const rawBranch = localStorage.getItem("rms_branch");
-        if (rawBranch) {
-          try {
-            const b = JSON.parse(rawBranch);
-            branchId = b._id;
-          } catch (e) {}
-        }
-      }
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const slipType = activePrintModal || "both";
-      const response = await axios.get(
-        `${apiUrl}/delivery/driver-drop/receipt/pdf`,
-        {
-          params: {
-            driverId: selectedDriver.id,
-            date: selectedDate,
-            type: slipType,
-            ...(branchId ? { branchId } : {}),
-          },
-          responseType: "blob",
-        },
-      );
-
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `Driver_Receipt_${slipType}_${selectedDriver.driverId || selectedDriver.id.slice(-4)}_${selectedDate}.pdf`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("PDF receipt downloaded successfully!", { id: toastId });
-    } catch (err) {
-      console.error("Failed to download PDF receipt", err);
-      toast.error("Failed to download PDF receipt.", { id: toastId });
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  };
 
   const handleFinalizeSettlement = async () => {
     if (!selectedDriver) {
@@ -1520,14 +1576,19 @@ export default function DriverDropDashboard() {
                   )}
                   <span>Download PDF</span>
                 </button>
-                {/* <button
+                <button
                   type="button"
-                  onClick={handleTriggerPrint}
-                  className="px-4 py-1.5 bg-brand-primary text-white text-[11px] font-800 uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:bg-brand-primary/90"
+                  onClick={handleSilentPrintPdf}
+                  disabled={isPrinting}
+                  className="px-4 py-1.5 bg-brand-primary text-white text-[11px] font-800 uppercase rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:bg-brand-primary/90 disabled:opacity-50"
                 >
-                  <Printer size={14} />
+                  {isPrinting ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <Printer size={14} />
+                  )}
                   <span>Print Now</span>
-                </button> */}
+                </button>
               </div>
             </div>
           </div>
