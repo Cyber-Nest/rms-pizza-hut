@@ -678,15 +678,17 @@ export default function OrderDetailModal({
                     )}
 
                     {/* Pay order button */}
-                    {order.paymentStatus === "unpaid" && !showPayForm && (
-                      <button
-                        onClick={() => setShowPayForm(true)}
-                        className="w-full py-2 bg-green-600 hover:bg-green-700 text-white text-[11.5px] font-800 rounded-full active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
-                      >
-                        <CreditCard size={13} />
-                        <span>Collect Payment</span>
-                      </button>
-                    )}
+                    {order.status !== "cancelled" &&
+                      order.paymentStatus === "unpaid" &&
+                      !showPayForm && (
+                        <button
+                          onClick={() => setShowPayForm(true)}
+                          className="w-full py-2 bg-green-600 hover:bg-green-700 text-white text-[11.5px] font-800 rounded-full active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-wider"
+                        >
+                          <CreditCard size={13} />
+                          <span>Collect Payment</span>
+                        </button>
+                      )}
 
                     {/* Pay Form Toggle Panel */}
                     {showPayForm && (

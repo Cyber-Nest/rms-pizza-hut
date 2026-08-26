@@ -5,6 +5,7 @@ const Category = require("../../menu/models/category.model");
 const Expense = require("../../expense/models/expense.model");
 const Deposit = require("../models/deposit.model");
 const DriverDropSettlement = require("../../delivery/models/DriverDropSettlement.model");
+const DeliveryAssignment = require("../../delivery/models/DeliveryAssignment.model");
 const AccountClosing = require("../models/AccountClosing.model");
 const logger = require("../../../shared/utils/logger");
 const {
@@ -697,8 +698,10 @@ exports.cancelOrder = async (
     const noteText = reason
       ? `Order Cancelled: ${reason.trim()}`
       : "Order Cancelled";
+
+    // 1. Update order status to 'cancelled' for ANY order status except already 'cancelled'
     const order = await Order.findOneAndUpdate(
-      { _id: id, status: { $nin: ["completed", "cancelled"] } },
+      { _id: id, status: { $ne: "cancelled" } },
       {
         $set: { status: "cancelled", cancelReason: reason.trim() },
         $push: {
@@ -712,13 +715,55 @@ exports.cancelOrder = async (
       },
       { new: true },
     );
+
     if (!order) {
-      // Check if order exists to give specific error
       const exists = await Order.findById(id).select("status").lean();
       if (!exists) throw new Error("Order not found.");
-      throw new Error(`Order is already ${exists.status}.`);
+      throw new Error(`Order is already cancelled.`);
     }
 
+    // 2. Clean up Delivery Assignment so driver active list & driver history exclude this order
+    try {
+      await DeliveryAssignment.deleteMany({ orderId: id });
+    } catch (err) {
+      logger.warn(`Could not clean up DeliveryAssignment on cancel: ${err.message}`);
+    }
+
+    // 3. Clean up Driver Drop Settlement if this order was already settled/included in driver drop
+    try {
+      const DriverDropSettlement = require("../../delivery/models/DriverDropSettlement.model");
+      const settlements = await DriverDropSettlement.find({ "orders.orderId": id });
+      for (const st of settlements) {
+        st.orders = st.orders.filter(
+          (o) => o.orderId && o.orderId.toString() !== id.toString()
+        );
+        st.totalOrders = st.orders.length;
+        st.totalSales = st.orders.reduce((sum, o) => sum + (o.total || 0), 0);
+        st.cashSales = st.orders
+          .filter((o) => o.pd === "CS")
+          .reduce((sum, o) => sum + (o.total || 0), 0);
+        st.prepaidSales = st.orders
+          .filter((o) => o.pd === "PP")
+          .reduce((sum, o) => sum + (o.total || 0), 0);
+        st.terminalSales = st.orders
+          .filter((o) => o.pd === "TM")
+          .reduce((sum, o) => sum + (o.total || 0), 0);
+        st.totalTipsEarned = st.orders.reduce(
+          (sum, o) => sum + (o.prepaidTip || 0) + (o.terminalTip || 0),
+          0
+        );
+        st.driverTotalCommission =
+          (st.driverBaseCommission || 0) + (st.additionalCommission || 0);
+        st.totalDriverEarning = st.driverTotalCommission + st.totalTipsEarned;
+        st.saleDue = st.cashSales;
+        st.netCashPayoutToDriver = st.totalDriverEarning - st.saleDue;
+        await st.save();
+      }
+    } catch (err) {
+      logger.warn(`Could not clean up DriverDropSettlement on cancel: ${err.message}`);
+    }
+
+    // 4. Trigger real-time Pusher notification
     triggerOrderUpdated(order).catch((err) => {
       logger.error(`Error triggering cancel Pusher event: ${err.message}`);
     });

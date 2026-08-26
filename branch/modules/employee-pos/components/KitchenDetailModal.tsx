@@ -868,7 +868,8 @@ export default function KitchenDetailModal({
     : 0;
   const unpaidBalance = Math.max(0, localOrder.total - paymentsTotal);
   const isUnpaid =
-    localOrder.paymentStatus === "unpaid" || unpaidBalance > 0.01;
+    localOrder.status !== "cancelled" &&
+    (localOrder.paymentStatus === "unpaid" || unpaidBalance > 0.01);
 
   // Format type tag
   const formattedType =
@@ -1479,7 +1480,6 @@ export default function KitchenDetailModal({
 
               {/* Cancel Order */}
               {!isDraft &&
-                localOrder.status !== "completed" &&
                 localOrder.status !== "cancelled" && (
                   <button
                     onClick={handleCancelOrder}
