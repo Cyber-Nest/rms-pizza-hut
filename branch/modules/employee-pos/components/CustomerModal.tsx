@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Search, Bell, Keyboard, Check, MapPin } from "lucide-react";
+import { X, Search, Keyboard, Check, MapPin } from "lucide-react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { usePosStore } from "../store/pos.store";
@@ -58,6 +58,7 @@ interface FormValues {
   lastName: string;
   address: string;
   postalCode: string;
+  driverNotes: string;
   searchQuery: string;
   searchAddress: string;
 }
@@ -331,6 +332,7 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
       email: data.email || undefined,
       address: data.address || undefined,
       postalCode: data.postalCode || undefined,
+      driverNotes: data.driverNotes || undefined,
       lat: finalLat || undefined,
       lng: finalLng || undefined,
     });
@@ -692,30 +694,48 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
 
               {/* Right Column */}
               <div className="space-y-2">
-                {/* Autocomplete Tabs */}
-                <div className="flex items-center gap-4 border-b border-neutral-200/80 pb-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setAddressTab("auto")}
-                    className={`text-[11px] font-700 pb-1 transition-all cursor-pointer ${
-                      addressTab === "auto"
-                        ? "text-red-500 border-b-2 border-red-500"
-                        : "text-neutral-400 hover:text-neutral-600"
-                    }`}
-                  >
-                    Auto complete address?
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddressTab("manual")}
-                    className={`text-[11px] font-700 pb-1 transition-all cursor-pointer ${
-                      addressTab === "manual"
-                        ? "text-blue-500 border-b-2 border-blue-500"
-                        : "text-neutral-400 hover:text-neutral-600"
-                    }`}
-                  >
-                    Add address manually?
-                  </button>
+                {/* Autocomplete Tabs & Keyboard Switch */}
+                <div className="flex items-center justify-between border-b border-neutral-200/80 pb-1 flex-shrink-0">
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setAddressTab("auto")}
+                      className={`text-[11px] font-700 pb-1 transition-all cursor-pointer ${
+                        addressTab === "auto"
+                          ? "text-red-500 border-b-2 border-red-500"
+                          : "text-neutral-400 hover:text-neutral-600"
+                      }`}
+                    >
+                      Auto complete address?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddressTab("manual")}
+                      className={`text-[11px] font-700 pb-1 transition-all cursor-pointer ${
+                        addressTab === "manual"
+                          ? "text-blue-500 border-b-2 border-blue-500"
+                          : "text-neutral-400 hover:text-neutral-600"
+                      }`}
+                    >
+                      Add address manually?
+                    </button>
+                  </div>
+
+                  {/* Keyboard Switch Toggle */}
+                  <div className="flex items-center gap-1.5 pb-1">
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={keyboardEnabled}
+                        onChange={(e) => setKeyboardEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4.5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-red-500"></div>
+                    </label>
+                    <span className="text-[10px] font-700 text-red-500 uppercase tracking-wide flex items-center gap-1">
+                      <Keyboard size={11} /> Keyboard
+                    </span>
+                  </div>
                 </div>
 
                 {/* Address Search / Input */}
@@ -880,33 +900,17 @@ export default function CustomerModal({ isOpen, onClose }: Props) {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between bg-white border border-neutral-200 rounded-xl py-2 px-3.5 shadow-sm">
-                  {/* Keyboard Switch */}
-                  <div className="flex items-center gap-2">
-                    <label className="relative inline-flex items-center cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={keyboardEnabled}
-                        onChange={(e) => setKeyboardEnabled(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500"></div>
-                    </label>
-                    <span className="text-[10px] font-700 text-red-500 uppercase tracking-wide flex items-center gap-1">
-                      <Keyboard size={12} /> Keyboard On / Off
-                    </span>
-                  </div>
-
-                  {/* Send Tracker */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      toast.success("Tracker link sent to customer device.")
-                    }
-                    className="text-[10px] font-700 text-red-500 uppercase tracking-wide flex items-center gap-1 cursor-pointer hover:text-red-600 transition-all active:scale-95"
-                  >
-                    <Bell size={12} className="animate-swing" /> Send Tracker
-                  </button>
+                {/* Driver Notes Textarea */}
+                <div className="bg-white border border-neutral-200 rounded-xl p-2.5 shadow-sm space-y-1">
+                  <label className="block text-[9.5px] font-700 text-neutral-500 uppercase tracking-wide">
+                    Driver Notes / Special Instructions
+                  </label>
+                  <textarea
+                    {...registerWithFocus("driverNotes")}
+                    rows={2}
+                    placeholder="Add Driver Notes (e.g. Gate code #1234, ring bell twice, leave at side door)..."
+                    className="w-full bg-neutral-50 border border-neutral-200 rounded-lg p-2 text-[11px] font-500 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/10 transition-all resize-none"
+                  />
                 </div>
               </div>
             </div>

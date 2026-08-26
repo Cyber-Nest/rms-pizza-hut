@@ -674,9 +674,9 @@ export const usePosStore = create<PosState>((set, get) => ({
           : rawDeliveryFee
         : 0;
 
-    const taxableAmount = Math.max(0, subtotal - discount);
+    const taxableAmount = Math.max(0, subtotal - discount) + deliveryFee;
     const tax = roundToTwo(taxableAmount * effectiveTaxRate);
-    const total = roundToTwo(taxableAmount + tax + deliveryFee);
+    const total = roundToTwo(taxableAmount + tax);
 
     set({ subtotal, tax, discount, total });
   },
@@ -939,6 +939,7 @@ export const usePosStore = create<PosState>((set, get) => ({
             ? selectedCustomer
             : { name: "No Name", phone: "", email: "" },
       notes: orderNotes,
+      driverNotes: selectedCustomer?.driverNotes || "",
     };
 
     try {

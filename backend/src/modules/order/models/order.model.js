@@ -68,6 +68,7 @@ const customerSchema = new mongoose.Schema(
     email: { type: String, default: "" },
     address: { type: String, default: "" },
     postalCode: { type: String, default: "" },
+    driverNotes: { type: String, default: "" },
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },
   },
@@ -156,6 +157,7 @@ const orderSchema = new mongoose.Schema(
     customer: { type: customerSchema, default: null },
 
     notes: { type: String, default: "" },
+    driverNotes: { type: String, default: "" },
     placedBy: { type: String, default: "" },
 
     status: {

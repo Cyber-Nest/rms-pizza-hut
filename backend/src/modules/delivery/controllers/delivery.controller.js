@@ -95,6 +95,7 @@ exports.getDeliveryOrders = async (req, res) => {
     const query = {
       orderType: "delivery",
       branchId: restaurantId,
+      status: { $ne: "cancelled" },
       $or: [
         {
           orderTiming: "now",
@@ -158,8 +159,8 @@ exports.getDeliveryOrders = async (req, res) => {
         }
       }
 
-      // If order itself is completed/cancelled, mark as delivered
-      if (order.status === "completed" || order.status === "cancelled") {
+      // If order itself is completed, mark as delivered
+      if (order.status === "completed") {
         deliveryStatus = "delivered";
       }
 
@@ -1077,7 +1078,7 @@ exports.markDeliveredByBranch = async (req, res) => {
 };
 
 /**
- * POST: Auto-called when driver reaches restaurant (< 200m).
+ * POST: Auto-called when driver reaches restaurant (< 50m).
  * Sets assignment to completed, driver to available.
  */
 exports.markCompleted = async (req, res) => {
@@ -1095,11 +1096,14 @@ exports.markCompleted = async (req, res) => {
     assignment.completedAt = new Date();
     await assignment.save();
 
-    // Set driver to available if online, else offline
     const driver = await Driver.findById(assignment.driverId);
     if (driver) {
-      driver.status = driver.isDutyOnline ? "available" : "offline";
-      driver.activeOrderIds = [];
+      driver.activeOrderIds = driver.activeOrderIds.filter(
+        (oid) => oid.toString() !== assignment.orderId.toString(),
+      );
+      if (driver.activeOrderIds.length === 0) {
+        driver.status = driver.isDutyOnline ? "available" : "offline";
+      }
       await driver.save();
 
       await triggerDriverStatusChange(driver.restaurantId, {
@@ -1109,16 +1113,34 @@ exports.markCompleted = async (req, res) => {
     }
 
     // Also update the original order status to completed
-    await Order.findByIdAndUpdate(assignment.orderId, {
-      status: "completed",
-      $push: {
-        statusHistory: {
-          status: "completed",
-          changedAt: new Date(),
-          note: "Delivery completed",
+    const order = await Order.findByIdAndUpdate(
+      assignment.orderId,
+      {
+        status: "completed",
+        $push: {
+          statusHistory: {
+            status: "completed",
+            changedAt: new Date(),
+            note: "Delivery completed",
+          },
         },
       },
-    });
+      { new: true },
+    );
+
+    // Trigger Pusher events 
+    await triggerDeliveryStatusUpdate(
+      assignment.restaurantId,
+      assignment.orderId.toString(),
+      {
+        status: "completed",
+        driverId: assignment.driverId.toString(),
+      },
+    );
+
+    if (order) {
+      await triggerOrderUpdated(order);
+    }
 
     res.status(200).json({ success: true, data: assignment });
   } catch (error) {
@@ -1312,13 +1334,13 @@ exports.unassignDriver = async (req, res) => {
 
     const assignment = await DeliveryAssignment.findOne({
       orderId,
-      status: { $in: ["assigned", "en-route"] },
+      status: { $in: ["assigned", "en-route", "delivered", "completed"] },
     });
 
     if (!assignment) {
       return res.status(404).json({
         success: false,
-        message: "No active assignment found for this order.",
+        message: "No assignment found for this order.",
       });
     }
 
@@ -1327,6 +1349,46 @@ exports.unassignDriver = async (req, res) => {
 
     // Delete assignment
     await DeliveryAssignment.deleteOne({ _id: assignment._id });
+
+    // If the order itself was marked completed or delivered, reset status back to 'ready'
+    const targetOrder = await Order.findById(orderId);
+    if (targetOrder && (targetOrder.status === "completed" || targetOrder.status === "delivered")) {
+      targetOrder.status = "ready";
+      await targetOrder.save();
+    }
+
+    // Clean up DriverDropSettlement if order was already included
+    try {
+      const settlements = await DriverDropSettlement.find({ "orders.orderId": orderId });
+      for (const st of settlements) {
+        st.orders = st.orders.filter(
+          (o) => o.orderId && o.orderId.toString() !== orderId.toString()
+        );
+        st.totalOrders = st.orders.length;
+        st.totalSales = st.orders.reduce((sum, o) => sum + (o.total || 0), 0);
+        st.cashSales = st.orders
+          .filter((o) => o.pd === "CS")
+          .reduce((sum, o) => sum + (o.total || 0), 0);
+        st.prepaidSales = st.orders
+          .filter((o) => o.pd === "PP")
+          .reduce((sum, o) => sum + (o.total || 0), 0);
+        st.terminalSales = st.orders
+          .filter((o) => o.pd === "TM")
+          .reduce((sum, o) => sum + (o.total || 0), 0);
+        st.totalTipsEarned = st.orders.reduce(
+          (sum, o) => sum + (o.prepaidTip || 0) + (o.terminalTip || 0),
+          0
+        );
+        st.driverTotalCommission =
+          (st.driverBaseCommission || 0) + (st.additionalCommission || 0);
+        st.totalDriverEarning = st.driverTotalCommission + st.totalTipsEarned;
+        st.saleDue = st.cashSales;
+        st.netCashPayoutToDriver = st.totalDriverEarning - st.saleDue;
+        await st.save();
+      }
+    } catch (err) {
+      logger.warn(`Could not clean up DriverDropSettlement on unassign: ${err.message}`);
+    }
 
     // Update driver state
     const driver = await Driver.findById(driverId);
@@ -2035,6 +2097,157 @@ exports.generateBranchQrToken = async (req, res) => {
         apiUrl,
       },
     });
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
+// Helper for Haversine Distance in meters
+function calculateHaversineMeters(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * POST: Driver location update handler with auto 20m customer deliver & 50m base return checks
+ * Body: { driverId, lat, lng, bearing, speed }
+ */
+exports.updateDriverLocation = async (req, res) => {
+  try {
+    const { driverId, lat, lng, bearing, speed } = req.body;
+    if (!driverId || lat === undefined || lng === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "driverId, lat, and lng are required.",
+      });
+    }
+
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ success: false, message: "Driver not found." });
+    }
+
+    driver.currentLocation = { lat: Number(lat), lng: Number(lng) };
+    await driver.save();
+
+    const numLat = Number(lat);
+    const numLng = Number(lng);
+
+    // 1. Customer Proximity Check (20 Meters)
+    if (driver.status === "on-delivery" || driver.status === "returning") {
+      const activeAssignments = await DeliveryAssignment.find({
+        driverId: driver._id,
+        status: { $in: ["assigned", "en-route"] },
+      });
+
+      for (const assignment of activeAssignments) {
+        const custLat = assignment.customerLocation?.lat;
+        const custLng = assignment.customerLocation?.lng;
+
+        if (custLat && custLng) {
+          const distMeters = calculateHaversineMeters(numLat, numLng, custLat, custLng);
+          if (distMeters <= 20) {
+            assignment.status = "delivered";
+            assignment.deliveredAt = new Date();
+            await assignment.save();
+
+            const order = await Order.findByIdAndUpdate(
+              assignment.orderId,
+              {
+                status: "completed",
+                $push: {
+                  statusHistory: {
+                    status: "completed",
+                    changedAt: new Date(),
+                    note: "Auto-Delivered (Driver within 20m of customer address)",
+                  },
+                },
+              },
+              { new: true }
+            );
+
+            driver.activeOrderIds = driver.activeOrderIds.filter(
+              (oid) => oid.toString() !== assignment.orderId.toString()
+            );
+            if (driver.activeOrderIds.length === 0) {
+              driver.status = "returning";
+            }
+            await driver.save();
+
+            await triggerDeliveryStatusUpdate(
+              assignment.restaurantId,
+              assignment.orderId.toString(),
+              {
+                status: "delivered",
+                driverId: assignment.driverId.toString(),
+              }
+            );
+
+            if (order) await triggerOrderUpdated(order);
+
+            if (driver.activeOrderIds.length === 0) {
+              await triggerDriverStatusChange(assignment.restaurantId, {
+                driverId: driver._id.toString(),
+                status: "returning",
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Restaurant Base Return Proximity Check (50 Meters)
+    if (driver.status === "returning") {
+      try {
+        const Branch = require("../../branch/models/branch.model");
+        const branch = await Branch.findById(driver.restaurantId).lean();
+        const restLat = branch?.lat ? Number(branch.lat) : null;
+        const restLng = branch?.lng ? Number(branch.lng) : null;
+
+        if (restLat && restLng) {
+          const distRestMeters = calculateHaversineMeters(numLat, numLng, restLat, restLng);
+          if (distRestMeters <= 50) {
+            await DeliveryAssignment.updateMany(
+              { driverId: driver._id, status: "delivered" },
+              { $set: { status: "completed", completedAt: new Date() } }
+            );
+
+            driver.status = driver.isDutyOnline ? "available" : "offline";
+            driver.activeOrderIds = [];
+            await driver.save();
+
+            await triggerDriverStatusChange(driver.restaurantId, {
+              driverId: driver._id.toString(),
+              status: driver.status,
+            });
+          }
+        }
+      } catch (e) {
+        logger.warn(`Error checking restaurant base proximity: ${e.message}`);
+      }
+    }
+
+    // Broadcast location to Pusher channel
+    const pusher = require("../../../config/pusher");
+    if (pusher.pusherInstance) {
+      pusher.pusherInstance.trigger(
+        `private-restaurant-${driver.restaurantId}`,
+        "client-driver-location",
+        { driverId, lat: numLat, lng: numLng, bearing, speed }
+      );
+    }
+
+    res.status(200).json({ success: true, message: "Location updated successfully." });
   } catch (error) {
     handleError(res, error, 500);
   }

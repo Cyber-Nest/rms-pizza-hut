@@ -101,11 +101,11 @@ export default function CarriersPanel() {
                   </div>
                 </div>
                 <span
-                  className={`text-[10px] lg:text-[11.5px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide border ${
+                  className={`text-[9.5px] lg:text-[10.5px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide border whitespace-nowrap shrink-0 ${
                     driver.status === 'available'
                       ? 'text-green-600 bg-green-50 border-green-200'
                       : driver.status === 'offline'
-                      ? 'text-amber-700 bg-amber-50 border-amber-200'
+                      ? 'text-amber-700 bg-amber-50 border-amber-200/80'
                       : driver.status === 'returning'
                       ? 'text-purple-600 bg-purple-50 border-purple-200'
                       : 'text-blue-600 bg-blue-50 border-blue-200'
@@ -114,7 +114,7 @@ export default function CarriersPanel() {
                   {driver.status === 'available'
                     ? 'Available'
                     : driver.status === 'offline'
-                    ? 'Checked In · Awaiting App'
+                    ? 'Checked In · App Offline'
                     : driver.status === 'returning'
                     ? 'Returning'
                     : 'On Delivery'}
@@ -183,10 +183,25 @@ export default function CarriersPanel() {
                   </div>
                 )}
 
-                {driver.activeOrders.length > 0 && driver.status === 'on-delivery' && (
-                  <div className="flex items-center gap-1 text-[10.5px] text-blue-600 font-medium">
-                    <MapPin size={11} />
-                    <span>{driver.activeOrders.length} active order{driver.activeOrders.length > 1 ? 's' : ''}</span>
+                {driver.status === 'on-delivery' && (
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="flex items-center gap-1 text-[10.5px] text-blue-600 font-medium">
+                      <MapPin size={11} />
+                      <span>
+                        {driver.activeOrders.length > 0
+                          ? `${driver.activeOrders.length} active order${driver.activeOrders.length > 1 ? 's' : ''}`
+                          : 'On Delivery'}
+                      </span>
+                    </div>
+                    <button
+                      className="px-2 py-0.5 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 hover:bg-green-100 rounded transition-colors cursor-pointer"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await markDriverAvailable(driver.id);
+                      }}
+                    >
+                      Mark Available
+                    </button>
                   </div>
                 )}
               </div>

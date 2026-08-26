@@ -25,7 +25,7 @@ export default function DispatchPanel() {
     return orders.filter(o => {
       if (o.orderTiming === 'later' && o.scheduledAt) {
         const schedTime = new Date(o.scheduledAt).getTime();
-        if (schedTime - currentTime > 45 * 60 * 1000) {
+        if (schedTime - currentTime > 30 * 60 * 1000) {
           return false;
         }
       }
@@ -40,7 +40,15 @@ export default function DispatchPanel() {
   };
   
   const filteredOrders = React.useMemo(() => {
-    return visibleOrdersList.filter(o => o.status === activeFilter);
+    const list = visibleOrdersList.filter((o) => o.status === activeFilter);
+    if (activeFilter === "assign") {
+      return [...list].sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeA - timeB;
+      });
+    }
+    return list;
   }, [visibleOrdersList, activeFilter]);
 
   // TA (Turnaround) tab dummy stats

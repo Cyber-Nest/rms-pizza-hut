@@ -205,8 +205,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const subtotal = roundToTwo(cartItems.reduce((sum, item) => sum + item.totalPrice, 0));
   const deliveryFee = orderType === 'delivery' && subtotal > 0 ? branchDeliveryFee : 0;
-  const tax = roundToTwo(subtotal * (branchTaxRate / 100));
-  const total = roundToTwo(subtotal + deliveryFee + tax);
+  const taxableBase = subtotal > 0 ? subtotal + deliveryFee : 0;
+  const tax = roundToTwo(taxableBase * (branchTaxRate / 100));
+  const total = roundToTwo(taxableBase + tax);
 
   return (
     <CartContext.Provider

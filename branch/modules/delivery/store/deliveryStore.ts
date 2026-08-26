@@ -11,6 +11,21 @@ import {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const DEFAULT_RESTAURANT_COORDS = { lat: 22.1818, lng: 78.7618 };
 
+function calculateHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 // Read restaurant info from rms_branch stored at login
 const getRestaurantInfoFromStorage = (): { name: string; lat: number | null; lng: number | null } => {
   if (typeof window === "undefined") return { name: "Restaurant", lat: null, lng: null };
@@ -448,6 +463,55 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
         });
         return { drivers: updatedDrivers };
       });
+
+      // ── Automated Geofence Checks (20m Customer Deliver & 50m Base Return) ──
+      if (lat !== undefined && lng !== undefined) {
+        const numLat = Number(lat);
+        const numLng = Number(lng);
+        const { orders, drivers, restaurantLocation } = get();
+        const driver = drivers.find((d) => d.id === driverId || d._id === driverId);
+
+        if (driver) {
+          // 1. Customer Proximity Check (20 Meters)
+          if (driver.status === "on-delivery" || driver.status === "returning") {
+            const activeOrders = orders.filter(
+              (o) =>
+                (o.status === "en-route" || o.status === "assign") &&
+                (o.assignedDriverId === driverId || o.assignedDriverId === driver._id)
+            );
+
+            activeOrders.forEach((o) => {
+              if (o.coordinates && o.coordinates.lat && o.coordinates.lng) {
+                const distM = calculateHaversineMeters(
+                  numLat,
+                  numLng,
+                  Number(o.coordinates.lat),
+                  Number(o.coordinates.lng)
+                );
+                if (distM <= 20) {
+                  get().markDelivered(o.id);
+                }
+              }
+            });
+          }
+
+          // 2. Restaurant Base Return Proximity Check (50 Meters)
+          if (driver.status === "returning") {
+            const restCoords = restaurantLocation?.coordinates;
+            if (restCoords && restCoords.lat && restCoords.lng) {
+              const distRestM = calculateHaversineMeters(
+                numLat,
+                numLng,
+                Number(restCoords.lat),
+                Number(restCoords.lng)
+              );
+              if (distRestM <= 50) {
+                get().markDriverAvailable(driver.id);
+              }
+            }
+          }
+        }
+      }
     };
 
     channel.bind("client-driver-location", handleLocationUpdate);

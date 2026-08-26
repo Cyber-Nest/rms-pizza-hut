@@ -6,6 +6,7 @@ export interface CustomerInfo {
   email?: string;
   address?: string;
   postalCode?: string;
+  driverNotes?: string;
   lat?: number;
   lng?: number;
 }
@@ -74,6 +75,7 @@ export interface Order {
   scheduledAt: string | null;
   dueAt?: string | null;
   notes: string;
+  driverNotes?: string;
   status: "pending" | "preparing" | "in_oven" | "ready" | "completed" | "cancelled";
   makeTableStatus?: "pending" | "preparing" | "in_oven" | "ready" | "completed";
   wingsStatus?: "pending" | "preparing" | "ready" | "completed";

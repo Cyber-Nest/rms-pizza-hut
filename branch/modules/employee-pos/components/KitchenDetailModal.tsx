@@ -178,7 +178,9 @@ export default function KitchenDetailModal({
     if (
       !categoryFilter ||
       categoryFilter === "all" ||
-      categoryFilter === "cut_station"
+      categoryFilter === "cut_station" ||
+      categoryFilter === "make_table" ||
+      categoryFilter === "pizza"
     ) {
       return item;
     }
@@ -738,9 +740,10 @@ export default function KitchenDetailModal({
       0,
     );
     const discount = localOrder.discount || 0;
-    const taxableAmount = Math.max(0, subtotal - discount);
+    const deliveryFee = localOrder.orderType === "delivery" ? (localOrder.deliveryFee || 0) : 0;
+    const taxableAmount = Math.max(0, subtotal - discount) + deliveryFee;
     const tax = Math.round(taxableAmount * 0.05 * 100) / 100;
-    const total = Math.max(0, subtotal + tax - discount);
+    const total = Math.max(0, taxableAmount + tax);
     return { subtotal, tax, total };
   };
 
@@ -865,7 +868,8 @@ export default function KitchenDetailModal({
     : 0;
   const unpaidBalance = Math.max(0, localOrder.total - paymentsTotal);
   const isUnpaid =
-    localOrder.paymentStatus === "unpaid" || unpaidBalance > 0.01;
+    localOrder.status !== "cancelled" &&
+    (localOrder.paymentStatus === "unpaid" || unpaidBalance > 0.01);
 
   // Format type tag
   const formattedType =
@@ -1476,7 +1480,6 @@ export default function KitchenDetailModal({
 
               {/* Cancel Order */}
               {!isDraft &&
-                localOrder.status !== "completed" &&
                 localOrder.status !== "cancelled" && (
                   <button
                     onClick={handleCancelOrder}

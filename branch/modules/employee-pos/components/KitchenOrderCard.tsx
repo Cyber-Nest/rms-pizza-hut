@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
+import { formatLocalTime } from "../utils/timezone";
 import { Order } from "../types";
 
 interface KitchenOrderCardProps {
@@ -95,7 +96,7 @@ export default function KitchenOrderCard({
     const updateElapsed = () => {
       let createdTime = new Date(order.createdAt).getTime();
       if (order.orderTiming === "later" && order.scheduledAt) {
-        createdTime = new Date(order.scheduledAt).getTime() - 45 * 60000;
+        createdTime = new Date(order.scheduledAt).getTime() - 30 * 60000;
       }
       const diffMs = Date.now() - createdTime;
       const diffMins = Math.max(0, Math.floor(diffMs / 60000));
@@ -105,7 +106,7 @@ export default function KitchenOrderCard({
     updateElapsed();
     const interval = setInterval(updateElapsed, 60000);
     return () => clearInterval(interval);
-  }, [order.createdAt]);
+  }, [order.createdAt, order.orderTiming, order.scheduledAt]);
 
   const isUnpaid = order.paymentStatus === "unpaid";
   const isDraft = order.orderNumber === "#DRAFT";
@@ -117,13 +118,13 @@ export default function KitchenOrderCard({
     online: "Online",
   };
 
-  const orderTypeLabel =
-    {
-      takeout: "Takeout",
-      "drive-through": "Drive-Through",
-      "dine-in": "Dine-In",
-      delivery: "Delivery",
-    }[order.orderType] || order.orderType;
+  const orderTypeLabelMap: Record<string, string> = {
+    takeout: "Takeout",
+    "drive-through": "Drive-Through",
+    "dine-in": "Dine-In",
+    delivery: "Delivery",
+  };
+  const orderTypeLabel = orderTypeLabelMap[order.orderType] || order.orderType;
 
   const formattedType = PLATFORM_LABELS[order.orderSource]
     ? `${PLATFORM_LABELS[order.orderSource]} - ${order.orderType === "delivery" ? "Delivery" : "Takeout"}`
@@ -142,6 +143,13 @@ export default function KitchenOrderCard({
     ? "bg-amber-500"
     : statusColorMap[order.status] || "bg-neutral-300";
 
+  const orderTypeBadgeMap: Record<string, string> = {
+    takeout: "bg-orange-50 text-brand-primary border-orange-100",
+    "drive-through": "bg-purple-50 text-purple-600 border-purple-100",
+    "dine-in": "bg-blue-50 text-blue-600 border-blue-100",
+    delivery: "bg-amber-50 text-amber-700 border-amber-100",
+  };
+
   const typeBadgeClass =
     order.orderSource === "doordash"
       ? "bg-red-50 text-red-600 border-red-100 font-bold"
@@ -151,13 +159,7 @@ export default function KitchenOrderCard({
           ? "bg-green-50 text-green-600 border-green-100 font-bold"
           : order.orderSource === "online"
             ? "bg-rose-50 text-rose-600 border-rose-100 font-bold"
-            : {
-                takeout: "bg-orange-50 text-brand-primary border-orange-100",
-                "drive-through":
-                  "bg-purple-50 text-purple-600 border-purple-100",
-                "dine-in": "bg-blue-50 text-blue-600 border-blue-100",
-                delivery: "bg-amber-50 text-amber-700 border-amber-100",
-              }[order.orderType] ||
+            : orderTypeBadgeMap[order.orderType] ||
               "bg-neutral-50 text-neutral-600 border-neutral-100";
 
   // If order is older than 15 mins, mark as delayed
@@ -180,10 +182,9 @@ export default function KitchenOrderCard({
             {order.orderNumber}
           </span>
           <span className="text-[11px] lg:text-[12px] text-neutral-500 font-600">
-            {new Date(order.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {order.orderTiming === "later" && order.scheduledAt
+              ? formatLocalTime(order.scheduledAt)
+              : formatLocalTime(order.createdAt)}
           </span>
         </div>
         <span

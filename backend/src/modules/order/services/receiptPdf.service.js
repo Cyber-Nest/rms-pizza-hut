@@ -421,10 +421,23 @@ exports.generateReceiptPdfStream = async (
       doc.moveDown(0.2);
       ctext(`**   ${sourceLabel}   **`, srcFs, true);
     }
+
+    const paymentStatusStr = (
+      order.paymentStatus || (order.paymentTiming === "pay-later" ? "unpaid" : "paid")
+    ).toUpperCase();
+    const statusFs = is58mm ? 12 : 13.5;
+    doc.moveDown(0.2);
+    ctext(`**   ${paymentStatusStr}   **`, statusFs, true);
+
     doc.moveDown(0.3);
 
     // ── 5. CUSTOMER — only if real name/phone ────────────────────────────────
-    if (showCustomer) {
+    const rawAddr = order.customer?.address || order.customerAddress || order.address || "";
+    const custAddr = rawAddr.trim();
+    const rawDriverNotes = order.driverNotes || order.customer?.driverNotes || "";
+    const driverNotes = rawDriverNotes.trim();
+
+    if (showCustomer || custAddr || driverNotes) {
       const custFs = is58mm ? 10.5 : 11.5;
       if (custName && custPhone) {
         const ry = doc.y;
@@ -442,10 +455,30 @@ exports.generateReceiptPdfStream = async (
             align: "right",
           });
         if (doc.y < afterLeft) doc.y = afterLeft;
-      } else {
+      } else if (custName || custPhone) {
         ltext(custName || custPhone, custFs, true);
       }
       doc.moveDown(0.2);
+
+      // Print Customer Delivery Address if present
+      if (custAddr) {
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(is58mm ? 10.5 : 11.5)
+          .fillColor("#000000")
+          .text(`Address: ${custAddr}`, startX, doc.y, { width: printableWidth });
+        doc.moveDown(0.2);
+      }
+
+      // Print Driver Notes if present
+      if (driverNotes) {
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(is58mm ? 10.5 : 11.5)
+          .fillColor("#000000")
+          .text(`Driver Notes: ${driverNotes}`, startX, doc.y, { width: printableWidth });
+        doc.moveDown(0.2);
+      }
     }
 
     drawDash();
@@ -639,43 +672,47 @@ exports.generateReceiptPdfStream = async (
 
     drawDash();
 
-    // ── 8. PAYMENT ───────────────────────────────────────────────────────────
-    const payFs = is58mm ? 10.5 : 11.5;
-    if (isAccountPay) {
-      rowLR("TYPE:", "ACCOUNT PAY", payFs, true, true);
-      rowLR(
-        "PLATFORM:",
-        (order.orderSource || "").toUpperCase(),
-        payFs,
-        true,
-        true,
-      );
-    } else if (isCardPayment) {
-      rowLR("TYPE:", cardInfo.acct, payFs, true, true);
-      if (cardInfo.cardNum !== "N/A")
-        rowLR("CARD:", cardInfo.cardNum, payFs, true, true);
-      if (cardInfo.transNum !== "N/A")
-        rowLR("TRANS #:", cardInfo.transNum, payFs, true, true);
-    } else {
-      rowLR("TYPE:", "CASH", payFs, true, true);
-      rowLR(
-        "CASH GIVEN:",
-        `$${cashInfo.cashGiven.toFixed(2)}`,
-        payFs,
-        true,
-        true,
-      );
-      rowLR(
-        "CHANGE:",
-        `$${cashInfo.changeGiven.toFixed(2)}`,
-        payFs,
-        true,
-        true,
-      );
-    }
+    // ── 8. PAYMENT (Only for PAID orders) ───────────────────────────────────
+    const isPaidOrder = paymentStatusStr === "PAID";
+    if (isPaidOrder) {
+      const payFs = is58mm ? 10.5 : 11.5;
 
-    doc.moveDown(0.3);
-    drawDash();
+      if (isAccountPay) {
+        rowLR("TYPE:", "ACCOUNT PAY", payFs, true, true);
+        rowLR(
+          "PLATFORM:",
+          (order.orderSource || "").toUpperCase(),
+          payFs,
+          true,
+          true,
+        );
+      } else if (isCardPayment) {
+        rowLR("TYPE:", cardInfo.acct, payFs, true, true);
+        if (cardInfo.cardNum !== "N/A")
+          rowLR("CARD:", cardInfo.cardNum, payFs, true, true);
+        if (cardInfo.transNum !== "N/A")
+          rowLR("TRANS #:", cardInfo.transNum, payFs, true, true);
+      } else {
+        rowLR("TYPE:", "CASH", payFs, true, true);
+        rowLR(
+          "CASH GIVEN:",
+          `$${cashInfo.cashGiven.toFixed(2)}`,
+          payFs,
+          true,
+          true,
+        );
+        rowLR(
+          "CHANGE:",
+          `$${cashInfo.changeGiven.toFixed(2)}`,
+          payFs,
+          true,
+          true,
+        );
+      }
+
+      doc.moveDown(0.3);
+      drawDash();
+    }
 
     // ── 9. FOOTER ────────────────────────────────────────────────────────────
     doc

@@ -33,11 +33,13 @@ exports.createPromo = async (req, res) => {
 
 exports.getAllPromos = async (req, res) => {
   try {
-    const { search, channel, status, page, limit } = req.query;
+    const { search, channel, status, branchId, fields, page, limit } = req.query;
     const result = await promoService.getAllPromos({
       search,
       channel,
       status,
+      branchId,
+      fields,
       page,
       limit,
     });

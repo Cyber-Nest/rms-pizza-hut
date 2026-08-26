@@ -436,7 +436,8 @@ const playKitchenNotificationSound = () => {
       let isVisibleTime = true;
       if (o.orderTiming === 'later' && o.scheduledAt) {
         const schedTime = new Date(o.scheduledAt).getTime();
-        if (schedTime - currentTime > 45 * 60 * 1000) {
+        //Scheduled / Order Later Orders time set 30mins earlier to show order in kitchen
+        if (schedTime - currentTime > 30 * 60 * 1000) {
           isVisibleTime = false;
         }
       }
