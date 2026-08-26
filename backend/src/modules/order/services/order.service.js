@@ -1451,7 +1451,7 @@ exports.getDashboardMetrics = async (filters = {}) => {
       totalEarnings: 0,
     };
 
-    // Popular days
+    // Popular days - sort by popularity volume descending
     const dayNames = [
       "Sunday",
       "Monday",
@@ -1463,7 +1463,8 @@ exports.getDashboardMetrics = async (filters = {}) => {
     ];
     const popularDaysData = (aggResult?.popularDays || [])
       .map((d) => ({ name: dayNames[d._id - 1] || "Unknown", value: d.count }))
-      .filter((d) => d.value > 0);
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value);
 
     // Popular food
     let popularFoodData = aggResult?.popularFood || [];
@@ -1482,7 +1483,7 @@ exports.getDashboardMetrics = async (filters = {}) => {
       popularFoodData = [{ name: "No Menu Items Sold", value: 0 }];
     }
 
-    // New vs returning customers (lightweight JS — only today's orders)
+    // New vs returning customers
     let newCustomers = 0;
     let returningCustomers = 0;
     const phoneToEarliestDate = new Map();
@@ -1525,6 +1526,22 @@ exports.getDashboardMetrics = async (filters = {}) => {
         if (new Date(emailToEarliestDate.get(email)) < todayStart)
           hasPrev = true;
       }
+
+      // Check all-time DB history if not found in 30-day window
+      if (!hasPrev) {
+        const queryConditions = [];
+        if (phone) queryConditions.push({ "customer.phone": phone });
+        if (email) queryConditions.push({ "customer.email": email });
+
+        if (queryConditions.length > 0) {
+          const priorOrder = await Order.exists({
+            $or: queryConditions,
+            createdAt: { $lt: todayStart },
+          });
+          if (priorOrder) hasPrev = true;
+        }
+      }
+
       if (hasPrev) returningCustomers += 1;
       else newCustomers += 1;
     }

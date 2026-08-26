@@ -44,8 +44,9 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
     popularFoodData = []
   } = metrics || {};
 
-  // Fallback default data if empty
-  const popularDaysChartData = popularDaysData && popularDaysData.length > 0 ? popularDaysData : [
+  // Sort popular food and days by value descending for chart ranking
+  const sortedPopularDays = [...(popularDaysData || [])].sort((a, b) => b.value - a.value);
+  const popularDaysChartData = sortedPopularDays.length > 0 ? sortedPopularDays : [
     { name: 'Monday', value: 0 },
     { name: 'Tuesday', value: 0 },
     { name: 'Wednesday', value: 0 },
@@ -55,9 +56,50 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
     { name: 'Sunday', value: 0 }
   ];
 
-  const popularFoodChartData = popularFoodData && popularFoodData.length > 0 ? popularFoodData : [
+  const sortedPopularFood = [...(popularFoodData || [])].sort((a, b) => b.value - a.value);
+  const popularFoodChartData = sortedPopularFood.length > 0 ? sortedPopularFood : [
     { name: 'No Menu Items Sold', value: 0 }
   ];
+
+  const renderCustomLegend = (data: Array<{ name: string; value: number }>, unitLabel: string) => {
+    const total = data.reduce((acc, item) => acc + item.value, 0);
+
+    return (
+      <div className="w-full flex justify-end">
+        <div className="flex flex-col gap-1.5 w-full max-w-[230px] max-h-[240px] overflow-y-auto pr-1">
+          {data.map((entry, index) => {
+            const percentage = total > 0 ? ((entry.value / total) * 100).toFixed(1) : '0.0';
+            const color = COLORS[index % COLORS.length];
+
+            return (
+              <div
+                key={`legend-${index}`}
+                className="flex items-center justify-between gap-2 py-0.5 px-1 text-xs"
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span
+                    className="truncate font-700 text-[12px] leading-snug"
+                    style={{ color: color }}
+                    title={entry.name}
+                  >
+                    {entry.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0 text-neutral-500 font-600 text-[11px] ml-1">
+                  <span className="font-800 text-neutral-900">{entry.value}</span>
+                  <span className="text-[10px] text-neutral-400 font-500">({percentage}%)</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   if (!mounted) {
     return (
@@ -143,36 +185,37 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
           <h3 className="text-neutral-850 font-850 text-[13px] lg:text-[15px] uppercase tracking-wide border-b border-neutral-100 pb-3 mb-4">
             Most Popular Days (Last 30 Days)
           </h3>
-          <div className="h-[280px] w-full flex items-center justify-center">
+          <div className="w-full min-h-[250px] grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
             {popularDaysData && popularDaysData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={popularDaysChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {popularDaysChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`${value} Orders`, 'Volume']} />
-                  <Legend 
-                    layout="vertical" 
-                    align="right" 
-                    verticalAlign="middle" 
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '12px', fontWeight: 650, color: '#44403C' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <>
+                <div className="sm:col-span-6 h-[230px] w-full min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={popularDaysChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {popularDaysChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value} Orders`, 'Volume']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="sm:col-span-6 w-full min-w-0 flex items-center justify-end">
+                  {renderCustomLegend(popularDaysChartData, "Orders")}
+                </div>
+              </>
             ) : (
-              <div className="text-neutral-400 text-[11px] font-700">No sales data available.</div>
+              <div className="sm:col-span-12 text-center text-neutral-400 text-[11px] font-700 py-12">
+                No sales data available.
+              </div>
             )}
           </div>
         </div>
@@ -182,36 +225,37 @@ export default function DashboardView({ metrics, loading }: DashboardViewProps) 
           <h3 className="text-neutral-850 font-850 text-[13px] lg:text-[15px] uppercase tracking-wide border-b border-neutral-100 pb-3 mb-4">
             Most Popular Food (Last 30 Days)
           </h3>
-          <div className="h-[280px] w-full flex items-center justify-center">
+          <div className="w-full min-h-[250px] grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
             {popularFoodData && popularFoodData.length > 0 && popularFoodData[0].name !== 'No Menu Items Sold' ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={popularFoodChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {popularFoodChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`${value} items sold`, 'Quantity']} />
-                  <Legend 
-                    layout="vertical" 
-                    align="right" 
-                    verticalAlign="middle" 
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '12px', fontWeight: 650, color: '#44403C' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <>
+                <div className="sm:col-span-6 h-[230px] w-full min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={popularFoodChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {popularFoodChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value} items sold`, 'Quantity']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="sm:col-span-6 w-full min-w-0 flex items-center justify-end">
+                  {renderCustomLegend(popularFoodChartData, "Items")}
+                </div>
+              </>
             ) : (
-              <div className="text-neutral-405 text-[11px] font-700">No items sold.</div>
+              <div className="sm:col-span-12 text-center text-neutral-400 text-[11px] font-700 py-12">
+                No items sold.
+              </div>
             )}
           </div>
         </div>
