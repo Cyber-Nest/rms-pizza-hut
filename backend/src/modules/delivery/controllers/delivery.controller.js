@@ -1505,9 +1505,7 @@ exports.getDriverDropDrivers = async (req, res) => {
     const settlements = await DriverDropSettlement.find({
       branchId: restaurantId,
       date: dateStr,
-    })
-      .select("driverId status totalSales netCashPayoutToDriver")
-      .lean();
+    }).lean();
 
     const settlementMap = new Map();
     settlements.forEach((s) => {
@@ -1719,6 +1717,8 @@ exports.settleDriverDrop = async (req, res) => {
       additionalCommission = 0,
       additionalReason = "",
       settledBy = "Manager",
+      autoCheckout = false,
+      checkoutDriver = false,
     } = req.body;
 
     if (!driverId || !date) {
@@ -1859,10 +1859,35 @@ exports.settleDriverDrop = async (req, res) => {
       { upsert: true, new: true, runValidators: true },
     );
 
+    // Auto checkout driver from POS if requested
+    let checkedOut = false;
+    if (Boolean(autoCheckout || checkoutDriver)) {
+      try {
+        const attendanceService = require("../../employee/services/attendance.service");
+        const employee = await Employee.findOne({
+          branchId: restaurantId,
+          $or: [{ driverRef: driver._id }, { employeeId: driver.driverId }],
+          isActive: true,
+        })
+          .select("_id")
+          .lean();
+
+        if (employee) {
+          await attendanceService.checkOut(restaurantId, employee._id);
+          checkedOut = true;
+        }
+      } catch (checkoutErr) {
+        logger.warn(
+          `Auto POS checkout failed for driver ${driver.name}: ${checkoutErr.message}`,
+        );
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: `Driver Drop settlement submitted successfully for ${driver.name}.`,
+      message: `Driver Drop settlement submitted successfully for ${driver.name}.${checkedOut ? " Driver checked out from POS." : ""}`,
       data: settlement,
+      checkedOut,
     });
   } catch (error) {
     handleError(res, error, 500);
