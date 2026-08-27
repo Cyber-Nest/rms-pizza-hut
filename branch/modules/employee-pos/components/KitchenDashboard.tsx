@@ -165,16 +165,16 @@ const playKitchenNotificationSound = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    const playTone = (freq: number, startTime: number, duration: number) => {
+    const playTone = (freq: number, startTime: number, duration: number, peakGain = 0.85, type: OscillatorType = 'triangle') => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'sine';
+      osc.type = type;
       osc.frequency.setValueAtTime(freq, startTime);
 
-      // Envelope: Crisp attack and smooth decay (Kitchen Order Bell)
+      // Envelope: High-volume crisp attack and smooth decay for noisy kitchen
       gain.gain.setValueAtTime(0.01, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
       osc.connect(gain);
@@ -185,9 +185,10 @@ const playKitchenNotificationSound = () => {
     };
 
     const now = ctx.currentTime;
-    // Pleasant 2-tone kitchen order bell sequence (A5 = 880Hz, D6 = 1174.66Hz)
-    playTone(880, now, 0.25);
-    playTone(1174.66, now + 0.12, 0.45);
+
+    // Single Loud Chime (A5 = 880Hz, D6 = 1174.66Hz)
+    playTone(880, now, 0.25, 0.85, 'triangle');
+    playTone(1174.66, now + 0.12, 0.45, 0.90, 'sine');
   } catch (err) {
     console.warn('Audio playback error in kitchen notification:', err);
   }

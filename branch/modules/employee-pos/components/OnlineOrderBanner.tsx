@@ -33,12 +33,12 @@ export default function OnlineOrderBanner() {
       const gain1 = audioCtx.createGain();
       osc1.connect(gain1);
       gain1.connect(audioCtx.destination);
-      osc1.type = 'sine';
+      osc1.type = 'triangle';
       osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime); 
-      gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
-      gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      gain1.gain.setValueAtTime(0.70, audioCtx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
       osc1.start(audioCtx.currentTime);
-      osc1.stop(audioCtx.currentTime + 0.2);
+      osc1.stop(audioCtx.currentTime + 0.25);
 
       // Note 2 (A5, slightly delayed)
       setTimeout(() => {
@@ -48,10 +48,10 @@ export default function OnlineOrderBanner() {
         gain2.connect(audioCtx.destination);
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(880.00, audioCtx.currentTime); 
-        gain2.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        gain2.gain.setValueAtTime(0.75, audioCtx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
         osc2.start(audioCtx.currentTime);
-        osc2.stop(audioCtx.currentTime + 0.3);
+        osc2.stop(audioCtx.currentTime + 0.35);
       }, 150);
     } catch (e) {
       console.warn('Audio play failed or blocked by browser user gesture policies:', e);

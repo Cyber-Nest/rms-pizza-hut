@@ -480,11 +480,13 @@ exports.getPOSMenuFeed = async (branchId = null) => {
           displayOrder: prod.displayOrder ?? 0,
           itemType: prod.itemType,
           hasVariants: !!prod.hasVariants,
+          isHalfAndHalf: !!prod.isHalfAndHalf,
           variants: (prod.variants || []).map((v) => ({
             sizeCode: v.sizeCode,
             sizeName: v.sizeName,
             price: v.price,
             isDefault: !!v.isDefault,
+            isEnabled: v.isEnabled !== false,
           })),
           includedToppings: (prod.includedToppings || []).map((it) => ({
             groupId: it.groupId ? it.groupId.toHexString() : "",

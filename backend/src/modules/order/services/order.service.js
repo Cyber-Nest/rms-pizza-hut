@@ -3264,16 +3264,17 @@ exports.finalizeAccountClosing = async (data) => {
       date: targetDateStr,
       branchId,
     });
-    if (!closing) throw new Error("No deposits found to finalize.");
+    if (!closing) {
+      closing = new AccountClosing({
+        branchId,
+        date: targetDateStr,
+        deposits: [],
+        status: "open",
+      });
+    }
 
     // Update cumulative totals & live system figures before final check
     closing = await updateCumulativeClosing(closing, branchId, targetDateStr);
-
-    if (closing.grandShortage < -0.005) {
-      throw new Error(
-        `Cannot close day: Shortage of $${Math.abs(closing.grandShortage).toFixed(2)} remaining.`,
-      );
-    }
 
     closing.status = "closed";
     closing.closedBy = closedBy;

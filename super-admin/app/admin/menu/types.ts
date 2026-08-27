@@ -46,6 +46,7 @@ export interface ProductVariant {
   sizeName: string;
   price: number;
   isDefault?: boolean;
+  isEnabled?: boolean;
 }
 
 export interface Product {
@@ -57,6 +58,7 @@ export interface Product {
   image: string;
   itemType: "simple" | "combo";
   hasVariants?: boolean;
+  isHalfAndHalf?: boolean;
   variants?: ProductVariant[];
   includedToppings?: { groupId: string; optionId: string }[];
   categoryId: string | any;

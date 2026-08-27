@@ -33,6 +33,7 @@ export interface SelectedModifier {
   optionId: string;
   optionName: string;
   price: number;
+  portion?: 'whole' | 'left' | 'right';
   isRoot?: boolean;
   kitchenLabel?: 'make_table' | 'wings_station' | 'chicken' | 'pizza';
 }

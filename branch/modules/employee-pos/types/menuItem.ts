@@ -7,6 +7,7 @@ export interface ProductVariant {
   sizeName: string;
   price: number;
   isDefault?: boolean;
+  isEnabled?: boolean;
 }
 
 export interface MenuItem {
@@ -22,6 +23,7 @@ export interface MenuItem {
   isPopular?: boolean;
   itemType: MenuItemType;
   hasVariants?: boolean;
+  isHalfAndHalf?: boolean;
   variants?: ProductVariant[];
   includedToppings?: { groupId: string; optionId: string }[];
   modifierGroupIds?: string[];

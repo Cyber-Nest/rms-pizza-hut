@@ -156,8 +156,9 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
                       <div className="pl-3 space-y-0.5 text-[10px] text-neutral-700 font-500">
                         {item.selectedModifiers.map((mod, mIdx) => {
                           const isMinus = mod.optionName.trim().startsWith('-') || mod.optionName.toLowerCase().includes('no ');
+                          const isHalf = mod.optionName.startsWith('[1/2 L]') || mod.optionName.startsWith('[1/2 R]');
                           return (
-                            <p key={mIdx} className={`leading-tight ${isMinus ? "font-800 text-black uppercase" : ""}`}>
+                            <p key={mIdx} className={`leading-tight ${isMinus || isHalf ? "font-800 text-black uppercase" : ""}`}>
                               {mod.optionName}{" "}
                               {mod.price > 0 ? `(+$${mod.price.toFixed(2)})` : ""}
                             </p>

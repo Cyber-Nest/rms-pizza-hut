@@ -80,6 +80,41 @@ export default function ModifierDrawer({
     return groupMap.get(gOrId.toString());
   };
 
+  const isHalfChoiceGroup = (gOrId: ModifierGroup | string): boolean => {
+    const g = resolveModifierGroup(gOrId);
+    if (!g) return false;
+    const nameLower = (g.name || "").toLowerCase();
+    if (
+      nameLower.includes("half") ||
+      nameLower.includes("1st") ||
+      nameLower.includes("2nd") ||
+      nameLower.includes("left") ||
+      nameLower.includes("right") ||
+      nameLower.includes("pizza")
+    ) {
+      return true;
+    }
+    return (
+      g.options?.some((o) => o.modifierGroups && o.modifierGroups.length > 0) ??
+      false
+    );
+  };
+
+  // IDs of shared root modifier groups (like Crust or Sauce) linked at the root product level.
+  // For Half & Half products, nested groups matching these IDs are skipped so they only appear once at the top level.
+  const rootGroupIdSet = useMemo<Set<string>>(() => {
+    const s = new Set<string>();
+    if (!(item as any)?.isHalfAndHalf) return s;
+    (item?.modifierGroups || []).forEach((g) => {
+      const resolved = resolveModifierGroup(g);
+      if (resolved && !isHalfChoiceGroup(resolved)) {
+        const id = resolved.id || (resolved as any)._id;
+        if (id) s.add(id.toString());
+      }
+    });
+    return s;
+  }, [item, groupMap]);
+
   // Scope selection key: root groups use plain g.id; child groups under a deal pizza option
   // use "pizzaOptId__childGroupId" to prevent cross-slot contamination (Pizza 1 vs Pizza 2)
   const getGroupKey = (groupId: string, parentOpt?: ModifierOption): string =>
@@ -216,8 +251,12 @@ export default function ModifierDrawer({
     setRemovedIncluded({});
 
     let defaultSize: ProductVariant | null = null;
-    if (item.hasVariants && item.variants && item.variants.length > 0) {
-      defaultSize = item.variants.find((v) => v.isDefault) || item.variants[0];
+    const availableVariants = (item.variants || []).filter(
+      (v) => v.isEnabled !== false,
+    );
+    if (item.hasVariants && availableVariants.length > 0) {
+      defaultSize =
+        availableVariants.find((v) => v.isDefault) || availableVariants[0];
       setSelectedSize(defaultSize);
     } else {
       setSelectedSize(null);
@@ -234,6 +273,11 @@ export default function ModifierDrawer({
 
       const restoreGroup = (g: ModifierGroup, parentOpt?: ModifierOption) => {
         if (!g?.options) return;
+        // Half & Half: skip nested groups already handled at root level
+        if (parentOpt && rootGroupIdSet.size > 0) {
+          const gid = ((g as any).id || (g as any)._id || "").toString();
+          if (rootGroupIdSet.has(gid)) return;
+        }
         const sizeCode = defaultSize?.sizeCode;
         const availableOpts = g.options.filter((o) =>
           isOptionAvailableForSize(o, sizeCode),
@@ -299,6 +343,11 @@ export default function ModifierDrawer({
       const init: Record<string, ModifierOption[]> = {};
       const initGroup = (g: ModifierGroup, parentOpt?: ModifierOption) => {
         if (!g || !g.options) return;
+        // Half & Half: skip nested groups already handled at root level
+        if (parentOpt && rootGroupIdSet.size > 0) {
+          const gid = ((g as any).id || (g as any)._id || "").toString();
+          if (rootGroupIdSet.has(gid)) return;
+        }
         const key = getGroupKey(g.id, parentOpt);
         if (init[key] !== undefined) return; // already initialized for this slot
         const sizeCode = defaultSize?.sizeCode;
@@ -415,6 +464,7 @@ export default function ModifierDrawer({
     opt: ModifierOption,
     groupId?: string,
     groupName?: string,
+    portion?: "whole" | "left" | "right",
   ) => {
     // If this option is an included topping, it's free
     if (groupId && isIncludedTopping(groupId, opt.id)) {
@@ -423,8 +473,17 @@ export default function ModifierDrawer({
 
     const modDealPrice = getDealPriceForModifierOption(opt.id, opt.name);
     if (modDealPrice !== null) {
-      return modDealPrice;
+      const finalPrice = modDealPrice;
+      if (portion === "left" || portion === "right") {
+        return Math.round((finalPrice * 0.5) * 100) / 100;
+      }
+      if ((item as any)?.isHalfAndHalf) {
+        return Math.round((finalPrice * 0.5) * 100) / 100;
+      }
+      return finalPrice;
     }
+
+    let calculatedPrice = opt.price || 0;
 
     // 1. If explicit selectedSize is present on the main item
     if (selectedSize && opt.pricesPerSize && opt.pricesPerSize.length > 0) {
@@ -432,68 +491,78 @@ export default function ModifierDrawer({
         (p) => p.sizeCode === selectedSize.sizeCode,
       );
       if (pObj && typeof pObj.price === "number" && pObj.price > 0) {
-        return pObj.price;
+        calculatedPrice = pObj.price;
+      }
+    } else {
+      // 2. Detect size from explicit modifierSizeCodes mapping, item name/description, or group/slot name
+      let detectedSize = "medium";
+
+      if (groupId && item?.modifierSizeCodes) {
+        const explicitSizeMapping = item.modifierSizeCodes.find(
+          (m) => m.groupId === groupId,
+        );
+        if (explicitSizeMapping?.sizeCode) {
+          detectedSize = explicitSizeMapping.sizeCode;
+        }
+      }
+
+      if (detectedSize === "medium" && item) {
+        const itemStr = (
+          (item.name || "") +
+          " " +
+          (item.description || "")
+        ).toLowerCase();
+        if (itemStr.includes("panalicious")) detectedSize = "panalicious";
+        else if (itemStr.includes("large") || itemStr.includes('14"'))
+          detectedSize = "large";
+        else if (itemStr.includes("small") || itemStr.includes('9"'))
+          detectedSize = "small";
+        else if (itemStr.includes("personal") || itemStr.includes('6"'))
+          detectedSize = "personal";
+        else if (itemStr.includes("xl") || itemStr.includes("panormous"))
+          detectedSize = "xl";
+        else if (itemStr.includes("med") || itemStr.includes('12"'))
+          detectedSize = "medium";
+      }
+
+      if (groupName) {
+        const gLower = groupName.toLowerCase();
+        if (gLower.includes("panalicious")) detectedSize = "panalicious";
+        else if (gLower.includes("large") || gLower.includes('14"'))
+          detectedSize = "large";
+        else if (gLower.includes("small") || gLower.includes('9"'))
+          detectedSize = "small";
+        else if (gLower.includes("personal") || gLower.includes('6"'))
+          detectedSize = "personal";
+        else if (gLower.includes("xl") || gLower.includes("panormous"))
+          detectedSize = "xl";
+        else if (gLower.includes("med") || gLower.includes('12"'))
+          detectedSize = "medium";
+      }
+
+      if (opt.pricesPerSize && opt.pricesPerSize.length > 0) {
+        const matched = opt.pricesPerSize.find(
+          (p) => p.sizeCode === detectedSize,
+        );
+        if (matched && typeof matched.price === "number" && matched.price > 0) {
+          calculatedPrice = matched.price;
+        } else {
+          const anyNonZero = opt.pricesPerSize.find((p) => p.price > 0);
+          if (anyNonZero) calculatedPrice = anyNonZero.price;
+        }
       }
     }
 
-    // 2. Detect size from explicit modifierSizeCodes mapping, item name/description, or group/slot name
-    let detectedSize = "medium";
-
-    if (groupId && item?.modifierSizeCodes) {
-      const explicitSizeMapping = item.modifierSizeCodes.find(
-        (m) => m.groupId === groupId,
-      );
-      if (explicitSizeMapping?.sizeCode) {
-        detectedSize = explicitSizeMapping.sizeCode;
-      }
+    if (portion === "left" || portion === "right") {
+      return calculatedPrice * 0.5;
     }
 
-    if (detectedSize === "medium" && item) {
-      const itemStr = (
-        (item.name || "") +
-        " " +
-        (item.description || "")
-      ).toLowerCase();
-      if (itemStr.includes("panalicious")) detectedSize = "panalicious";
-      else if (itemStr.includes("large") || itemStr.includes('14"'))
-        detectedSize = "large";
-      else if (itemStr.includes("small") || itemStr.includes('9"'))
-        detectedSize = "small";
-      else if (itemStr.includes("personal") || itemStr.includes('6"'))
-        detectedSize = "personal";
-      else if (itemStr.includes("xl") || itemStr.includes("panormous"))
-        detectedSize = "xl";
-      else if (itemStr.includes("med") || itemStr.includes('12"'))
-        detectedSize = "medium";
+    // If the root product is a Half & Half pizza, all topping prices are halved
+    if ((item as any)?.isHalfAndHalf) {
+      return Math.round((calculatedPrice * 0.5) * 100) / 100;
     }
 
-    if (groupName) {
-      const gLower = groupName.toLowerCase();
-      if (gLower.includes("panalicious")) detectedSize = "panalicious";
-      else if (gLower.includes("large") || gLower.includes('14"'))
-        detectedSize = "large";
-      else if (gLower.includes("small") || gLower.includes('9"'))
-        detectedSize = "small";
-      else if (gLower.includes("personal") || gLower.includes('6"'))
-        detectedSize = "personal";
-      else if (gLower.includes("xl") || gLower.includes("panormous"))
-        detectedSize = "xl";
-      else if (gLower.includes("med") || gLower.includes('12"'))
-        detectedSize = "medium";
-    }
-
-    if (opt.pricesPerSize && opt.pricesPerSize.length > 0) {
-      const matched = opt.pricesPerSize.find(
-        (p) => p.sizeCode === detectedSize,
-      );
-      if (matched && typeof matched.price === "number" && matched.price > 0) {
-        return matched.price;
-      }
-      const anyNonZero = opt.pricesPerSize.find((p) => p.price > 0);
-      if (anyNonZero) return anyNonZero.price;
-    }
-
-    return opt.price || 0;
+    return calculatedPrice;
   };
 
   // Base price for current selection
@@ -507,6 +576,11 @@ export default function ModifierDrawer({
 
     const collect = (groups: ModifierGroup[], parentOpt?: ModifierOption) => {
       groups.forEach((g) => {
+        // Half & Half: skip nested groups whose ID is already at root level
+        if (parentOpt && rootGroupIdSet.size > 0) {
+          const gid = ((g as any).id || (g as any)._id || "").toString();
+          if (rootGroupIdSet.has(gid)) return;
+        }
         const key = getGroupKey(g.id, parentOpt);
         if (!g || visited.has(key)) return;
         visited.add(key);
@@ -549,7 +623,11 @@ export default function ModifierDrawer({
     }
   };
 
-  const toggle = (g: ModifierGroup, opt: ModifierOption, parentOpt?: ModifierOption) => {
+  const toggle = (
+    g: ModifierGroup,
+    opt: ModifierOption,
+    parentOpt?: ModifierOption,
+  ) => {
     const key = getGroupKey(g.id, parentOpt);
     const cur = selections[key] ?? [];
     const curRemoved = removedIncluded[key] ?? [];
@@ -592,17 +670,12 @@ export default function ModifierDrawer({
     newSelections[key] = next;
     newRemoved[key] = nextRemoved;
 
-    // Recursively initialize default sub-groups and included recipe toppings for new selections.
-    // parentPizzaOpt = the deal pizza option (e.g. BBQ Chicken) that owns these sub-groups.
-    // Child groups are scoped by their parent pizza option ID to prevent cross-slot leakage.
     const initNested = (o: ModifierOption, parentPizzaOpt?: ModifierOption) => {
       if (o.modifierGroups) {
         o.modifierGroups.forEach((subG) => {
           const scopedKey = getGroupKey(subG.id, parentPizzaOpt || o);
           if (newSelections[scopedKey] === undefined) {
             const defs = subG.options.filter((so) => so.isDefault);
-            // Use the immediate parent option (o) as parentOpt so we only check
-            // THIS pizza's includedToppings — no cross-slot leakage
             const parentForCheck = parentPizzaOpt || o;
             const includedOpts = subG.options.filter(
               (so) =>
@@ -615,20 +688,10 @@ export default function ModifierDrawer({
                 ),
             );
             let selected = [...defs, ...includedOpts];
-            // Disabled auto-selection fallback of 1st item when no option is explicitly marked default in super-admin
-            // if (
-            //   selected.length === 0 &&
-            //   subG.required &&
-            //   subG.maxSelection === 1 &&
-            //   subG.options.length > 0
-            // ) {
-            //   selected = [subG.options[0]];
-            // }
             if (selected.length > subG.maxSelection) {
               selected = selected.slice(0, subG.maxSelection);
             }
             newSelections[scopedKey] = selected;
-            // Recurse deeper, keeping the same top-level pizza as parent
             newSelections[scopedKey].forEach((so) =>
               initNested(so, parentForCheck),
             );
@@ -702,9 +765,26 @@ export default function ModifierDrawer({
     let base = getBaseProductPrice();
     let modSum = 0;
     allActiveGroups.forEach(({ group: g, key }) => {
+      const gLower = g.name.toLowerCase();
+      let groupPortion: "whole" | "left" | "right" = "whole";
+      if (
+        gLower.includes("left") ||
+        gLower.includes("1st half") ||
+        gLower.includes("first half")
+      ) {
+        groupPortion = "left";
+      } else if (
+        gLower.includes("right") ||
+        gLower.includes("2nd half") ||
+        gLower.includes("second half")
+      ) {
+        groupPortion = "right";
+      }
+
       const selectedOpts = selections[key] ?? [];
       selectedOpts.forEach((o) => {
-        modSum += getOptionPrice(o, g.id, g.name);
+        const optPortion = (o as any).portion || groupPortion;
+        modSum += getOptionPrice(o, g.id, g.name, optPortion);
       });
     });
     return (base + modSum) * quantity;
@@ -713,20 +793,100 @@ export default function ModifierDrawer({
   const handleAdd = () => {
     if (!valid()) return;
     const mods: SelectedModifier[] = [];
+
+    const isHalfProduct = !!(item as any)?.isHalfAndHalf;
+
     allActiveGroups.forEach(({ group: g, key }) => {
       const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id) ?? false;
       const opts = selections[key] ?? [];
+
+      const gLower = g.name.toLowerCase();
+      let groupPortion: "whole" | "left" | "right" = "whole";
+      if (
+        gLower.includes("left") ||
+        gLower.includes("1st half") ||
+        gLower.includes("first half")
+      ) {
+        groupPortion = "left";
+      } else if (
+        gLower.includes("right") ||
+        gLower.includes("2nd half") ||
+        gLower.includes("second half")
+      ) {
+        groupPortion = "right";
+      }
+
+      // Half & Half: calculate 1-based half number for non-shared pizza choice groups
+      let halfNumber = 0;
+      if (isHalfProduct) {
+        if (isRoot) {
+          if (isHalfChoiceGroup(g)) {
+            let count = 0;
+            for (const rg of (item.modifierGroups || [])) {
+              const rgResolved = resolveModifierGroup(rg);
+              if (rgResolved && isHalfChoiceGroup(rgResolved)) {
+                count++;
+                if ((rgResolved.id || (rgResolved as any)._id) === g.id) {
+                  halfNumber = count;
+                  break;
+                }
+              }
+            }
+          }
+        } else if (key.includes("__")) {
+          const parentOptId = key.split("__")[0];
+          let count = 0;
+          for (const rg of (item.modifierGroups || [])) {
+            const rgResolved = resolveModifierGroup(rg);
+            if (rgResolved && isHalfChoiceGroup(rgResolved)) {
+              count++;
+              if (rgResolved.options?.some((o: any) => (o.id || o._id) === parentOptId)) {
+                halfNumber = count;
+                break;
+              }
+            }
+          }
+        }
+      }
+
       opts.forEach((o) => {
         const isRecipeInc = isRecipeIncludedTopping(g.id, o.id);
-        const isDef = o.isDefault && getOptionPrice(o, g.id, g.name) === 0;
+        const optPortion = (o as any).portion || groupPortion;
+        const isDef =
+          o.isDefault && getOptionPrice(o, g.id, g.name, optPortion) === 0;
+
+        let groupName = g.name;
+        let displayName = o.name;
+
+        if (isHalfProduct) {
+          if (isRoot && halfNumber > 0) {
+            groupName = `Half ${halfNumber}`;
+            displayName = `Half ${halfNumber}: ${o.name}`;
+          } else if (!isRoot && halfNumber > 0) {
+            groupName = `Half ${halfNumber} - ${g.name}`;
+            if (optPortion === "left" && !displayName.startsWith("[1/2 L]")) {
+              displayName = `[1/2 L] ${displayName}`;
+            } else if (optPortion === "right" && !displayName.startsWith("[1/2 R]")) {
+              displayName = `[1/2 R] ${displayName}`;
+            }
+          }
+        } else {
+          if (optPortion === "left" && !displayName.startsWith("[1/2 L]")) {
+            displayName = `[1/2 L] ${displayName}`;
+          } else if (optPortion === "right" && !displayName.startsWith("[1/2 R]")) {
+            displayName = `[1/2 R] ${displayName}`;
+          }
+        }
+
         // Only save custom additions (not default included recipe toppings)
         if (!isRecipeInc && !isDef) {
           mods.push({
             groupId: g.id,
-            groupName: g.name,
+            groupName: groupName,
             optionId: o.id,
-            optionName: o.name,
-            price: getOptionPrice(o, g.id, g.name),
+            optionName: displayName,
+            price: getOptionPrice(o, g.id, g.name, optPortion),
+            portion: optPortion,
             isRoot,
           });
         }
@@ -737,12 +897,27 @@ export default function ModifierDrawer({
       removedOptIds.forEach((rId) => {
         const optObj = g.options.find((o) => o.id === rId);
         if (optObj) {
+          const optPortion = (optObj as any).portion || groupPortion;
+          let groupName = g.name;
+          let displayName = `- NO ${optObj.name}`;
+
+          if (isHalfProduct && halfNumber > 0) {
+            groupName = `Half ${halfNumber} - ${g.name}`;
+          }
+
+          if (optPortion === "left") {
+            displayName = `[1/2 L] - NO ${optObj.name}`;
+          } else if (optPortion === "right") {
+            displayName = `[1/2 R] - NO ${optObj.name}`;
+          }
+
           mods.push({
             groupId: g.id,
-            groupName: g.name,
+            groupName: groupName,
             optionId: optObj.id,
-            optionName: `- NO ${optObj.name}`,
+            optionName: displayName,
             price: 0,
+            portion: optPortion,
             isRoot,
           });
         }
@@ -1042,9 +1217,17 @@ export default function ModifierDrawer({
         {g.options.map((opt) => {
           const sel = isSelected(g.id, opt.id, parentOpt);
           if (sel && opt.modifierGroups && opt.modifierGroups.length > 0) {
+            // Half & Half: filter out nested groups that are already at root level
+            const childGroupsToRender = rootGroupIdSet.size > 0
+              ? opt.modifierGroups.filter((childG) => {
+                  const cgId = ((childG as any).id || (childG as any)._id || "").toString();
+                  return !rootGroupIdSet.has(cgId);
+                })
+              : opt.modifierGroups;
+            if (childGroupsToRender.length === 0) return null;
             return (
               <div key={`child-of-${opt.id}`} className="space-y-3">
-                {opt.modifierGroups.map((childG) =>
+                {childGroupsToRender.map((childG) =>
                   renderModifierGroup(
                     childG,
                     isRoot ? opt.name : `${pathName} › ${opt.name}`,
@@ -1064,13 +1247,20 @@ export default function ModifierDrawer({
   const renderSelectedChoicesTree = () => {
     if (!item || !item.modifierGroups) return null;
 
+    // Track root-level groups already rendered to skip duplicates in nested options
+    const renderedRootGroupIds = new Set<string>();
+
     const renderChoicesForGroup = (
       gOrId: ModifierGroup | string,
       parentOpt?: ModifierOption,
+      halfLabel?: string,
     ): React.ReactNode => {
       const g = resolveModifierGroup(gOrId);
       if (!g) return null;
       const gId = (g.id || (g as any)._id) as string;
+
+      // Skip nested groups that are already at root level (e.g. shared Crust)
+      if (parentOpt && rootGroupIdSet.size > 0 && rootGroupIdSet.has(gId)) return null;
 
       const selKey = getGroupKey(gId, parentOpt);
       const opts = selections[selKey] ?? [];
@@ -1083,9 +1273,20 @@ export default function ModifierDrawer({
 
       return (
         <div key={`${gId}_${parentOpt?.id || "root"}`} className="space-y-0.5">
+          {/* Half label header for root pizza-choice groups */}
+          {isRootSlot && halfLabel && (
+            <p className="text-[8.5px] font-800 uppercase tracking-widest text-neutral-400 mt-2 mb-0.5">
+              {halfLabel}
+            </p>
+          )}
           {opts.map((o) => {
             const optPrice = getOptionPrice(o, gId, g.name);
-            const included = isIncludedTopping(gId, o.id, selections, parentOpt);
+            const included = isIncludedTopping(
+              gId,
+              o.id,
+              selections,
+              parentOpt,
+            );
 
             return (
               <div key={o.id} className="space-y-0.5">
@@ -1141,7 +1342,19 @@ export default function ModifierDrawer({
       );
     };
 
-    return item.modifierGroups.map((g) => renderChoicesForGroup(g));
+    // For Half & Half products, inject half labels before each root pizza-choice group
+    const isHalf = !!(item as any)?.isHalfAndHalf;
+    const rootGroups = item.modifierGroups;
+    let halfChoiceCount = 0;
+    return rootGroups.map((g) => {
+      const gResolved = resolveModifierGroup(g);
+      let halfLabel: string | undefined;
+      if (isHalf && gResolved && isHalfChoiceGroup(gResolved)) {
+        halfChoiceCount++;
+        halfLabel = `Half ${halfChoiceCount}`;
+      }
+      return renderChoicesForGroup(g, undefined, halfLabel);
+    });
   };
 
   return (
@@ -1220,7 +1433,10 @@ export default function ModifierDrawer({
                     "panalicious",
                     "xl",
                   ];
-                  const sortedVariants = [...item.variants].sort((a, b) => {
+                  const availableVariants = (item.variants || []).filter(
+                    (v) => v.isEnabled !== false,
+                  );
+                  const sortedVariants = [...availableVariants].sort((a, b) => {
                     const idxA = SIZE_ORDER.indexOf(a.sizeCode);
                     const idxB = SIZE_ORDER.indexOf(b.sizeCode);
                     if (idxA !== -1 && idxB !== -1) return idxA - idxB;
