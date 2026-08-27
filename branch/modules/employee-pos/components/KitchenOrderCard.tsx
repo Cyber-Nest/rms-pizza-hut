@@ -221,29 +221,11 @@ export default function KitchenOrderCard({
                         const hasWingsMods =
                           item.kitchenLabel === "wings_station" ||
                           item.kitchenLabel === "chicken" ||
-                          (item.selectedModifiers || []).some((m: any) => {
-                            if (
+                          (item.selectedModifiers || []).some(
+                            (m: any) =>
                               m.kitchenLabel === "wings_station" ||
-                              m.kitchenLabel === "chicken"
-                            )
-                              return true;
-                            const name = (
-                              (m.groupName || "") +
-                              " " +
-                              (m.optionName || "")
-                            ).toLowerCase();
-                            return (
-                              name.includes("wing") ||
-                              name.includes("side") ||
-                              name.includes("chicken") ||
-                              name.includes("strip") ||
-                              name.includes("bites") ||
-                              name.includes("dessert") ||
-                              name.includes("dip") ||
-                              name.includes("frosting") ||
-                              name.includes("brownie")
-                            );
-                          });
+                              m.kitchenLabel === "chicken",
+                          );
 
                         if (!hasWingsMods) return null;
 
@@ -295,16 +277,38 @@ export default function KitchenOrderCard({
                                   {mod.groupName}
                                 </span> */}
                                   <div className="flex justify-between items-baseline font-600 text-neutral-700">
-                                    {mod.optionName.trim().startsWith("-") ||
-                                    mod.optionName
-                                      .toLowerCase()
-                                      .includes("no ") ? (
-                                      <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
-                                        {mod.optionName}
-                                      </span>
-                                    ) : (
-                                      <span>{mod.optionName}</span>
-                                    )}
+                                    {(() => {
+                                      const isMinus =
+                                        mod.optionName.trim().startsWith("-") ||
+                                        mod.optionName
+                                          .toLowerCase()
+                                          .includes("no ");
+                                      const isLeft = mod.optionName.startsWith("[1/2 L]");
+                                      const isRight = mod.optionName.startsWith("[1/2 R]");
+
+                                      if (isMinus) {
+                                        return (
+                                          <span className="text-red-600 font-800 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 inline-block my-0.5 shadow-xs">
+                                            {mod.optionName}
+                                          </span>
+                                        );
+                                      }
+                                      if (isLeft) {
+                                        return (
+                                          <span className="text-blue-700 font-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 inline-block my-0.5">
+                                            {mod.optionName}
+                                          </span>
+                                        );
+                                      }
+                                      if (isRight) {
+                                        return (
+                                          <span className="text-purple-700 font-800 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 inline-block my-0.5">
+                                            {mod.optionName}
+                                          </span>
+                                        );
+                                      }
+                                      return <span>{mod.optionName}</span>;
+                                    })()}
                                     {mod.quantity > 1 && (
                                       <span className="font-700 text-neutral-900 text-[11px]">
                                         x{mod.quantity}

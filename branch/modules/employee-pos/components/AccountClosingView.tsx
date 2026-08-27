@@ -424,10 +424,6 @@ export default function AccountClosingView() {
   // ── Final Day Close Handler ──
   const handleFinalCloseDay = async () => {
     if (isSubmitting) return;
-    if (cumulativeTotals.currentShortage < -0.005) {
-      toast.error("Cannot close day: Shortage remaining!");
-      return;
-    }
 
     setIsSubmitting(true);
     const toastId = toast.loading("Finalizing day closing...");
@@ -464,8 +460,6 @@ export default function AccountClosingView() {
       setIsSubmitting(false);
     }
   };
-
-  const isDifferenceValid = cumulativeTotals.currentShortage >= -0.005;
 
   return (
     <main className="h-screen flex flex-col overflow-hidden bg-brand-bg text-neutral-900 font-sans select-none">
@@ -620,39 +614,26 @@ export default function AccountClosingView() {
 
                 {/* Final Close Day Action */}
                 <div>
-                  {!isDayClosed && !isDifferenceValid && (
-                    <div className="flex items-center gap-1.5 text-[10.5px] font-700 text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200">
-                      <AlertTriangle size={13} />
-                      <span>
-                        Cannot close day: $
-                        {Math.abs(cumulativeTotals.currentShortage).toFixed(2)}{" "}
-                        shortage remaining
-                      </span>
-                    </div>
-                  )}
-
-                  {(isDayClosed || isDifferenceValid) && (
-                    <button
-                      type="button"
-                      onClick={handleFinalCloseDay}
-                      disabled={isDayClosed || isSubmitting}
-                      className={`flex items-center gap-2 px-6 py-2 rounded-xl font-900 text-xs uppercase tracking-wide shadow-sm transition-all
-                        ${
-                          isDayClosed || isSubmitting
-                            ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
-                            : "bg-brand-primary hover:bg-[#b9142d] active:scale-95 text-white cursor-pointer"
-                        }`}
-                    >
-                      <Lock size={14} />
-                      <span>
-                        {isDayClosed
-                          ? "Day Account Closed"
-                          : isSubmitting
-                            ? "Finalizing..."
-                            : "Close Day & Finalize Account"}
-                      </span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleFinalCloseDay}
+                    disabled={isDayClosed || isSubmitting}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-xl font-900 text-xs uppercase tracking-wide shadow-sm transition-all
+                      ${
+                        isDayClosed || isSubmitting
+                          ? "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                          : "bg-brand-primary hover:bg-[#b9142d] active:scale-95 text-white cursor-pointer"
+                      }`}
+                  >
+                    <Lock size={14} />
+                    <span>
+                      {isDayClosed
+                        ? "Day Account Closed"
+                        : isSubmitting
+                          ? "Finalizing..."
+                          : "Close Day & Finalize Account"}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>

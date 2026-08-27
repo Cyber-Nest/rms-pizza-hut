@@ -139,8 +139,10 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
               const simpleDealPrice = szConfig ? szConfig.dealPrice : null;
 
               if (item.hasVariants && item.variants && item.variants.length > 0) {
+                const availableVars = item.variants.filter((v) => v.isEnabled !== false);
+                const varsToUse = availableVars.length > 0 ? availableVars : item.variants;
                 const minPrice = Math.min(
-                  ...item.variants.map((v) => {
+                  ...varsToUse.map((v) => {
                     const dealSZ = matchedDeal?.sizes?.find(
                       (s: any) =>
                         s.sizeCode === v.sizeCode && s.isEnabled && s.dealPrice > 0,

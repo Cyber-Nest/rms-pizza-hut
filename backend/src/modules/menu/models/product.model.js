@@ -39,6 +39,10 @@ const productSchema = new mongoose.Schema({
     enum: ['simple', 'combo'],
     default: 'combo',
   },
+  isHalfAndHalf: {
+    type: Boolean,
+    default: false,
+  },
   hasVariants: {
     type: Boolean,
     default: false,
@@ -48,6 +52,7 @@ const productSchema = new mongoose.Schema({
     sizeName: { type: String, required: true },
     price: { type: Number, required: true },
     isDefault: { type: Boolean, default: false },
+    isEnabled: { type: Boolean, default: true },
   }],
   includedToppings: [{
     groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'ModifierGroup' },

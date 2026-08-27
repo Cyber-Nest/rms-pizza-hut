@@ -540,9 +540,16 @@ export default function OrderDetailModal({
                               const isMinusMod =
                                 mod.optionName.trim().startsWith("-") ||
                                 mod.optionName.toLowerCase().includes("no ");
+                              const showGroupPrefix =
+                                mod.groupName &&
+                                !mod.optionName
+                                  .toLowerCase()
+                                  .startsWith(mod.groupName.toLowerCase());
                               return (
                                 <p key={mIdx}>
-                                  <span>{mod.groupName}: </span>
+                                  {showGroupPrefix && (
+                                    <span>{mod.groupName}: </span>
+                                  )}
                                   {isMinusMod ? (
                                     <span className="text-red-600 font-800 bg-red-50 border border-red-200 rounded px-1.5 py-0.5 inline-block my-0.5 shadow-xs">
                                       {mod.optionName}

@@ -14,7 +14,7 @@ import {
   Copy,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { Product, Category, ModifierGroup } from "../types";
+import { Product, Category, ModifierGroup, ProductVariant } from "../types";
 import { API_URL, compressImage, getAuthConfig } from "../utils";
 import BranchVisibilityModal from "./BranchVisibilityModal";
 
@@ -26,13 +26,13 @@ interface ProductsTabProps {
   showToast: (text: string, type?: "success" | "error") => void;
 }
 
-const DEFAULT_PIZZA_SIZES = [
-  { sizeCode: "personal", sizeName: '6" Personal', price: 8.99, isDefault: false },
-  { sizeCode: "small", sizeName: '9" Small', price: 14.99, isDefault: false },
-  { sizeCode: "medium", sizeName: '12" Medium', price: 18.99, isDefault: true },
-  { sizeCode: "large", sizeName: '14" Large', price: 22.99, isDefault: false },
-  { sizeCode: "panalicious", sizeName: 'Panalicious', price: 27.99, isDefault: false },
-  { sizeCode: "xl", sizeName: "XL Panormous", price: 26.99, isDefault: false },
+const DEFAULT_PIZZA_SIZES: ProductVariant[] = [
+  { sizeCode: "personal", sizeName: '6" Personal', price: 8.99, isDefault: false, isEnabled: true },
+  { sizeCode: "small", sizeName: '9" Small', price: 14.99, isDefault: false, isEnabled: true },
+  { sizeCode: "medium", sizeName: '12" Medium', price: 18.99, isDefault: true, isEnabled: true },
+  { sizeCode: "large", sizeName: '14" Large', price: 22.99, isDefault: false, isEnabled: true },
+  { sizeCode: "panalicious", sizeName: 'Panalicious', price: 27.99, isDefault: false, isEnabled: true },
+  { sizeCode: "xl", sizeName: "XL Panormous", price: 26.99, isDefault: false, isEnabled: true },
 ];
 
 export default function ProductsTab({
@@ -123,6 +123,7 @@ export default function ProductsTab({
     image: "",
     itemType: "combo",
     hasVariants: false,
+    isHalfAndHalf: false,
     variants: [],
     includedToppings: [],
     categoryId: "",
@@ -230,6 +231,7 @@ export default function ProductsTab({
       image: prod.image || "",
       itemType: prod.itemType || "combo",
       hasVariants: !!prod.hasVariants,
+      isHalfAndHalf: !!prod.isHalfAndHalf,
       variants: existingVariants,
       categoryId:
         typeof prod.categoryId === "object"
@@ -258,6 +260,7 @@ export default function ProductsTab({
       image: "",
       itemType: "combo",
       hasVariants: false,
+      isHalfAndHalf: false,
       variants: [],
       includedToppings: [],
       categoryId: categories[0]?.id || categories[0]?._id || "",
@@ -611,6 +614,44 @@ export default function ProductsTab({
               </div>
             )}
 
+            {/* Half & Half Product Toggle */}
+            <div className="flex items-center justify-between p-3 bg-[#FAFAF9] border border-neutral-200 rounded-xl">
+              <div>
+                <span className="block text-[10px] font-800 text-neutral-700 uppercase tracking-wider">
+                  🍕 Half & Half Product
+                </span>
+                <span className="block text-[8px] text-neutral-400 leading-normal">
+                  Enable if this is a Half & Half pizza allowing 1/2 Left & 1/2 Right choices.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextHalf = !prodForm.isHalfAndHalf;
+                  const nextHasVariants = nextHalf ? true : prodForm.hasVariants;
+                  const nextVariants = nextHasVariants
+                    ? (prodForm.variants && prodForm.variants.length > 0 ? prodForm.variants : DEFAULT_PIZZA_SIZES)
+                    : [];
+                  setProdForm({
+                    ...prodForm,
+                    isHalfAndHalf: nextHalf,
+                    hasVariants: nextHasVariants,
+                    variants: nextVariants,
+                    kitchenLabel: nextHalf ? "pizza" : prodForm.kitchenLabel,
+                  });
+                }}
+                className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  prodForm.isHalfAndHalf ? "bg-rose-600" : "bg-neutral-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    prodForm.isHalfAndHalf ? "translate-x-[20px]" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
             {/* Pizza Sizes & Variants toggle */}
             <div className="p-3 bg-[#FAFAF9] border border-neutral-200 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
@@ -653,61 +694,96 @@ export default function ProductsTab({
 
               {prodForm.hasVariants && (
                 <div className="space-y-2 pt-2 border-t border-neutral-200">
-                  <p className="text-[9px] font-700 text-neutral-500 uppercase tracking-wider">
-                    Variant Base Prices
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-700 text-neutral-500 uppercase tracking-wider">
+                      Variant Base Prices & Enabled Sizes
+                    </p>
+                    <span className="text-[8px] text-neutral-400">
+                      Uncheck to hide size from POS
+                    </span>
+                  </div>
                   <div className="space-y-1.5">
-                    {(prodForm.variants || DEFAULT_PIZZA_SIZES).map((variant, idx) => (
-                      <div key={variant.sizeCode} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-neutral-200">
-                        <span className="text-[10px] font-700 text-neutral-700 w-28 truncate">
-                          {variant.sizeName}
-                        </span>
-                        <div className="relative flex-1 flex items-center">
-                          <span className="absolute left-2.5 text-[10px] font-700 text-neutral-400">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={variant.price || ""}
-                            onChange={(e) => {
-                              const newPrice = parseFloat(e.target.value) || 0;
-                              const updatedVariants = (prodForm.variants || []).map((v, i) =>
-                                i === idx ? { ...v, price: newPrice } : v
-                              );
-                              const defVar = updatedVariants.find((v) => v.isDefault) || updatedVariants[0];
-                              setProdForm({
-                                ...prodForm,
-                                variants: updatedVariants,
-                                price: defVar ? defVar.price : newPrice,
-                              });
-                            }}
-                            className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-lg pl-5 pr-2 py-1 text-[10.5px] focus:outline-none focus:border-brand-primary"
-                          />
+                    {(prodForm.variants || DEFAULT_PIZZA_SIZES).map((variant, idx) => {
+                      const enabled = variant.isEnabled !== false;
+                      return (
+                        <div
+                          key={variant.sizeCode}
+                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
+                            enabled
+                              ? "bg-white border-neutral-200"
+                              : "bg-neutral-100/70 border-neutral-200/60 opacity-60"
+                          }`}
+                        >
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const updatedVariants = (prodForm.variants || []).map((v, i) =>
+                                  i === idx ? { ...v, isEnabled: checked } : v
+                                );
+                                setProdForm({
+                                  ...prodForm,
+                                  variants: updatedVariants,
+                                });
+                              }}
+                              className="rounded border-neutral-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5 cursor-pointer"
+                            />
+                            <span className={`text-[10px] font-700 w-24 truncate ${enabled ? "text-neutral-700" : "text-neutral-400 line-through"}`}>
+                              {variant.sizeName}
+                            </span>
+                          </label>
+
+                          <div className="relative flex-1 flex items-center">
+                            <span className="absolute left-2.5 text-[10px] font-700 text-neutral-400">
+                              $
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={!enabled}
+                              value={variant.price || ""}
+                              onChange={(e) => {
+                                const newPrice = parseFloat(e.target.value) || 0;
+                                const updatedVariants = (prodForm.variants || []).map((v, i) =>
+                                  i === idx ? { ...v, price: newPrice } : v
+                                );
+                                const defVar = updatedVariants.find((v) => v.isDefault) || updatedVariants[0];
+                                setProdForm({
+                                  ...prodForm,
+                                  variants: updatedVariants,
+                                  price: defVar ? defVar.price : newPrice,
+                                });
+                              }}
+                              className="w-full bg-[#FAFAF9] border border-neutral-200 rounded-lg pl-5 pr-2 py-1 text-[10.5px] focus:outline-none focus:border-brand-primary disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                            />
+                          </div>
+                          <label className="flex items-center gap-1 text-[9px] font-600 text-neutral-500 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="defaultVariant"
+                              disabled={!enabled}
+                              checked={!!variant.isDefault}
+                              onChange={() => {
+                                const updatedVariants = (prodForm.variants || []).map((v, i) => ({
+                                  ...v,
+                                  isDefault: i === idx,
+                                }));
+                                setProdForm({
+                                  ...prodForm,
+                                  variants: updatedVariants,
+                                  price: variant.price,
+                                });
+                              }}
+                              className="text-brand-primary focus:ring-brand-primary w-3 h-3 disabled:cursor-not-allowed"
+                            />
+                            <span>Default</span>
+                          </label>
                         </div>
-                        <label className="flex items-center gap-1 text-[9px] font-600 text-neutral-500 cursor-pointer select-none">
-                          <input
-                            type="radio"
-                            name="defaultVariant"
-                            checked={!!variant.isDefault}
-                            onChange={() => {
-                              const updatedVariants = (prodForm.variants || []).map((v, i) => ({
-                                ...v,
-                                isDefault: i === idx,
-                              }));
-                              setProdForm({
-                                ...prodForm,
-                                variants: updatedVariants,
-                                price: variant.price,
-                              });
-                            }}
-                            className="text-brand-primary focus:ring-brand-primary w-3 h-3"
-                          />
-                          <span>Default</span>
-                        </label>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

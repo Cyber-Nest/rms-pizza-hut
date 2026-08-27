@@ -12,6 +12,7 @@ const selectedModifierSchema = new mongoose.Schema(
     optionId: { type: String, required: true },
     optionName: { type: String, required: true },
     price: { type: Number, default: 0 },
+    portion: { type: String, enum: ["whole", "left", "right"], default: "whole" },
     isRoot: { type: Boolean, default: true },
     kitchenLabel: { type: String, default: null },
   },
