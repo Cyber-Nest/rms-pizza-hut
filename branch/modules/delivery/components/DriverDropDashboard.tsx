@@ -23,6 +23,7 @@ import {
   Phone,
   Car,
   Download,
+  LogOut,
 } from "lucide-react";
 import PosNavbar from "@/modules/employee-pos/components/PosNavbar";
 import POSSidebarDrawer from "@/modules/employee-pos/components/POSSidebarDrawer";
@@ -92,6 +93,7 @@ export default function DriverDropDashboard() {
   const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
   // Fetch Drivers for selected date & branch
   const fetchDrivers = useCallback(async () => {
@@ -266,27 +268,29 @@ export default function DriverDropDashboard() {
 
     if (selectedDriver?.isSettled && selectedDriver?.settlementSummary) {
       const s = selectedDriver.settlementSummary;
+      const baseComm = s.driverBaseCommission ?? (s.totalOrders || orders.length) * 6.0;
+      const addComm = s.additionalCommission ?? 0;
+      const totalComm = s.driverTotalCommission ?? (baseComm + addComm);
+      const tipsEarned = s.totalTipsEarned ?? ((s.prepaidTips || 0) + (s.terminalTips || 0));
+      const driverEarning = s.totalDriverEarning ?? (totalComm + tipsEarned);
+
       return {
-        totalOrders: s.totalOrders || orders.length,
+        totalOrders: s.totalOrders ?? orders.length,
         totalCancels: 0,
-        totalSales: s.totalSales || 0,
-        prepaidSales: s.prepaidSales || 0,
-        prepaidTips: s.prepaidTips || 0,
-        totalNewSales: s.totalNewSales || 0,
-        terminalSales: s.terminalSales || 0,
-        terminalTips: s.terminalTips || 0,
-        cashSales: s.cashSales || 0,
-        saleDue: s.saleDue || 0,
-        driverBaseCommission:
-          s.driverBaseCommission || (s.totalOrders || 0) * 6,
-        driverAdditionalCommission: s.additionalCommission || 0,
-        driverTotalCommission:
-          s.driverTotalCommission ||
-          (s.driverBaseCommission || 0) + (s.additionalCommission || 0),
-        totalTipsEarned: s.totalTipsEarned || 0,
-        totalDriverEarning: s.totalDriverEarning || 0,
-        netCashPayoutToDriver:
-          s.netCashPayoutToDriver || s.totalDriverEarning || 0,
+        totalSales: s.totalSales ?? 0,
+        prepaidSales: s.prepaidSales ?? 0,
+        prepaidTips: s.prepaidTips ?? 0,
+        totalNewSales: s.totalNewSales ?? 0,
+        terminalSales: s.terminalSales ?? 0,
+        terminalTips: s.terminalTips ?? 0,
+        cashSales: s.cashSales ?? 0,
+        saleDue: s.saleDue ?? 0,
+        driverBaseCommission: baseComm,
+        driverAdditionalCommission: addComm,
+        driverTotalCommission: totalComm,
+        totalTipsEarned: tipsEarned,
+        totalDriverEarning: driverEarning,
+        netCashPayoutToDriver: s.netCashPayoutToDriver ?? driverEarning,
         ratePerOrder: 6.0,
       };
     }
@@ -585,7 +589,7 @@ export default function DriverDropDashboard() {
 
 
 
-  const handleFinalizeSettlement = async () => {
+  const handleFinalizeSettlement = () => {
     if (!selectedDriver) {
       toast.error("Please select a driver first!");
       return;
@@ -596,6 +600,12 @@ export default function DriverDropDashboard() {
       );
       return;
     }
+    setIsCheckoutModalOpen(true);
+  };
+
+  const executeSettlement = async (autoCheckout: boolean) => {
+    setIsCheckoutModalOpen(false);
+    if (!selectedDriver) return;
 
     setIsSubmitting(true);
     const toastId = toast.loading(
@@ -626,6 +636,7 @@ export default function DriverDropDashboard() {
           : 0,
         additionalReason: hasAdditionalCommissionToggle ? additionalReason : "",
         settledBy: "Manager",
+        autoCheckout,
         ...(branchId ? { branchId } : {}),
       };
 
@@ -635,7 +646,7 @@ export default function DriverDropDashboard() {
       );
       if (res.data.success) {
         toast.success(
-          `Drop settlement finalized for ${selectedDriver.name}! Net Cash Payout: $${calculations.netCashPayoutToDriver.toFixed(2)}`,
+          `Drop settlement finalized for ${selectedDriver.name}! ${autoCheckout ? "Driver checked out from POS & vehicle unassigned." : ""} Net Cash Payout: $${calculations.netCashPayoutToDriver.toFixed(2)}`,
           { id: toastId },
         );
         fetchDrivers();
@@ -1421,6 +1432,90 @@ export default function DriverDropDashboard() {
           </div>
         )}
       </div>
+
+      {/* ── 1. POS CHECKOUT CONFIRMATION MODAL ── */}
+      {isCheckoutModalOpen && selectedDriver && (
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-xs z-[200] flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-up border border-neutral-200">
+            {/* Red Header */}
+            <div className="bg-[#e31837] text-white px-5 py-3.5 flex items-center justify-between">
+              <h3 className="font-800 text-[13px] uppercase tracking-wide flex items-center gap-2">
+                <LogOut size={16} />
+                <span>Checkout Driver from POS?</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsCheckoutModalOpen(false)}
+                className="text-white hover:text-white/80 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 text-center">
+              <div className="w-14 h-14 rounded-full bg-red-50 text-[#e31837] flex items-center justify-center mx-auto border border-red-200 shadow-xs">
+                <LogOut size={28} />
+              </div>
+
+              <div className="space-y-1.5">
+                <h4 className="text-sm font-900 text-neutral-900 uppercase tracking-tight">
+                  Checkout {selectedDriver.name} (ID: {selectedDriver.driverId})?
+                </h4>
+                <p className="text-[11.5px] text-neutral-600 font-500 leading-relaxed max-w-xs mx-auto">
+                  Would you like to automatically check out <strong>{selectedDriver.name}</strong> from POS attendance upon finalizing settlement?
+                </p>
+                {/* <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-[10.5px] text-amber-900 font-600 text-left mt-2">
+                  <p className="font-800 text-amber-950 flex items-center gap-1 mb-0.5">
+                    ℹ Automatic Actions on Checkout:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-amber-800 font-500">
+                    <li>Unassigns assigned vehicle automatically</li>
+                    <li>Sets driver status to offline</li>
+                    <li>Blocks Driver App login until next POS check-in</li>
+                  </ul>
+                </div> */}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => executeSettlement(true)}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-900 uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                  ) : (
+                    <CheckCircle size={15} />
+                  )}
+                  <span>YES, CHECKOUT & SETTLE</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => executeSettlement(false)}
+                  className="w-full py-2.5 bg-neutral-900 hover:bg-black text-white text-[12px] font-900 uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  <FileText size={15} />
+                  <span>NO, SETTLE ONLY (KEEP CHECKED-IN)</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setIsCheckoutModalOpen(false)}
+                  className="w-full py-1.5 text-neutral-500 hover:text-neutral-800 text-[11px] font-700 uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 2. VIEW SALES DETAILS MODAL ── */}
       {isSalesDetailsModalOpen && selectedDriver && (
