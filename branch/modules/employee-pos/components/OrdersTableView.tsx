@@ -5,7 +5,7 @@ import { Eye, Printer, Smartphone, Store } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Order } from '../types';
-import { formatLocalDateTime24 } from '../utils/timezone';
+import { formatLocalDateTime24, formatLocalTime } from '../utils/timezone';
 
 interface OrdersTableViewProps {
   orders: Order[];
@@ -195,9 +195,15 @@ export default function OrdersTableView({
                   >
                     {/* Order Number in a nice mono tag */}
                     <td className="px-5 py-4">
-                      <span className="font-mono text-[10.5px] lg:text-[12.5px] font-700 text-neutral-700 bg-neutral-100/80 px-2.5 py-1 rounded border border-neutral-200/80 tracking-wide shadow-3xs">
-                        {shortNum}
-                      </span>
+                      {order.orderTiming === 'later' && order.scheduledAt ? (
+                        <span className="font-mono text-[10.5px] lg:text-[12.5px] font-800 text-purple-700 bg-purple-50 px-2.5 py-1 rounded border border-purple-300 tracking-wide shadow-3xs">
+                          {shortNum}
+                        </span>
+                      ) : (
+                        <span className="font-mono text-[10.5px] lg:text-[12.5px] font-700 text-neutral-700 bg-neutral-100/80 px-2.5 py-1 rounded border border-neutral-200/80 tracking-wide shadow-3xs">
+                          {shortNum}
+                        </span>
+                      )}
                     </td>
 
                     {/* Customer with profile avatar initials */}

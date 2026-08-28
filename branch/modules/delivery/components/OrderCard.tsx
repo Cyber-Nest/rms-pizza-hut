@@ -99,8 +99,11 @@ export default function OrderCard({ order }: OrderCardProps) {
 
   const isSelected = selectedOrderId === order.id;
   const assignedDriver = order.assignedDriverId
-    ? drivers.find((d) => d.id === order.assignedDriverId)
+    ? drivers.find((d) => d.id === order.assignedDriverId || d._id === order.assignedDriverId)
     : null;
+  const driverName = assignedDriver?.name || order.assignedDriverName || null;
+  const driverCode = assignedDriver?.driverId || order.assignedDriverCode || null;
+
   const availableDrivers = getDriversWithVehicles().filter(
     (d) =>
       Boolean(d.posCheckedIn) &&
@@ -315,15 +318,15 @@ export default function OrderCard({ order }: OrderCardProps) {
           </div>
         )}
 
-        {order.status === "en-route" && assignedDriver && (
+        {order.status === "en-route" && (
           <div className="flex items-center justify-between w-full mt-1.5 animate-fade-in">
             {/* Left side: Driver details */}
             <div className="flex items-center gap-1.5 text-[11.5px] font-medium text-neutral-700 min-w-0 mr-2">
-              <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-red-600" />
-              <span className="truncate max-w-[120px] font-bold">
-                {assignedDriver.name} {assignedDriver.driverId ? `(#${assignedDriver.driverId})` : ""}
+              <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-600 animate-pulse" />
+              <span className="truncate max-w-[130px] font-bold text-neutral-800">
+                {driverName ? `${driverName} ${driverCode ? `(#${driverCode})` : ""}` : "Driver Assigned"}
               </span>
-              {assignedDriver.assignedVehicle && (
+              {assignedDriver?.assignedVehicle && (
                 <span className="text-[9px] font-black text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded shrink-0 uppercase tracking-wider">
                   V#{assignedDriver.assignedVehicle.number}
                 </span>
@@ -384,10 +387,19 @@ export default function OrderCard({ order }: OrderCardProps) {
         )}
 
         {order.status === "delivered" && (
-          <div className="flex items-center justify-between w-full mt-1 animate-fade-in gap-2">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-green-600">
-              <Check size={14} strokeWidth={2.5} />
-              <span>Delivered</span>
+          <div className="flex items-center justify-between w-full mt-1.5 pt-1.5 border-t border-neutral-100 animate-fade-in gap-2">
+            <div className="flex items-center gap-1.5 text-[11.5px] font-semibold min-w-0 flex-wrap">
+              <span className="flex items-center gap-1 text-green-700 font-bold bg-green-50 border border-green-200 px-2 py-0.5 rounded-md shrink-0">
+                <Check size={13} strokeWidth={2.5} />
+                Delivered
+              </span>
+              {driverName && (
+                <span className="flex items-center gap-1 text-neutral-700 font-bold bg-neutral-100 border border-neutral-200/80 px-2 py-0.5 rounded-md truncate max-w-[150px]" title={driverName}>
+                  <User size={11} className="text-neutral-500 shrink-0" />
+                  <span className="truncate">{driverName}</span>
+                  {driverCode && <span className="text-[10px] text-neutral-500 font-medium shrink-0">#{driverCode}</span>}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">

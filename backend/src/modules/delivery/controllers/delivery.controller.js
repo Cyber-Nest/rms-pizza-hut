@@ -126,7 +126,7 @@ exports.getDeliveryOrders = async (req, res) => {
     const assignments = await DeliveryAssignment.find({
       orderId: { $in: orderIds },
     })
-      .populate("driverId", "_id name")
+      .populate("driverId", "_id name driverId")
       .lean();
 
     const assignmentMap = {};
@@ -142,9 +142,13 @@ exports.getDeliveryOrders = async (req, res) => {
 
       let deliveryStatus = "assign";
       let assignedDriverId = null;
+      let assignedDriverName = null;
+      let assignedDriverCode = null;
 
       if (assignment) {
         assignedDriverId = assignment.driverId?._id || null;
+        assignedDriverName = assignment.driverId?.name || null;
+        assignedDriverCode = assignment.driverId?.driverId || null;
         if (
           assignment.status === "completed" ||
           assignment.status === "delivered"
@@ -177,6 +181,8 @@ exports.getDeliveryOrders = async (req, res) => {
         status: deliveryStatus,
         assignmentStatus: assignment ? assignment.status : null,
         assignedDriverId,
+        assignedDriverName,
+        assignedDriverCode,
         createdAt: order.createdAt,
         orderTiming: order.orderTiming,
         scheduledAt: order.scheduledAt,
@@ -224,7 +230,7 @@ exports.getDrivers = async (req, res) => {
     // Get all driver-role employees for this branch
     const employees = await Employee.find({
       branchId: restaurantId,
-      $or: [{ role: "driver" }, { driverRef: { $exists: true, $ne: null } }],
+      role: "driver",
       isActive: true,
     })
       .select("_id employeeId driverRef")

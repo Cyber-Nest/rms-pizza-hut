@@ -213,10 +213,13 @@ orderSchema.statics.generateOrderNumber = async function (
   const startOfDay = getLocalStartOfDay(dateString);
   const endOfDay = getLocalEndOfDay(dateString);
 
-  const query = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
-  if (branchId) {
-    query.branchId = branchId;
-  }
+  const dateQuery = {
+    $or: [
+      { orderTiming: { $ne: "later" }, createdAt: { $gte: startOfDay, $lte: endOfDay } },
+      { orderTiming: "later", scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+    ],
+  };
+  const query = branchId ? { branchId, ...dateQuery } : dateQuery;
 
   const countToday = await this.countDocuments(query);
 
@@ -250,10 +253,13 @@ orderSchema.statics.previewNextOrderNumber = async function (
   const startOfDay = getLocalStartOfDay(dateString);
   const endOfDay = getLocalEndOfDay(dateString);
 
-  const query = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
-  if (branchId) {
-    query.branchId = branchId;
-  }
+  const dateQuery = {
+    $or: [
+      { orderTiming: { $ne: "later" }, createdAt: { $gte: startOfDay, $lte: endOfDay } },
+      { orderTiming: "later", scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+    ],
+  };
+  const query = branchId ? { branchId, ...dateQuery } : dateQuery;
 
   const countToday = await this.countDocuments(query);
 
@@ -262,7 +268,7 @@ orderSchema.statics.previewNextOrderNumber = async function (
   }
 
   const counter = await OrderCounter.findOne({ _id: counterKey });
-  const currentCount = counter ? counter.count : 0;
+  const currentCount = counter ? Math.max(counter.count, countToday) : countToday;
   return String(currentCount + 101);
 };
 
