@@ -280,3 +280,267 @@ exports.getEmployeeAttendanceHistory = async (branchId, employeeId, startDate, e
 
   return history;
 };
+
+exports.getAttendanceReport = async (branchId, options = {}) => {
+  if (!branchId) {
+    throw new Error("Branch ID is required");
+  }
+
+  const { startDate, endDate, employeeId, role } = options;
+
+  const query = { branchId };
+
+  if (startDate && endDate) {
+    query.date = { $gte: startDate, $lte: endDate };
+  } else if (startDate) {
+    query.date = { $gte: startDate };
+  } else if (endDate) {
+    query.date = { $lte: endDate };
+  }
+
+  if (employeeId) {
+    query.employeeId = employeeId;
+  }
+
+  const attendanceDocs = await Attendance.find(query)
+    .populate("employeeId", "name employeeId role phone email address isActive")
+    .sort({ date: -1 })
+    .lean();
+
+  const filteredDocs = attendanceDocs.filter((doc) => {
+    if (!doc.employeeId) return false;
+    if (role && role !== "all") {
+      return doc.employeeId.role === role;
+    }
+    return true;
+  });
+
+  const rows = [];
+  let grandTotalWorkMins = 0;
+  let grandTotalBreakMins = 0;
+  let totalShiftsCount = 0;
+  const uniqueEmployeeIds = new Set();
+
+  filteredDocs.forEach((doc) => {
+    const emp = doc.employeeId;
+    if (!emp) return;
+    uniqueEmployeeIds.add(String(emp._id));
+
+    const dateStr = doc.date;
+    let formattedDateDay = dateStr;
+    try {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      const dayName = dt.toLocaleDateString("en-US", { weekday: "short" });
+      formattedDateDay = `${dateStr} (${dayName})`;
+    } catch (e) {}
+
+    const shifts = doc.shifts || [];
+
+    if (shifts.length === 0) {
+      rows.push({
+        attendanceId: String(doc._id),
+        employeeId: emp.employeeId,
+        employeeName: emp.name,
+        role: emp.role,
+        date: dateStr,
+        dateDayStr: formattedDateDay,
+        startTime: "--",
+        endTime: "--",
+        totalShiftHours: 0,
+        breaks: [],
+        break1In: "--",
+        break1Out: "--",
+        break2In: "--",
+        break2Out: "--",
+        break3In: "--",
+        break3Out: "--",
+        totalBreakHours: 0,
+        totalPayableHours: 0,
+        status: doc.status,
+      });
+    } else {
+      shifts.forEach((shift, sIdx) => {
+        totalShiftsCount++;
+
+        const checkInIso = shift.checkIn;
+        const checkOutIso = shift.checkOut;
+
+        const startTimeStr = checkInIso
+          ? new Date(checkInIso).toLocaleTimeString("en-US", {
+              timeZone: "America/Edmonton",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+          : "--";
+
+        const endTimeStr = checkOutIso
+          ? new Date(checkOutIso).toLocaleTimeString("en-US", {
+              timeZone: "America/Edmonton",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+          : shift.checkIn
+            ? "Working..."
+            : "--";
+
+        const endTime = checkOutIso ? new Date(checkOutIso) : new Date();
+        const startTime = checkInIso ? new Date(checkInIso) : new Date();
+        const grossDiffMs = endTime.getTime() - startTime.getTime();
+        const grossMins = Math.max(0, Math.round(grossDiffMs / (1000 * 60)));
+        const grossHrs = parseFloat((grossMins / 60).toFixed(2));
+
+        const breaks = shift.breaks || [];
+        let totalBreakMins = 0;
+
+        const formattedBreaks = breaks.map((b) => {
+          const bInStr = b.breakIn
+            ? new Date(b.breakIn).toLocaleTimeString("en-US", {
+                timeZone: "America/Edmonton",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })
+            : "--";
+          const bOutStr = b.breakOut
+            ? new Date(b.breakOut).toLocaleTimeString("en-US", {
+                timeZone: "America/Edmonton",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })
+            : b.breakIn
+              ? "On Break"
+              : "--";
+
+          const bDuration = diffInMinutes(b.breakIn, b.breakOut || new Date());
+          totalBreakMins += bDuration;
+
+          return {
+            breakIn: bInStr,
+            breakOut: bOutStr,
+            durationMins: bDuration,
+          };
+        });
+
+        const totalBreakHrs = parseFloat((totalBreakMins / 60).toFixed(2));
+        const netWorkMins = Math.max(0, grossMins - totalBreakMins);
+        const payableHrs = parseFloat((netWorkMins / 60).toFixed(2));
+
+        grandTotalWorkMins += netWorkMins;
+        grandTotalBreakMins += totalBreakMins;
+
+        rows.push({
+          attendanceId: String(doc._id),
+          shiftId: String(shift._id || sIdx),
+          employeeId: emp.employeeId,
+          employeeName: emp.name,
+          role: emp.role,
+          date: dateStr,
+          dateDayStr: formattedDateDay,
+          startTime: startTimeStr,
+          endTime: endTimeStr,
+          rawCheckIn: shift.checkIn,
+          rawCheckOut: shift.checkOut,
+          rawBreaks: (shift.breaks || []).map((b) => ({
+            breakIn: b.breakIn,
+            breakOut: b.breakOut,
+            _id: b._id,
+          })),
+          totalShiftHours: grossHrs,
+          breaks: formattedBreaks,
+          break1In: formattedBreaks[0]?.breakIn || "--",
+          break1Out: formattedBreaks[0]?.breakOut || "--",
+          break2In: formattedBreaks[1]?.breakIn || "--",
+          break2Out: formattedBreaks[1]?.breakOut || "--",
+          break3In: formattedBreaks[2]?.breakIn || "--",
+          break3Out: formattedBreaks[2]?.breakOut || "--",
+          totalBreakHours: totalBreakHrs,
+          totalPayableHours: payableHrs,
+          status: !checkOutIso ? doc.status : "completed",
+        });
+      });
+    }
+  });
+
+  return {
+    summary: {
+      totalPayableHours: parseFloat((grandTotalWorkMins / 60).toFixed(2)),
+      totalBreakHours: parseFloat((grandTotalBreakMins / 60).toFixed(2)),
+      totalShifts: totalShiftsCount,
+      totalEmployees: uniqueEmployeeIds.size,
+    },
+    rows,
+  };
+};
+
+exports.editAttendanceShift = async (branchId, payload) => {
+  const { attendanceId, shiftId, checkIn, checkOut, breaks } = payload;
+
+  if (!attendanceId) {
+    throw new Error("Attendance Record ID is required");
+  }
+
+  const doc = await Attendance.findOne({ _id: attendanceId, branchId });
+  if (!doc) {
+    throw new Error("Attendance record not found");
+  }
+
+  let shift = doc.shifts.id(shiftId);
+  if (!shift && typeof shiftId === "number") {
+    shift = doc.shifts[shiftId];
+  }
+  if (!shift) {
+    shift = doc.shifts[0];
+  }
+  if (!shift) {
+    throw new Error("Shift record not found");
+  }
+
+  if (checkIn) {
+    shift.checkIn = new Date(checkIn);
+  }
+
+  if (checkOut !== undefined) {
+    shift.checkOut = checkOut ? new Date(checkOut) : null;
+  }
+
+  if (Array.isArray(breaks)) {
+    shift.breaks = breaks.map((b) => ({
+      breakIn: new Date(b.breakIn),
+      breakOut: b.breakOut ? new Date(b.breakOut) : null,
+    }));
+  }
+
+  let totalBreakMins = 0;
+  (shift.breaks || []).forEach((b) => {
+    if (b.breakIn) {
+      const duration = diffInMinutes(b.breakIn, b.breakOut || new Date());
+      totalBreakMins += duration;
+    }
+  });
+
+  const startTime = shift.checkIn ? new Date(shift.checkIn) : new Date();
+  const endTime = shift.checkOut ? new Date(shift.checkOut) : new Date();
+  const grossDiffMs = endTime.getTime() - startTime.getTime();
+  const grossMins = Math.max(0, Math.round(grossDiffMs / (1000 * 60)));
+
+  shift.totalBreakMinutes = totalBreakMins;
+  shift.totalWorkMinutes = Math.max(0, grossMins - totalBreakMins);
+
+  if (shift.checkOut) {
+    doc.status = "checked-out";
+  } else {
+    const lastBreak = shift.breaks && shift.breaks[shift.breaks.length - 1];
+    if (lastBreak && lastBreak.breakIn && !lastBreak.breakOut) {
+      doc.status = "on-break";
+    } else {
+      doc.status = "checked-in";
+    }
+  }
+
+  await doc.save();
+  return doc;
+};

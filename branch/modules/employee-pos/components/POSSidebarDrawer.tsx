@@ -106,6 +106,7 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
     { key: 'setting', label: 'Setting', icon: Settings },
     { key: 'employees', label: 'Employee Management', icon: UserCheck },
     { key: 'permissions', label: 'Permissions', icon: ShieldCheck },
+    { key: 'attendance_report', label: 'Attendance Report', icon: FileCheck },
     { key: 'update_profile', label: 'Profile & Security', icon: UserCheck },
     { key: 'reports', label: 'Reports', icon: BarChart3 },
     { key: 'master_logout', label: 'Master Logout', icon: LogOut, isLogout: true },
@@ -282,6 +283,8 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
                         window.location.href = '/employee/employees';
                       } else if (item.key === 'permissions') {
                         window.location.href = '/employee/permissions';
+                      } else if (item.key === 'attendance_report') {
+                        window.location.href = '/employee/attendance-report';
                       } else if (item.key === 'setting') {
                         window.location.href = '/employee/settings';
                       } else if (item.key === 'update_profile') {

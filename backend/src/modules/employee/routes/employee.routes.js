@@ -24,6 +24,8 @@ router.post("/attendance/break-in", attendanceController.breakIn);
 router.post("/attendance/break-out", attendanceController.breakOut);
 router.post("/attendance/check-out", attendanceController.checkOut);
 router.get("/attendance", attendanceController.getTodayAttendanceList);
+router.get("/attendance/report", attendanceController.getAttendanceReport);
+router.put("/attendance/shift/edit", attendanceController.editAttendanceShift);
 router.get("/attendance/employee/:employeeId", attendanceController.getEmployeeAttendanceHistory);
 
 module.exports = router;
