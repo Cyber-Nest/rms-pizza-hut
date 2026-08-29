@@ -292,12 +292,15 @@ exports.createOrder = async (orderData) => {
     });
 
     const makeTableStatus = hasPizza ? "pending" : "completed";
-    const wingsStatus = hasWings ? "pending" : "completed";
+    const resolvedPaymentMethod =
+      orderData.paymentMethod ||
+      (payments.length > 0 ? payments[payments.length - 1].method : "cash");
 
     const order = new Order({
       ...orderData,
       makeTableStatus,
       wingsStatus,
+      paymentMethod: resolvedPaymentMethod,
       customer:
         orderData.customer &&
         orderData.customer.name &&
@@ -437,7 +440,7 @@ exports.getAllOrders = async (filters = {}) => {
     }
 
     let selectFields =
-      "orderNumber customer subtotal total orderType orderSource paymentStatus status makeTableStatus wingsStatus createdAt items orderTiming scheduledAt dueAt receptionCompleted";
+      "orderNumber customer subtotal total orderType orderSource paymentStatus paymentMethod payments status makeTableStatus wingsStatus createdAt items orderTiming scheduledAt dueAt receptionCompleted";
     if (filters.fields) {
       selectFields = filters.fields.split(",").join(" ");
     }
@@ -653,13 +656,17 @@ exports.markOrderPaid = async (id, payments) => {
 
     if (payments && payments.length > 0) {
       order.payments = [...(order.payments || []), ...payments];
+      const lastMethod = payments[payments.length - 1].method;
+      if (lastMethod) {
+        order.paymentMethod = lastMethod;
+      }
 
       // Batch insert Payment audit documents in DB
       const paymentDocs = payments.map((p) => ({
         orderId: order._id,
         orderNumber: order.orderNumber,
         amount: p.amount,
-        paymentMethod: p.method === "cash" ? "cash" : "card",
+        paymentMethod: p.method || "cash",
         status: "succeeded",
         cashGiven: p.cashGiven || 0,
         changeGiven: p.changeGiven || 0,

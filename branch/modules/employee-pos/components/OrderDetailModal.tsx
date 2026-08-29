@@ -713,18 +713,22 @@ export default function OrderDetailModal({
                           {(order.total ?? 0).toFixed(2)}
                         </p>
                         <div className="flex items-center gap-2">
-                          {["cash", "card", "debit"].map((method) => (
+                          {[
+                            { id: "cash", label: "CASH" },
+                            { id: "interac", label: "INTERAC" },
+                            { id: "credit", label: "CREDIT" },
+                          ].map((tab) => (
                             <button
-                              key={method}
+                              key={tab.id}
                               type="button"
-                              onClick={() => setPayMethod(method as any)}
-                              className={`flex-1 py-1.5 rounded-lg border text-center font-750 uppercase tracking-wider text-[10px] transition-all cursor-pointer ${
-                                payMethod === method
-                                  ? "bg-neutral-900 border-neutral-900 text-white"
-                                  : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-350"
+                              onClick={() => setPayMethod(tab.id as any)}
+                              className={`flex-1 py-2 rounded-lg border text-center font-800 uppercase tracking-wider text-[10.5px] transition-all cursor-pointer ${
+                                payMethod === tab.id
+                                  ? "bg-neutral-900 border-neutral-900 text-white shadow-xs"
+                                  : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
                               }`}
                             >
-                              {method}
+                              {tab.label}
                             </button>
                           ))}
                         </div>

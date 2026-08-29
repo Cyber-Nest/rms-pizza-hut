@@ -24,7 +24,7 @@ export interface TableInfo {
 }
 
 export interface SplitPayment {
-  method: "cash" | "card" | "credit" | "debit";
+  method: "cash" | "card" | "credit" | "debit" | "interac";
   amount: number;
   personName?: string;
   cashGiven?: number;
@@ -69,6 +69,7 @@ export interface Order {
   paymentTiming: "pay-now" | "pay-later";
   paymentType: "one-time" | "split";
   paymentStatus: "paid" | "unpaid" | "refunded";
+  paymentMethod?: string;
   payments: SplitPayment[];
   // Scheduling
   orderTiming: "now" | "later";

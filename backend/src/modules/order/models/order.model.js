@@ -47,7 +47,7 @@ const paymentEntrySchema = new mongoose.Schema(
   {
     method: {
       type: String,
-      enum: ["cash", "card", "credit", "debit"],
+      enum: ["cash", "card", "credit", "debit", "interac"],
       required: true,
     },
     amount: { type: Number, required: true },
@@ -140,6 +140,10 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: ["paid", "unpaid", "refunded"],
       default: "paid",
+    },
+    paymentMethod: {
+      type: String,
+      default: "cash",
     },
     payments: { type: [paymentEntrySchema], default: [] },
 
