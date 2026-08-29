@@ -292,6 +292,7 @@ exports.createOrder = async (orderData) => {
     });
 
     const makeTableStatus = hasPizza ? "pending" : "completed";
+    const wingsStatus = hasWings ? "pending" : "completed";
     const resolvedPaymentMethod =
       orderData.paymentMethod ||
       (payments.length > 0 ? payments[payments.length - 1].method : "cash");

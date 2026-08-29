@@ -42,6 +42,9 @@ export default function ModifierDrawer({
   const [removedIncluded, setRemovedIncluded] = useState<
     Record<string, string[]>
   >({});
+  const [optionQuantities, setOptionQuantities] = useState<
+    Record<string, number>
+  >({});
   const [activeIdx, setActiveIdx] = useState(0);
   const [note, setNote] = useState("");
   const [selectedSize, setSelectedSize] = useState<ProductVariant | null>(null);
@@ -465,9 +468,10 @@ export default function ModifierDrawer({
     groupId?: string,
     groupName?: string,
     portion?: "whole" | "left" | "right",
+    ignoreIncludedCheck: boolean = false,
   ) => {
-    // If this option is an included topping, it's free
-    if (groupId && isIncludedTopping(groupId, opt.id)) {
+    // If this option is an included topping AND ignoreIncludedCheck is false, it's free for 1x
+    if (!ignoreIncludedCheck && groupId && isIncludedTopping(groupId, opt.id)) {
       return 0;
     }
 
@@ -563,6 +567,83 @@ export default function ModifierDrawer({
     }
 
     return calculatedPrice;
+  };
+
+  // Helper to calculate option price taking into account quantity (1x, 2x Extra, 3x Triple)
+  const getOptionPriceWithQty = (
+    opt: ModifierOption,
+    groupId?: string,
+    groupName?: string,
+    portion?: "whole" | "left" | "right",
+    parentOpt?: ModifierOption,
+  ) => {
+    const key = getGroupKey(groupId || "", parentOpt);
+    const qKey = `${key}__${opt.id}`;
+    const qty = optionQuantities[qKey] || 1;
+    const unitPrice = getOptionPrice(opt, groupId, groupName, portion, true);
+    const isInc = isIncludedTopping(groupId || "", opt.id, selections, parentOpt);
+
+    if (isInc) {
+      return Math.max(0, qty - 1) * unitPrice;
+    }
+    return qty * unitPrice;
+  };
+
+  // Helper to increment / decrement option quantity for toppings (e.g. 1x Included -> 2x Extra -> 3x Triple -> 0x Removed)
+  const changeOptionQuantity = (
+    g: ModifierGroup,
+    opt: ModifierOption,
+    delta: number,
+    parentOpt?: ModifierOption,
+  ) => {
+    const key = getGroupKey(g.id, parentOpt);
+    const qKey = `${key}__${opt.id}`;
+    const curRemoved = removedIncluded[key] ?? [];
+    const isInc = isIncludedTopping(g.id, opt.id, selections, parentOpt);
+    const curSel = selections[key] ?? [];
+    const isSel = curSel.some((o) => o.id === opt.id);
+    const isRem = curRemoved.includes(opt.id);
+
+    let currentQty = isRem ? 0 : isSel ? (optionQuantities[qKey] || 1) : 0;
+    let newQty = currentQty + delta;
+    if (newQty < 0) newQty = 0;
+    if (newQty > 3) newQty = 3;
+
+    const newSelections = { ...selections };
+    const newRemoved = { ...removedIncluded };
+    const newQuantities = { ...optionQuantities };
+
+    if (newQty === 0) {
+      delete newQuantities[qKey];
+      newSelections[key] = curSel.filter((o) => o.id !== opt.id);
+      if (isInc) {
+        if (!newRemoved[key]) newRemoved[key] = [];
+        if (!newRemoved[key].includes(opt.id)) {
+          newRemoved[key].push(opt.id);
+        }
+      }
+    } else {
+      newQuantities[qKey] = newQty;
+      if (!isSel) {
+        if (g.maxSelection === 1) {
+          curSel.forEach((prevOpt) => {
+            if (prevOpt.id !== opt.id) {
+              clearSubGroups(prevOpt, newSelections, newRemoved);
+            }
+          });
+          newSelections[key] = [opt];
+        } else {
+          newSelections[key] = [...curSel, opt];
+        }
+      }
+      if (newRemoved[key]) {
+        newRemoved[key] = newRemoved[key].filter((id) => id !== opt.id);
+      }
+    }
+
+    setSelections(newSelections);
+    setRemovedIncluded(newRemoved);
+    setOptionQuantities(newQuantities);
   };
 
   // Base price for current selection
@@ -784,7 +865,7 @@ export default function ModifierDrawer({
       const selectedOpts = selections[key] ?? [];
       selectedOpts.forEach((o) => {
         const optPortion = (o as any).portion || groupPortion;
-        modSum += getOptionPrice(o, g.id, g.name, optPortion);
+        modSum += getOptionPriceWithQty(o, g.id, g.name, optPortion);
       });
     });
     return (base + modSum) * quantity;
@@ -850,18 +931,28 @@ export default function ModifierDrawer({
       }
 
       opts.forEach((o) => {
+        const qKey = `${key}__${o.id}`;
+        const qty = optionQuantities[qKey] || 1;
         const isRecipeInc = isRecipeIncludedTopping(g.id, o.id);
+        const isInc = isIncludedTopping(g.id, o.id, selections);
         const optPortion = (o as any).portion || groupPortion;
         const isDef =
           o.isDefault && getOptionPrice(o, g.id, g.name, optPortion) === 0;
 
         let groupName = g.name;
-        let displayName = o.name;
+        let baseOptName = o.name;
+
+        if (qty > 1) {
+          const prefix = qty === 2 ? "Extra " : `${qty}x Extra `;
+          baseOptName = `${prefix}${baseOptName}`;
+        }
+
+        let displayName = baseOptName;
 
         if (isHalfProduct) {
           if (isRoot && halfNumber > 0) {
             groupName = `Half ${halfNumber}`;
-            displayName = `Half ${halfNumber}: ${o.name}`;
+            displayName = `Half ${halfNumber}: ${baseOptName}`;
           } else if (!isRoot && halfNumber > 0) {
             groupName = `Half ${halfNumber} - ${g.name}`;
             if (optPortion === "left" && !displayName.startsWith("[1/2 L]")) {
@@ -878,14 +969,21 @@ export default function ModifierDrawer({
           }
         }
 
-        // Only save custom additions (not default included recipe toppings)
-        if (!isRecipeInc && !isDef) {
+        const calculatedPrice = getOptionPriceWithQty(
+          o,
+          g.id,
+          g.name,
+          optPortion,
+        );
+
+        // Save custom additions OR extra upgraded included/recipe toppings (qty > 1)
+        if ((!isRecipeInc && !isDef) || (isInc && qty > 1)) {
           mods.push({
             groupId: g.id,
             groupName: groupName,
             optionId: o.id,
             optionName: displayName,
-            price: getOptionPrice(o, g.id, g.name, optPortion),
+            price: calculatedPrice,
             portion: optPortion,
             isRoot,
           });
@@ -1084,113 +1182,133 @@ export default function ModifierDrawer({
               parentOpt,
             );
             const isRemoved = (removedIncluded[gKey] ?? []).includes(opt.id);
+            const qKey = `${gKey}__${opt.id}`;
+            const qty = isRemoved ? 0 : sel ? (optionQuantities[qKey] || 1) : 0;
+            const optPriceWithQty = getOptionPriceWithQty(
+              opt,
+              g.id,
+              displayName,
+              undefined,
+              parentOpt,
+            );
 
             return (
               <div key={opt.id} className="flex flex-col">
                 <button
                   type="button"
                   onClick={() => toggle(g, opt, parentOpt)}
-                  className={`relative flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer active:scale-[0.98] w-full ${
+                  className={`relative flex items-center justify-between gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer w-full active:scale-[0.98] ${
                     isRemoved
                       ? "border-red-300 bg-red-50/60 ring-1 ring-red-300"
                       : sel
-                        ? included
-                          ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
-                          : "border-brand-primary bg-orange-50 ring-1 ring-brand-primary"
+                        ? qty > 1
+                          ? "border-brand-primary bg-orange-50/80 ring-1 ring-brand-primary shadow-2xs"
+                          : included
+                            ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
+                            : "border-brand-primary bg-orange-50 ring-1 ring-brand-primary"
                         : "border-neutral-200 bg-white hover:bg-neutral-50"
                   }`}
                 >
-                  {/* Left selection circle/square for list types */}
-                  {!isCard && (
-                    <div
-                      className={`w-4 h-4 border flex items-center justify-center flex-shrink-0 transition-all ${
-                        g.displayType === "radio" || g.maxSelection === 1
-                          ? "rounded-full"
-                          : "rounded"
-                      } ${
-                        isRemoved
-                          ? "bg-red-500 border-red-500 text-white"
-                          : sel
-                            ? included
-                              ? "bg-emerald-500 border-emerald-500 text-white"
-                              : "bg-brand-primary border-brand-primary text-white"
-                            : "border-neutral-300 bg-white"
-                      }`}
-                    >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {/* Left selection circle/square for list types */}
+                    {!isCard && (
+                      <div
+                        className={`w-4 h-4 border flex items-center justify-center flex-shrink-0 transition-all ${
+                          g.displayType === "radio" || g.maxSelection === 1
+                            ? "rounded-full"
+                            : "rounded"
+                        } ${
+                          isRemoved
+                            ? "bg-red-500 border-red-500 text-white"
+                            : sel
+                              ? qty > 1
+                                ? "bg-brand-primary border-brand-primary text-white"
+                                : included
+                                  ? "bg-emerald-500 border-emerald-500 text-white"
+                                  : "bg-brand-primary border-brand-primary text-white"
+                              : "border-neutral-300 bg-white"
+                        }`}
+                      >
+                        {isRemoved ? (
+                          <Minus size={9} strokeWidth={3} />
+                        ) : sel ? (
+                          <Check size={9} strokeWidth={3} />
+                        ) : null}
+                      </div>
+                    )}
+
+                    {/* Thumbnail Image */}
+                    {(isCard || !!opt.image) && (
+                      <div className="w-9 h-9 rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200 flex-shrink-0">
+                        <img
+                          src={
+                            opt.image ||
+                            item.image ||
+                            "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60"
+                          }
+                          alt={opt.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60";
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0 pr-1">
+                      <p
+                        className={`text-[10px] font-600 leading-tight ${
+                          isRemoved
+                            ? "text-red-700 line-through opacity-80"
+                            : "text-neutral-800"
+                        }`}
+                      >
+                        {opt.name}
+                      </p>
                       {isRemoved ? (
-                        <Minus size={9} strokeWidth={3} />
-                      ) : sel ? (
-                        <Check size={9} strokeWidth={3} />
+                        <p className="text-[8.5px] font-700 text-red-600 flex items-center gap-0.5">
+                          <span>- NO {opt.name}</span>
+                        </p>
+                      ) : qty > 1 ? (
+                        <p className="text-[8.5px] font-800 text-brand-primary">
+                          🔥 {qty === 2 ? "Extra" : `${qty}x Extra`} (+ $
+                          {optPriceWithQty.toFixed(2)})
+                        </p>
+                      ) : included ? (
+                        <p className="text-[8.5px] font-700 text-emerald-600">
+                          ✓ Included
+                        </p>
+                      ) : optPrice > 0 ? (
+                        <div className="text-[9px] font-700 text-brand-primary">
+                          {(() => {
+                            const dealP = getDealPriceForModifierOption(
+                              opt.id,
+                              opt.name,
+                            );
+                            if (dealP !== null && dealP < opt.price) {
+                              return (
+                                <span className="flex items-center gap-1">
+                                  <span className="line-through text-neutral-400 font-normal text-[8px]">
+                                    +${opt.price.toFixed(2)}
+                                  </span>
+                                  <span className="font-bold text-brand-primary">
+                                    🔥 +${dealP.toFixed(2)}
+                                  </span>
+                                </span>
+                              );
+                            }
+                            return `+$${optPrice.toFixed(2)}`;
+                          })()}
+                        </div>
                       ) : null}
                     </div>
-                  )}
-
-                  {/* Thumbnail Image for Cards Grid or if option has an image */}
-                  {(isCard || !!opt.image) && (
-                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200 flex-shrink-0">
-                      <img
-                        src={
-                          opt.image ||
-                          item.image ||
-                          "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60"
-                        }
-                        alt={opt.name}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60";
-                        }}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0 pr-1">
-                    <p
-                      className={`text-[10px] font-600 leading-tight ${
-                        isRemoved
-                          ? "text-red-700 line-through opacity-80"
-                          : "text-neutral-800"
-                      }`}
-                    >
-                      {opt.name}
-                    </p>
-                    {isRemoved ? (
-                      <p className="text-[8.5px] font-700 text-red-600 flex items-center gap-0.5">
-                        <span>- NO {opt.name}</span>
-                      </p>
-                    ) : included ? (
-                      <p className="text-[8.5px] font-700 text-emerald-600">
-                        ✓ Included
-                      </p>
-                    ) : optPrice > 0 ? (
-                      <div className="text-[9px] font-700 text-brand-primary">
-                        {(() => {
-                          const dealP = getDealPriceForModifierOption(
-                            opt.id,
-                            opt.name,
-                          );
-                          if (dealP !== null && dealP < opt.price) {
-                            return (
-                              <span className="flex items-center gap-1">
-                                <span className="line-through text-neutral-400 font-normal text-[8px]">
-                                  +${opt.price.toFixed(2)}
-                                </span>
-                                <span className="font-bold text-brand-primary">
-                                  🔥 +${dealP.toFixed(2)}
-                                </span>
-                              </span>
-                            );
-                          }
-                          return `+$${optPrice.toFixed(2)}`;
-                        })()}
-                      </div>
-                    ) : null}
                   </div>
 
                   {/* Right selection indicator for Cards Grid */}
                   {isCard && (
                     <div
-                      className={`absolute top-2.5 right-2.5 w-4 h-4 border flex items-center justify-center transition-all ${
+                      className={`w-4 h-4 border flex items-center justify-center transition-all flex-shrink-0 ${
                         g.maxSelection === 1 ? "rounded-full" : "rounded"
                       } ${
                         isRemoved
@@ -1280,35 +1398,83 @@ export default function ModifierDrawer({
             </p>
           )}
           {opts.map((o) => {
-            const optPrice = getOptionPrice(o, gId, g.name);
+            const qKey = `${selKey}__${o.id}`;
+            const qty = optionQuantities[qKey] || 1;
             const included = isIncludedTopping(
               gId,
               o.id,
               selections,
               parentOpt,
             );
+            const optPriceWithQty = getOptionPriceWithQty(
+              o,
+              gId,
+              g.name,
+              undefined,
+              parentOpt,
+            );
+
+            let displayName = o.name;
+            if (qty > 1) {
+              const prefix = qty === 2 ? "Extra " : `${qty}x Extra `;
+              displayName = `${prefix}${displayName}`;
+            }
 
             return (
               <div key={o.id} className="space-y-0.5">
                 <div
-                  className={`flex items-center justify-between gap-1 ${
+                  className={`flex items-center justify-between gap-1 py-0.5 ${
                     isRootSlot
                       ? "text-brand-primary font-600 text-[10.5px] mt-1.5"
-                      : included
-                        ? "text-emerald-600 text-[9.5px] pl-2"
-                        : "text-neutral-700 text-[9.5px] pl-2"
+                      : qty > 1
+                        ? "text-brand-primary font-700 text-[9.5px] pl-2"
+                        : included
+                          ? "text-emerald-600 text-[9.5px] pl-2"
+                          : "text-neutral-700 text-[9.5px] pl-2"
                   }`}
                 >
-                  <span className="truncate">{o.name}</span>
-                  {included && !isRootSlot ? (
-                    <span className="text-[8px] text-emerald-500 font-600 shrink-0">
-                      Included
-                    </span>
-                  ) : optPrice > 0 ? (
-                    <span className="text-[9px] text-neutral-400 shrink-0">
-                      +${optPrice.toFixed(2)}
-                    </span>
-                  ) : null}
+                  <span className="truncate flex-1">{displayName}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {included && !isRootSlot && qty === 1 ? (
+                      <span className="text-[8px] text-emerald-500 font-600">
+                        Included
+                      </span>
+                    ) : optPriceWithQty > 0 ? (
+                      <span className="text-[9px] text-neutral-500 font-700">
+                        +${optPriceWithQty.toFixed(2)}
+                      </span>
+                    ) : null}
+
+                    {g.maxSelection > 1 && (
+                      <div className="flex items-center gap-0.5 bg-neutral-100/90 rounded-md p-0.5 border border-neutral-200 shadow-3xs ml-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            changeOptionQuantity(g, o, -1, parentOpt);
+                          }}
+                          className="w-4 h-4 rounded flex items-center justify-center bg-white hover:bg-neutral-200 text-neutral-700 font-bold text-[10px] transition-all cursor-pointer border border-neutral-200"
+                          title="Decrease Quantity"
+                        >
+                          -
+                        </button>
+                        <span className="text-[9px] font-800 px-1 text-neutral-800 min-w-[14px] text-center">
+                          {qty}x
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            changeOptionQuantity(g, o, 1, parentOpt);
+                          }}
+                          className="w-4 h-4 rounded flex items-center justify-center bg-brand-primary hover:bg-brand-primary-dark text-white font-bold text-[10px] transition-all cursor-pointer"
+                          title="Increase Quantity (Extra)"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Child groups for this selected option */}
@@ -1329,12 +1495,25 @@ export default function ModifierDrawer({
             return (
               <div
                 key={`removed-${rId}`}
-                className="flex items-center justify-between text-red-600 pl-2 text-[9.5px]"
+                className="flex items-center justify-between text-red-600 pl-2 py-0.5 text-[9.5px]"
               >
-                <span className="truncate">- NO {optObj.name}</span>
-                <span className="text-[8px] text-red-500 font-600 uppercase">
-                  Removed
-                </span>
+                <span className="truncate flex-1">- NO {optObj.name}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[8px] text-red-500 font-600 uppercase">
+                    Removed
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      changeOptionQuantity(g, optObj, 1, parentOpt);
+                    }}
+                    className="w-4 h-4 rounded flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[10px] transition-all cursor-pointer ml-1"
+                    title="Re-add Topping"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             );
           })}
