@@ -3,7 +3,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { X, Clock, Plus, Trash2, Save, AlertCircle, LogOut } from "lucide-react";
+import {
+  X,
+  Clock,
+  Plus,
+  Trash2,
+  Save,
+  AlertCircle,
+  LogOut,
+} from "lucide-react";
 
 interface BreakItem {
   breakInTime: string; // HH:mm (24hr)
@@ -73,8 +81,10 @@ export default function EditShiftModal({
   useEffect(() => {
     if (row) {
       const inStr = formatIsoToHHMM(row.rawCheckIn || row.startTime);
-      const outStr = formatIsoToHHMM(row.rawCheckOut || (row.endTime !== "Working..." ? row.endTime : ""));
-      
+      const outStr = formatIsoToHHMM(
+        row.rawCheckOut || (row.endTime !== "Working..." ? row.endTime : ""),
+      );
+
       setCheckInTime(inStr || "09:00");
       setCheckOutTime(outStr);
       setIsShiftActive(!outStr || row.endTime === "Working...");
@@ -85,7 +95,7 @@ export default function EditShiftModal({
           row.rawBreaks.map((b) => ({
             breakInTime: formatIsoToHHMM(b.breakIn),
             breakOutTime: formatIsoToHHMM(b.breakOut),
-          }))
+          })),
         );
       } else {
         setBreaksList([]);
@@ -102,12 +112,17 @@ export default function EditShiftModal({
     const mm = String(now.getMinutes()).padStart(2, "0");
     setCheckOutTime(`${hh}:${mm}`);
     setIsShiftActive(false);
-    toast.success(`Check-out time set to current time (${hh}:${mm}). Click "Save Shift Edits" to confirm!`);
+    toast.success(
+      `Check-out time set to current time (${hh}:${mm}). Click "Save Shift Edits" to confirm!`,
+    );
   };
 
   // Add a new empty break row
   const handleAddBreak = () => {
-    setBreaksList([...breaksList, { breakInTime: "12:00", breakOutTime: "12:30" }]);
+    setBreaksList([
+      ...breaksList,
+      { breakInTime: "12:00", breakOutTime: "12:30" },
+    ]);
   };
 
   // Remove a break row
@@ -116,7 +131,11 @@ export default function EditShiftModal({
   };
 
   // Update break row time
-  const handleUpdateBreak = (index: number, field: "breakInTime" | "breakOutTime", val: string) => {
+  const handleUpdateBreak = (
+    index: number,
+    field: "breakInTime" | "breakOutTime",
+    val: string,
+  ) => {
     const updated = [...breaksList];
     updated[index][field] = val;
     setBreaksList(updated);
@@ -124,19 +143,27 @@ export default function EditShiftModal({
 
   // Calculate live preview totals
   const calculateTotalsPreview = () => {
-    if (!checkInTime) return { grossHrs: "0.00", breakHrs: "0.00", payableHrs: "0.00" };
+    if (!checkInTime)
+      return { grossHrs: "0.00", breakHrs: "0.00", payableHrs: "0.00" };
 
     const baseDate = row.date || "2026-08-28";
     const [inH, inM] = checkInTime.split(":").map(Number);
-    const startMs = new Date(`${baseDate}T${String(inH || 0).padStart(2, "0")}:${String(inM || 0).padStart(2, "0")}:00`).getTime();
+    const startMs = new Date(
+      `${baseDate}T${String(inH || 0).padStart(2, "0")}:${String(inM || 0).padStart(2, "0")}:00`,
+    ).getTime();
 
     let endMs = Date.now();
     if (!isShiftActive && checkOutTime) {
       const [outH, outM] = checkOutTime.split(":").map(Number);
-      endMs = new Date(`${baseDate}T${String(outH || 0).padStart(2, "0")}:${String(outM || 0).padStart(2, "0")}:00`).getTime();
+      endMs = new Date(
+        `${baseDate}T${String(outH || 0).padStart(2, "0")}:${String(outM || 0).padStart(2, "0")}:00`,
+      ).getTime();
     }
 
-    const grossDiffMins = Math.max(0, Math.round((endMs - startMs) / (1000 * 60)));
+    const grossDiffMins = Math.max(
+      0,
+      Math.round((endMs - startMs) / (1000 * 60)),
+    );
     const grossHrs = (grossDiffMins / 60).toFixed(2);
 
     let totalBreakMins = 0;
@@ -144,8 +171,12 @@ export default function EditShiftModal({
       if (b.breakInTime && b.breakOutTime) {
         const [bInH, bInM] = b.breakInTime.split(":").map(Number);
         const [bOutH, bOutM] = b.breakOutTime.split(":").map(Number);
-        const bInMs = new Date(`${baseDate}T${String(bInH || 0).padStart(2, "0")}:${String(bInM || 0).padStart(2, "0")}:00`).getTime();
-        const bOutMs = new Date(`${baseDate}T${String(bOutH || 0).padStart(2, "0")}:${String(bOutM || 0).padStart(2, "0")}:00`).getTime();
+        const bInMs = new Date(
+          `${baseDate}T${String(bInH || 0).padStart(2, "0")}:${String(bInM || 0).padStart(2, "0")}:00`,
+        ).getTime();
+        const bOutMs = new Date(
+          `${baseDate}T${String(bOutH || 0).padStart(2, "0")}:${String(bOutM || 0).padStart(2, "0")}:00`,
+        ).getTime();
         const bMins = Math.max(0, Math.round((bOutMs - bInMs) / (1000 * 60)));
         totalBreakMins += bMins;
       }
@@ -160,6 +191,19 @@ export default function EditShiftModal({
 
   const preview = calculateTotalsPreview();
 
+  const getBranchId = () => {
+    if (typeof window !== "undefined") {
+      const rawBranch = localStorage.getItem("rms_branch");
+      if (rawBranch) {
+        try {
+          const b = JSON.parse(rawBranch);
+          return b._id || b.id;
+        } catch (e) {}
+      }
+    }
+    return null;
+  };
+
   // Save Shift Edits
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,17 +214,25 @@ export default function EditShiftModal({
 
     const baseDate = row.date;
     const checkInIso = new Date(`${baseDate}T${checkInTime}:00`).toISOString();
-    const checkOutIso = !isShiftActive && checkOutTime ? new Date(`${baseDate}T${checkOutTime}:00`).toISOString() : null;
+    const checkOutIso =
+      !isShiftActive && checkOutTime
+        ? new Date(`${baseDate}T${checkOutTime}:00`).toISOString()
+        : null;
 
     const formattedBreaks = breaksList.map((b) => ({
       breakIn: new Date(`${baseDate}T${b.breakInTime}:00`).toISOString(),
-      breakOut: b.breakOutTime ? new Date(`${baseDate}T${b.breakOutTime}:00`).toISOString() : null,
+      breakOut: b.breakOutTime
+        ? new Date(`${baseDate}T${b.breakOutTime}:00`).toISOString()
+        : null,
     }));
 
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const branchId = getBranchId();
       const res = await axios.put(`${apiUrl}/attendance/shift/edit`, {
+        branchId,
         attendanceId: row.attendanceId,
         shiftId: row.shiftId,
         checkIn: checkInIso,
@@ -204,7 +256,6 @@ export default function EditShiftModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 select-none animate-fadeIn">
       <div className="bg-white border border-neutral-200 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-        
         {/* Header Bar */}
         <div className="bg-[#e31837] text-white px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -243,14 +294,18 @@ export default function EditShiftModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSave} className="p-5 overflow-y-auto space-y-4 text-xs font-sans">
-          
+        <form
+          onSubmit={handleSave}
+          className="p-5 overflow-y-auto space-y-4 text-xs font-sans"
+        >
           {/* Active Shift Top Warning & Quick Action Button */}
           {isShiftActive && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between gap-3 text-red-900">
               <div className="flex items-center gap-2">
                 <div>
-                  <div className="text-[11px] font-800 uppercase text-red-950">Employee Currently Working</div>
+                  <div className="text-[11px] font-800 uppercase text-red-950">
+                    Employee Currently Working
+                  </div>
                   <div className="text-[10px] text-red-700 font-500">
                     Click "Check-Out Now" to log end time as current time.
                   </div>
@@ -320,7 +375,10 @@ export default function EditShiftModal({
                 }}
                 className="w-4 h-4 text-[#e31837] border-neutral-300 rounded focus:ring-[#e31837] cursor-pointer"
               />
-              <label htmlFor="shiftActiveCheck" className="text-[11px] font-700 text-neutral-700 cursor-pointer">
+              <label
+                htmlFor="shiftActiveCheck"
+                className="text-[11px] font-700 text-neutral-700 cursor-pointer"
+              >
                 Shift is currently active (Working...)
               </label>
             </div>
@@ -343,7 +401,8 @@ export default function EditShiftModal({
 
             {breaksList.length === 0 ? (
               <div className="text-[11px] text-neutral-400 italic text-center py-2 bg-white rounded-lg border border-dashed border-neutral-200">
-                No breaks recorded for this shift. Click "+ Add Break" if employee took a break.
+                No breaks recorded for this shift. Click "+ Add Break" if
+                employee took a break.
               </div>
             ) : (
               <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
@@ -360,14 +419,24 @@ export default function EditShiftModal({
                       <input
                         type="time"
                         value={b.breakInTime}
-                        onChange={(e) => handleUpdateBreak(bIdx, "breakInTime", e.target.value)}
+                        onChange={(e) =>
+                          handleUpdateBreak(bIdx, "breakInTime", e.target.value)
+                        }
                         className="bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-[11px] font-mono font-700 text-neutral-800 w-full focus:outline-none focus:border-[#e31837]"
                       />
-                      <span className="text-neutral-400 text-[10px] font-bold">to</span>
+                      <span className="text-neutral-400 text-[10px] font-bold">
+                        to
+                      </span>
                       <input
                         type="time"
                         value={b.breakOutTime}
-                        onChange={(e) => handleUpdateBreak(bIdx, "breakOutTime", e.target.value)}
+                        onChange={(e) =>
+                          handleUpdateBreak(
+                            bIdx,
+                            "breakOutTime",
+                            e.target.value,
+                          )
+                        }
                         className="bg-neutral-50 border border-neutral-200 rounded px-2 py-1 text-[11px] font-mono font-700 text-neutral-800 w-full focus:outline-none focus:border-[#e31837]"
                       />
                     </div>
@@ -391,15 +460,20 @@ export default function EditShiftModal({
             <div className="flex items-center gap-2">
               <AlertCircle size={16} className="text-amber-600 shrink-0" />
               <div>
-                <div className="text-[10px] font-800 uppercase text-amber-800">Recalculated Summary</div>
+                <div className="text-[10px] font-800 uppercase text-amber-800">
+                  Recalculated Summary
+                </div>
                 <div className="text-[11px] font-700 text-amber-900 mt-0.5">
-                  Shift: <strong>{preview.grossHrs} hrs</strong> | Breaks: <strong>{preview.breakHrs} hrs</strong>
+                  Shift: <strong>{preview.grossHrs} hrs</strong> | Breaks:{" "}
+                  <strong>{preview.breakHrs} hrs</strong>
                 </div>
               </div>
             </div>
 
             <div className="text-right">
-              <div className="text-[9.5px] font-900 uppercase text-amber-800">Payable Hours</div>
+              <div className="text-[9.5px] font-900 uppercase text-amber-800">
+                Payable Hours
+              </div>
               <div className="text-sm font-900 font-mono text-amber-950">
                 {preview.payableHrs} hrs
               </div>
@@ -424,7 +498,6 @@ export default function EditShiftModal({
               <span>{loading ? "Saving..." : "Save Shift Edits"}</span>
             </button>
           </div>
-
         </form>
       </div>
     </div>

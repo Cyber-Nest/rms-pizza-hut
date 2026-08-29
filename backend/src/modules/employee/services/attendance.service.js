@@ -483,7 +483,12 @@ exports.editAttendanceShift = async (branchId, payload) => {
     throw new Error("Attendance Record ID is required");
   }
 
-  const doc = await Attendance.findOne({ _id: attendanceId, branchId });
+  const query = { _id: attendanceId };
+  if (branchId) {
+    query.branchId = branchId;
+  }
+
+  const doc = await Attendance.findOne(query);
   if (!doc) {
     throw new Error("Attendance record not found");
   }
