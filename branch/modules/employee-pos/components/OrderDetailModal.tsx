@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import ThermalReceipt from "./ThermalReceipt";
 import { usePosStore } from "../store/pos.store";
 import { useRouter } from "next/navigation";
+import { formatLocalTime } from "../utils/timezone";
 
 interface OrderDetailModalProps {
   order: Order | null;
@@ -449,6 +450,13 @@ export default function OrderDetailModal({
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
+              {/* Timed / Scheduled Order Badge */}
+              {order.orderTiming === "later" && order.scheduledAt && (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-800 tracking-wider inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 shadow-3xs">
+                  <span>Timed Order- {formatLocalTime(order.scheduledAt)}</span>
+                </span>
+              )}
+
               {/* Payment Status Badge */}
               <span
                 className={`px-2.5 py-1 rounded-full text-[10px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 border ${
@@ -705,18 +713,22 @@ export default function OrderDetailModal({
                           {(order.total ?? 0).toFixed(2)}
                         </p>
                         <div className="flex items-center gap-2">
-                          {["cash", "card", "debit"].map((method) => (
+                          {[
+                            { id: "cash", label: "CASH" },
+                            { id: "interac", label: "INTERAC" },
+                            { id: "credit", label: "CREDIT" },
+                          ].map((tab) => (
                             <button
-                              key={method}
+                              key={tab.id}
                               type="button"
-                              onClick={() => setPayMethod(method as any)}
-                              className={`flex-1 py-1.5 rounded-lg border text-center font-750 uppercase tracking-wider text-[10px] transition-all cursor-pointer ${
-                                payMethod === method
-                                  ? "bg-neutral-900 border-neutral-900 text-white"
-                                  : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-350"
+                              onClick={() => setPayMethod(tab.id as any)}
+                              className={`flex-1 py-2 rounded-lg border text-center font-800 uppercase tracking-wider text-[10.5px] transition-all cursor-pointer ${
+                                payMethod === tab.id
+                                  ? "bg-neutral-900 border-neutral-900 text-white shadow-xs"
+                                  : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
                               }`}
                             >
-                              {method}
+                              {tab.label}
                             </button>
                           ))}
                         </div>
@@ -805,7 +817,9 @@ export default function OrderDetailModal({
                 <div className="flex justify-between py-1.5 items-center">
                   <span>Order Due Date :</span>
                   <span className="text-brand-primary font-900 bg-orange-50/50 px-2 py-0.5 rounded border border-orange-100/60 font-mono">
-                    {formatDate(order.dueAt || order.scheduledAt)}
+                    {order.orderTiming === "later" && order.scheduledAt
+                      ? `Timed - ${formatLocalTime(order.scheduledAt)} (${formatDate(order.scheduledAt)})`
+                      : formatDate(order.dueAt || order.scheduledAt)}
                   </span>
                 </div>
                 <div className="flex justify-between py-1.5 items-center">

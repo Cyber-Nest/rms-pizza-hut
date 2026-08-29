@@ -37,6 +37,7 @@ const PERMISSION_OPTIONS = [
   { key: 'vehicles',              label: 'Vehicle Number',        group: 'POS Main Routes' },
   { key: 'customers',             label: 'Customers',             group: 'POS Main Routes' },
   { key: 'employees',             label: 'Employee Management',   group: 'POS Main Routes' },
+  { key: 'attendance_report',     label: 'Attendance Report',     group: 'POS Main Routes' },
   { key: 'menus',                 label: 'Menus',                 group: 'POS Main Routes' },
   { key: 'setting',               label: 'Settings',              group: 'POS Main Routes' },
   // Orders Page Sub-Tabs

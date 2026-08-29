@@ -126,7 +126,7 @@ exports.getDeliveryOrders = async (req, res) => {
     const assignments = await DeliveryAssignment.find({
       orderId: { $in: orderIds },
     })
-      .populate("driverId", "_id name")
+      .populate("driverId", "_id name driverId")
       .lean();
 
     const assignmentMap = {};
@@ -142,9 +142,13 @@ exports.getDeliveryOrders = async (req, res) => {
 
       let deliveryStatus = "assign";
       let assignedDriverId = null;
+      let assignedDriverName = null;
+      let assignedDriverCode = null;
 
       if (assignment) {
         assignedDriverId = assignment.driverId?._id || null;
+        assignedDriverName = assignment.driverId?.name || null;
+        assignedDriverCode = assignment.driverId?.driverId || null;
         if (
           assignment.status === "completed" ||
           assignment.status === "delivered"
@@ -177,6 +181,8 @@ exports.getDeliveryOrders = async (req, res) => {
         status: deliveryStatus,
         assignmentStatus: assignment ? assignment.status : null,
         assignedDriverId,
+        assignedDriverName,
+        assignedDriverCode,
         createdAt: order.createdAt,
         orderTiming: order.orderTiming,
         scheduledAt: order.scheduledAt,
@@ -224,7 +230,7 @@ exports.getDrivers = async (req, res) => {
     // Get all driver-role employees for this branch
     const employees = await Employee.find({
       branchId: restaurantId,
-      $or: [{ role: "driver" }, { driverRef: { $exists: true, $ne: null } }],
+      role: "driver",
       isActive: true,
     })
       .select("_id employeeId driverRef")
@@ -1478,15 +1484,22 @@ exports.getDriverDropDrivers = async (req, res) => {
     const restaurantId = getRestaurantIdFromReq(req);
     const dateStr = req.query.date || getLocalDateStr();
 
-    // Find all driver employees for this branch
+    // Find all driver employees for this branch (STRICTLY role === "driver")
     const employees = await Employee.find({
       branchId: restaurantId,
-      $or: [{ role: "driver" }, { driverRef: { $exists: true, $ne: null } }],
+      role: { $regex: "^driver$", $options: "i" },
+      isActive: true,
     })
-      .select("_id driverRef employeeId name")
+      .select("_id driverRef employeeId name role")
       .lean();
 
     const employeeIds = employees.map((e) => e._id);
+    const driverRefSet = new Set(
+      employees.map((e) => e.driverRef?.toString()).filter(Boolean)
+    );
+    const empCodeSet = new Set(
+      employees.map((e) => String(e.employeeId).toUpperCase()).filter(Boolean)
+    );
 
     // Find attendance records for selected date
     const attendances = await Attendance.find({
@@ -1550,7 +1563,14 @@ exports.getDriverDropDrivers = async (req, res) => {
       }
     }
 
-    const result = drivers.map((d) => {
+    // Filter to ONLY drivers whose Employee document role is strictly "driver"
+    const driverRoleOnly = drivers.filter((d) => {
+      const isRefMatch = driverRefSet.has(d._id.toString());
+      const isCodeMatch = d.driverId && empCodeSet.has(String(d.driverId).toUpperCase());
+      return isRefMatch || isCodeMatch;
+    });
+
+    const result = driverRoleOnly.map((d) => {
       const settlement = settlementMap.get(d._id.toString());
       let vehicleStr = "No Vehicle";
       if (d.assignedVehicleId) {

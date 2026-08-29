@@ -76,6 +76,7 @@ const employeeSchema = new mongoose.Schema(
       monthly_sales_summary:  { type: Boolean, default: false },
       failed_transaction:     { type: Boolean, default: false },
       refund_orders:          { type: Boolean, default: false },
+      attendance_report:      { type: Boolean, default: false },
     },
   },
   {

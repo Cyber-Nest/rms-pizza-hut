@@ -204,24 +204,10 @@ export default function DriverDropDashboard() {
               setAdditionalReason("");
             }
           } else {
-            const tmOrders = currentOrders.filter((o: any) => o.pd === "TM");
-            const tmSales = tmOrders.reduce(
-              (sum: number, o: any) => sum + o.total,
-              0,
-            );
-            const tmTips = currentOrders.reduce(
-              (sum: number, o: any) => sum + (o.terminalTip || 0),
-              0,
-            );
-            const csOrders = currentOrders.filter((o: any) => o.pd === "CS");
-            const csSales = csOrders.reduce(
-              (sum: number, o: any) => sum + o.total,
-              0,
-            );
-
-            setTerminalSalesInput(tmSales.toFixed(2));
-            setTerminalTipsInput(tmTips.toFixed(2));
-            setCashSalesInput(csSales.toFixed(2));
+            // Unsettled shift: Default all reconciliation inputs to "0.00" so manager manually verifies / enters cash & terminal totals
+            setTerminalSalesInput("0.00");
+            setTerminalTipsInput("0.00");
+            setCashSalesInput("0.00");
             setHasAdditionalCommissionToggle(false);
             setAdditionalCommission("0.00");
             setAdditionalReason("");
@@ -1078,8 +1064,22 @@ export default function DriverDropDashboard() {
 
                     {/* Interactive Input Row 3: Cash Sales */}
                     <tr className="bg-neutral-50/70">
-                      <td className="py-2 px-4 text-neutral-800 font-700 pl-6 flex items-center gap-1.5">
+                      <td className="py-2 px-4 text-neutral-800 font-700 pl-6 flex items-center justify-between">
                         <span>Cash Sales (-)</span>
+                        {/* {!selectedDriver?.isSettled && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCashSalesInput(
+                                calculations.totalNewSales.toFixed(2),
+                              )
+                            }
+                            className="text-[9.5px] font-800 text-brand-primary bg-brand-primary-light hover:bg-brand-primary/20 border border-brand-primary-muted px-2 py-0.5 rounded transition-all cursor-pointer"
+                            title="Auto fill expected cash amount"
+                          >
+                            Auto-Fill (${calculations.totalNewSales.toFixed(2)})
+                          </button>
+                        )} */}
                       </td>
                       <td className="py-1.5 px-4 text-right">
                         <div className="inline-flex items-center relative">

@@ -96,10 +96,17 @@ const PERMISSION_DEFS: PermissionDef[] = [
     group: "POS Routes",
   },
   {
-    key: "employees",
-    label: "Employee Mgmt",
-    shortLabel: "Employees",
-    description: "Staff list, PIN management & roles",
+    key: "permissions",
+    label: "Permissions",
+    shortLabel: "Permissions",
+    description: "Access control matrix for staff accounts",
+    group: "POS Routes",
+  },
+  {
+    key: "attendance_report",
+    label: "Attendance Report",
+    shortLabel: "Attendance",
+    description: "Shift working hours and break reports",
     group: "POS Routes",
   },
   {

@@ -123,3 +123,44 @@ exports.getEmployeeAttendanceHistory = async (req, res) => {
     });
   }
 };
+
+exports.getAttendanceReport = async (req, res) => {
+  try {
+    const branchId = getBranchIdFromReq(req);
+    const { startDate, endDate, employeeId, role } = req.query;
+    const data = await attendanceService.getAttendanceReport(branchId, {
+      startDate,
+      endDate,
+      employeeId,
+      role,
+    });
+    res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logger.error(`Error fetching attendance report: ${error.message}`);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.editAttendanceShift = async (req, res) => {
+  try {
+    const branchId = getBranchIdFromReq(req);
+    const updated = await attendanceService.editAttendanceShift(branchId, req.body);
+    res.status(200).json({
+      success: true,
+      message: "Shift log updated successfully",
+      data: updated,
+    });
+  } catch (error) {
+    logger.error(`Error updating shift log: ${error.message}`);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

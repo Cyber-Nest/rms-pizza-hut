@@ -9,6 +9,8 @@ export interface DeliveryOrder {
   status: 'assign' | 'en-route' | 'delivered';
   assignmentStatus?: string | null;
   assignedDriverId: string | null;
+  assignedDriverName?: string | null;
+  assignedDriverCode?: string | null;
   duration: string;
   timeOrdered: string;
   createdAt?: string;

@@ -47,7 +47,7 @@ const paymentEntrySchema = new mongoose.Schema(
   {
     method: {
       type: String,
-      enum: ["cash", "card", "credit", "debit"],
+      enum: ["cash", "card", "credit", "debit", "interac"],
       required: true,
     },
     amount: { type: Number, required: true },
@@ -141,6 +141,10 @@ const orderSchema = new mongoose.Schema(
       enum: ["paid", "unpaid", "refunded"],
       default: "paid",
     },
+    paymentMethod: {
+      type: String,
+      default: "cash",
+    },
     payments: { type: [paymentEntrySchema], default: [] },
 
     refundedAt: { type: Date, default: null },
@@ -213,10 +217,13 @@ orderSchema.statics.generateOrderNumber = async function (
   const startOfDay = getLocalStartOfDay(dateString);
   const endOfDay = getLocalEndOfDay(dateString);
 
-  const query = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
-  if (branchId) {
-    query.branchId = branchId;
-  }
+  const dateQuery = {
+    $or: [
+      { orderTiming: { $ne: "later" }, createdAt: { $gte: startOfDay, $lte: endOfDay } },
+      { orderTiming: "later", scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+    ],
+  };
+  const query = branchId ? { branchId, ...dateQuery } : dateQuery;
 
   const countToday = await this.countDocuments(query);
 
@@ -250,10 +257,13 @@ orderSchema.statics.previewNextOrderNumber = async function (
   const startOfDay = getLocalStartOfDay(dateString);
   const endOfDay = getLocalEndOfDay(dateString);
 
-  const query = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
-  if (branchId) {
-    query.branchId = branchId;
-  }
+  const dateQuery = {
+    $or: [
+      { orderTiming: { $ne: "later" }, createdAt: { $gte: startOfDay, $lte: endOfDay } },
+      { orderTiming: "later", scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
+    ],
+  };
+  const query = branchId ? { branchId, ...dateQuery } : dateQuery;
 
   const countToday = await this.countDocuments(query);
 
@@ -262,7 +272,7 @@ orderSchema.statics.previewNextOrderNumber = async function (
   }
 
   const counter = await OrderCounter.findOne({ _id: counterKey });
-  const currentCount = counter ? counter.count : 0;
+  const currentCount = counter ? Math.max(counter.count, countToday) : countToday;
   return String(currentCount + 101);
 };
 

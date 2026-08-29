@@ -11,6 +11,7 @@ import {
   RefreshCw,
   AlertTriangle,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -271,6 +272,74 @@ export default function KitchenDetailModal({
     }
   }, [localOrder]);
 
+  // Keyboard Shortcuts: Press 'B' to advance status, 'U' to undo status
+  useEffect(() => {
+    if (!localOrder || localOrder.orderNumber === "#DRAFT" || updating || isEditing || showCancelModal) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing inside an input/textarea
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === "b") {
+        e.preventDefault();
+        const currentStationStatus =
+          categoryFilter === "make_table"
+            ? localOrder.makeTableStatus || localOrder.status
+            : categoryFilter === "wings_station"
+              ? localOrder.wingsStatus || localOrder.status
+              : localOrder.makeTableStatus || localOrder.status;
+
+        let next: "preparing" | "in_oven" | "ready" | "completed" | null = null;
+        if (currentStationStatus === "pending") {
+          next = "preparing";
+        } else if (currentStationStatus === "preparing") {
+          next = (categoryFilter === "make_table" || categoryFilter === "pizza") ? "in_oven" : "ready";
+        } else if (currentStationStatus === "in_oven" || currentStationStatus === "ready") {
+          next = "completed";
+        }
+
+        if (next) {
+          handleTransition(next);
+        }
+      } else if (key === "u") {
+        e.preventDefault();
+        const currentStationStatus =
+          categoryFilter === "make_table"
+            ? localOrder.makeTableStatus || localOrder.status
+            : categoryFilter === "wings_station"
+              ? localOrder.wingsStatus || localOrder.status
+              : localOrder.makeTableStatus || localOrder.status;
+
+        let prev: "pending" | "preparing" | "in_oven" | "ready" | null = null;
+        if (currentStationStatus === "preparing") {
+          prev = "pending";
+        } else if (currentStationStatus === "in_oven") {
+          prev = "preparing";
+        } else if (currentStationStatus === "ready") {
+          prev = (categoryFilter === "make_table" || categoryFilter === "pizza") ? "in_oven" : "preparing";
+        } else if (currentStationStatus === "completed") {
+          prev = "ready";
+        }
+
+        if (prev) {
+          handleTransition(prev);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [localOrder, updating, isEditing, showCancelModal, categoryFilter]);
+
   if (!localOrder) return null;
 
   const isDraft = localOrder.orderNumber === "#DRAFT";
@@ -313,7 +382,7 @@ export default function KitchenDetailModal({
 
   // Status transitions
   const handleTransition = async (
-    nextStatus: "preparing" | "in_oven" | "ready" | "completed",
+    nextStatus: "pending" | "preparing" | "in_oven" | "ready" | "completed",
   ) => {
     if (isDraft || !localOrder) return;
 
@@ -349,13 +418,15 @@ export default function KitchenDetailModal({
             ? "Ready for Delivery"
             : "Ready for Pickup";
         const statusMsg =
-          nextStatus === "preparing"
-            ? "Preparing"
-            : nextStatus === "in_oven"
-              ? "In the Oven"
-              : nextStatus === "ready"
-                ? readyText
-                : "Completed";
+          nextStatus === "pending"
+            ? "Confirmed"
+            : nextStatus === "preparing"
+              ? "Preparing"
+              : nextStatus === "in_oven"
+                ? "In the Oven"
+                : nextStatus === "ready"
+                  ? readyText
+                  : "Completed";
         toast.success(`Order transitioned to ${statusMsg}`);
 
         // Update local status and history
@@ -392,10 +463,6 @@ export default function KitchenDetailModal({
 
         // ── Auto-download receipt on Complete ──────────────────────────────
         if (nextStatus === "completed") {
-          // Determine receipt type based on station
-          // Combo order on Wings Station → wings-only partial receipt
-          // Cut Station (Pizza or Combo) → full receipt
-          // Wings-only order on Wings Station → full receipt (all items are wings)
           const isComboOrder =
             !!(
               localOrder.hasPizza ||
@@ -897,40 +964,90 @@ export default function KitchenDetailModal({
           ? localOrder.wingsStatus || localOrder.status
           : localOrder.makeTableStatus || localOrder.status;
 
+    let previousStatus: "pending" | "preparing" | "in_oven" | "ready" | null = null;
+    if (currentStationStatus === "preparing") {
+      previousStatus = "pending";
+    } else if (currentStationStatus === "in_oven") {
+      previousStatus = "preparing";
+    } else if (currentStationStatus === "ready") {
+      previousStatus = (categoryFilter === "make_table" || categoryFilter === "pizza") ? "in_oven" : "preparing";
+    } else if (currentStationStatus === "completed") {
+      previousStatus = "ready";
+    }
+
+    const undoBtn = previousStatus ? (
+      <button
+        type="button"
+        onClick={() => handleTransition(previousStatus!)}
+        disabled={updating}
+        className="flex items-center gap-1.5 bg-neutral-100 hover:bg-neutral-200 border border-neutral-300 text-neutral-700 text-[11.5px] font-800 px-3.5 py-2 rounded-full transition-all cursor-pointer disabled:opacity-50 shadow-xs active:scale-95"
+        title={`Undo status back to ${previousStatus} (Press 'U')`}
+      >
+        <RotateCcw size={13} className="text-neutral-600" />
+        <span>Undo</span>
+        {/* <span className="ml-0.5 text-[9px] bg-neutral-250 text-neutral-700 px-1 py-0.5 rounded font-mono font-900 border border-neutral-300">
+          U
+        </span> */}
+      </button>
+    ) : null;
+
     if (currentStationStatus === "pending") {
       return (
-        <button
-          onClick={() => handleTransition("preparing")}
-          disabled={updating}
-          className="bg-brand-primary text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-brand-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
-        >
-          In Preparing
-        </button>
+        <div className="flex items-center gap-2">
+          {undoBtn}
+          <button
+            onClick={() => handleTransition("preparing")}
+            disabled={updating}
+            className="flex items-center gap-1.5 bg-brand-primary text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-brand-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            title="Advance status to Preparing (Press 'B')"
+          >
+            <span>In Preparing</span>
+            {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
+              B
+            </span> */}
+          </button>
+        </div>
       );
     }
 
     if (currentStationStatus === "preparing") {
       if (categoryFilter === "make_table" || categoryFilter === "pizza") {
         return (
-          <button
-            onClick={() => handleTransition("in_oven")}
-            disabled={updating}
-            className="bg-orange-600 text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-orange-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-          >
-            In the Oven
-          </button>
+          <div className="flex items-center gap-2">
+            {undoBtn}
+            <button
+              onClick={() => handleTransition("in_oven")}
+              disabled={updating}
+              className="flex items-center gap-1.5 bg-orange-600 text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-orange-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              title="Advance status to In Oven (Press 'B')"
+            >
+              <span>In the Oven</span>
+              {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
+                B
+              </span> */}
+            </button>
+          </div>
         );
       }
       return (
-        <button
-          onClick={() => handleTransition("ready")}
-          disabled={updating}
-          className="bg-brand-primary text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-brand-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
-        >
-          {localOrder.orderType === "delivery"
-            ? "Ready For Delivery"
-            : "Ready For Pickup"}
-        </button>
+        <div className="flex items-center gap-2">
+          {undoBtn}
+          <button
+            onClick={() => handleTransition("ready")}
+            disabled={updating}
+            className="flex items-center gap-1.5 bg-brand-primary text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-brand-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            title="Advance status to Ready (Press 'B')"
+          >
+            <span>
+              {localOrder.orderType === "delivery"
+                ? "Ready For Delivery"
+                : "Ready For Pickup"}
+            </span>
+            {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
+              B
+            </span> */}
+          </button>
+        </div>
       );
     }
 
@@ -939,13 +1056,28 @@ export default function KitchenDetailModal({
       currentStationStatus === "ready"
     ) {
       return (
-        <button
-          onClick={() => handleTransition("completed")}
-          disabled={updating}
-          className="bg-success text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-green-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
-        >
-          Complete Order
-        </button>
+        <div className="flex items-center gap-2">
+          {undoBtn}
+          <button
+            onClick={() => handleTransition("completed")}
+            disabled={updating}
+            className="flex items-center gap-1.5 bg-success text-white text-[12px] font-800 px-4 py-2 rounded-full hover:bg-green-700 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+            title="Complete order (Press 'B')"
+          >
+            <span>Complete Order</span>
+            {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
+              B
+            </span> */}
+          </button>
+        </div>
+      );
+    }
+
+    if (currentStationStatus === "completed") {
+      return (
+        <div className="flex items-center gap-2">
+          {undoBtn}
+        </div>
       );
     }
 
