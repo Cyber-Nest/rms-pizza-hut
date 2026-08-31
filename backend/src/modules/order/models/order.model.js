@@ -122,6 +122,7 @@ const orderSchema = new mongoose.Schema(
       default: "none",
     },
     promoCode: { type: String, default: "" },
+    promoApplyCount: { type: Number, default: 1 },
     deliveryFee: { type: Number, default: 0 },
     tip: { type: Number, default: 0 },
     total: { type: Number, required: true },

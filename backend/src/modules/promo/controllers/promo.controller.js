@@ -8,13 +8,14 @@ const handleError = (res, error, status = 400) => {
 
 exports.validatePromo = async (req, res) => {
   try {
-    const { code, channel, branchId, subtotal, items } = req.body || {};
+    const { code, channel, branchId, subtotal, items, applyCount } = req.body || {};
     const result = await promoService.validatePromo({
       code,
       channel: channel || 'both',
       branchId: branchId || null,
       subtotal: Number(subtotal) || 0,
       items: items || [],
+      applyCount: Number(applyCount) || 1,
     });
     res.status(200).json({ success: true, data: result });
   } catch (error) {
