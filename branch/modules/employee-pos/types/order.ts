@@ -41,6 +41,7 @@ export interface PromoApplied {
   discountType: "percentage" | "flat";
   discountValue: number;
   discountAmount: number;
+  applyCount?: number;
 }
 
 export interface Order {
@@ -64,6 +65,7 @@ export interface Order {
   discount: number;
   discountType: "none" | "promo" | "percentage" | "flat";
   promoCode: string;
+  promoApplyCount?: number;
   total: number;
   // Payment
   paymentTiming: "pay-now" | "pay-later";

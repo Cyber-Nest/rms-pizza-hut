@@ -329,7 +329,7 @@ exports.createOrder = async (orderData) => {
     if (order.promoCode) {
       try {
         const promoService = require("../../promo/services/promo.service");
-        promoService.incrementUsage(order.promoCode);
+        promoService.incrementUsage(order.promoCode, order.promoApplyCount || 1);
       } catch (err) {
         logger.error(`Failed to increment promo usage: ${err.message}`);
       }
