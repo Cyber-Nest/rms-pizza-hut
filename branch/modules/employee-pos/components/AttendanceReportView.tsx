@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getLocalTodayStr } from "../utils/timezone";
 import EditShiftModal from "./EditShiftModal";
+import { getPusherClient } from "../../../lib/pusher";
 
 interface AttendanceReportRow {
   attendanceId: string;
@@ -36,6 +37,13 @@ interface AttendanceReportRow {
   totalBreakHours: number;
   totalPayableHours: number;
   status: string;
+  scheduledShiftStart?: string;
+  scheduledShiftEnd?: string;
+  autoCheckedOut?: boolean;
+  managerOverride?: boolean;
+  notes?: string;
+  segmentIndex?: number;
+  totalSegments?: number;
 }
 
 interface EmployeeItem {
@@ -180,6 +188,27 @@ export default function AttendanceReportView() {
 
   useEffect(() => {
     fetchReport();
+  }, [fetchReport]);
+
+  // Subscribe to Pusher Realtime Attendance Updates
+  useEffect(() => {
+    const branchId = getBranchId();
+    if (!branchId) return;
+
+    try {
+      const pusher = getPusherClient();
+      const channelName = `attendance-${branchId}`;
+      const channel = pusher.subscribe(channelName);
+
+      channel.bind("attendance-updated", () => {
+        toast("Attendance updated live ⚡", { icon: "", duration: 3000 });
+        fetchReport();
+      });
+
+      return () => {
+        pusher.unsubscribe(channelName);
+      };
+    } catch (e) {}
   }, [fetchReport]);
 
   // Dynamic Maximum Break Count calculation (Adapts to 1, 2, 3, 4, 5+ breaks dynamically!)
@@ -659,19 +688,36 @@ export default function AttendanceReportView() {
                           key={`${row.attendanceId}-${row.shiftId}-${idx}`}
                           className="hover:bg-neutral-50/80 transition-colors"
                         >
-                          {/* Date & Day */}
+                          {/* Date & Day + Split Shift Badge */}
                           <td className="py-3.5 px-4 font-700 text-neutral-900 font-mono text-[12px]">
-                            {row.dateDayStr}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span>{row.dateDayStr}</span>
+                              {row.totalSegments && row.totalSegments > 1 ? (
+                                <span className="bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded text-[9.5px] font-800 uppercase tracking-wide">
+                                  Shift #{row.segmentIndex}
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
 
-                          {/* Start Time */}
-                          <td className="py-3.5 px-3 font-mono font-700 text-emerald-700">
-                            {row.startTime}
+                          {/* Start Time + Scheduled Subtext */}
+                          <td className="py-3.5 px-3 font-mono">
+                            <div className="font-700 text-emerald-700 text-xs">{row.startTime}</div>
+                            {row.scheduledShiftStart ? (
+                              <div className="text-[10px] text-neutral-400 font-550">
+                                Sched: {row.scheduledShiftStart}
+                              </div>
+                            ) : null}
                           </td>
 
-                          {/* End Time */}
-                          <td className="py-3.5 px-3 font-mono font-700 text-neutral-800">
-                            {row.endTime}
+                          {/* End Time + Scheduled Subtext */}
+                          <td className="py-3.5 px-3 font-mono">
+                            <div className="font-700 text-neutral-800 text-xs">{row.endTime}</div>
+                            {row.scheduledShiftEnd ? (
+                              <div className="text-[10px] text-neutral-400 font-550">
+                                Sched: {row.scheduledShiftEnd}
+                              </div>
+                            ) : null}
                           </td>
 
                           {/* Total Shift Hrs */}
@@ -679,7 +725,7 @@ export default function AttendanceReportView() {
                             {row.totalShiftHours.toFixed(2)} hrs
                           </td>
 
-                          {/* Dynamic Break Cells (Handles 1, 2, 3, 5+ breaks!) */}
+                          {/* Dynamic Break Cells */}
                           {Array.from({ length: maxBreaksCount }).map((_, bIdx) => {
                             const bObj = row.breaks && row.breaks[bIdx];
                             return (
@@ -717,6 +763,20 @@ export default function AttendanceReportView() {
                             ) : row.status === "on-break" ? (
                               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-900 bg-amber-100 text-amber-800 border border-amber-300">
                                 On Break
+                              </span>
+                            ) : row.autoCheckedOut ? (
+                              <span
+                                className="px-2.5 py-0.5 rounded-full text-[10px] font-900 bg-purple-100 text-purple-800 border border-purple-300 cursor-help"
+                                title={row.notes || "Auto-checked out by system at scheduled shift end"}
+                              >
+                                Auto Closed
+                              </span>
+                            ) : row.managerOverride ? (
+                              <span
+                                className="px-2.5 py-0.5 rounded-full text-[10px] font-900 bg-amber-100 text-amber-900 border border-amber-300 cursor-help"
+                                title={row.notes || "Approved via Manager PIN Override"}
+                              >
+                                Manager Override
                               </span>
                             ) : (
                               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-700 bg-neutral-100 text-neutral-600 border border-neutral-200">

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   X, LogOut, LayoutDashboard, KeyRound, Clock, ShoppingBag, 
   Receipt, ArrowLeftRight, Wallet, Users, UtensilsCrossed, 
-  Settings, UserCheck, Lock, Bell, BarChart3, Power, ChefHat, TrendingUp, Truck, Car, QrCode, ShieldCheck, User, FileCheck
+  Settings, UserCheck, Lock, Bell, BarChart3, Power, ChefHat, TrendingUp, Truck, Car, QrCode, ShieldCheck, User, FileCheck, Calendar
 } from 'lucide-react';
 import CheckInOutModal from './CheckInOutModal';
 import StoreQrModal from './StoreQrModal';
@@ -107,6 +107,7 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
     { key: 'employees', label: 'Employee Management', icon: UserCheck },
     { key: 'permissions', label: 'Permissions', icon: ShieldCheck },
     { key: 'attendance_report', label: 'Attendance Report', icon: FileCheck },
+    { key: 'employee_schedule', label: 'Employee Schedule', icon: Calendar },
     { key: 'update_profile', label: 'Profile & Security', icon: UserCheck },
     { key: 'reports', label: 'Reports', icon: BarChart3 },
     { key: 'master_logout', label: 'Master Logout', icon: LogOut, isLogout: true },
@@ -285,6 +286,8 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
                         window.location.href = '/employee/permissions';
                       } else if (item.key === 'attendance_report') {
                         window.location.href = '/employee/attendance-report';
+                      } else if (item.key === 'employee_schedule') {
+                        window.location.href = '/employee/employee-schedule';
                       } else if (item.key === 'setting') {
                         window.location.href = '/employee/settings';
                       } else if (item.key === 'update_profile') {

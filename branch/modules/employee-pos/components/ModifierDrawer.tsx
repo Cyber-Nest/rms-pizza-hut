@@ -584,7 +584,8 @@ export default function ModifierDrawer({
     const isInc = isIncludedTopping(groupId || "", opt.id, selections, parentOpt);
 
     if (isInc) {
-      return Math.max(0, qty - 1) * unitPrice;
+      if (qty === 1) return 0;
+      return qty * unitPrice;
     }
     return qty * unitPrice;
   };

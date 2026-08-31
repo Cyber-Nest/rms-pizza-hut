@@ -14,8 +14,8 @@ const getBranchIdFromReq = (req) => {
 exports.checkIn = async (req, res) => {
   try {
     const branchId = getBranchIdFromReq(req);
-    const { employeeId } = req.body;
-    const data = await attendanceService.checkIn(branchId, employeeId);
+    const { employeeId, managerPin } = req.body;
+    const data = await attendanceService.checkIn(branchId, employeeId, managerPin);
     res.status(200).json({
       success: true,
       message: "Checked in successfully",

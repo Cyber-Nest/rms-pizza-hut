@@ -143,12 +143,15 @@ const roundToTwo = (num: number): number =>
 const generateCartItemId = (
   menuItemId: string,
   modifiers: SelectedModifier[],
+  name?: string,
 ): string => {
   const sortedOptionIds = modifiers
-    .map((m) => m.optionId)
+    .map((m) => `${m.optionId}_${m.price}`)
     .sort()
     .join("-");
-  return sortedOptionIds ? `${menuItemId}-${sortedOptionIds}` : menuItemId;
+  const nameSlug = name ? name.toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+  const baseKey = nameSlug ? `${menuItemId}_${nameSlug}` : menuItemId;
+  return sortedOptionIds ? `${baseKey}-${sortedOptionIds}` : baseKey;
 };
 
 const DENOMINATIONS = [5, 10, 20, 50, 100];
@@ -349,7 +352,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   // ── Cart ─────────────────────────────────────────────────────
   addToCart: (menuItem, selectedModifiers, quantity = 1, note = "") => {
     const { cartItems } = get();
-    const cartItemId = generateCartItemId(menuItem.id, selectedModifiers);
+    const cartItemId = generateCartItemId(menuItem.id, selectedModifiers, menuItem.name);
     const modifierSum = selectedModifiers.reduce(
       (sum, mod) => sum + mod.price,
       0,
@@ -534,7 +537,7 @@ export const usePosStore = create<PosState>((set, get) => ({
 
     const modifierSum = selectedModifiers.reduce((sum, mod) => sum + mod.price, 0);
     const itemUnitCost = menuItem.price + modifierSum;
-    const newCartItemId = generateCartItemId(menuItem.id, selectedModifiers);
+    const newCartItemId = generateCartItemId(menuItem.id, selectedModifiers, menuItem.name);
 
     const catObj = get().categories.find(
       (c) => c.id === menuItem.categoryId || c.name === menuItem.categoryId,
@@ -996,7 +999,7 @@ export const usePosStore = create<PosState>((set, get) => ({
         item.basePrice ||
         roundToTwo((item.totalPrice || 0) / (item.quantity || 1) - modifierSum);
       return {
-        id: generateCartItemId(item.menuItemId, item.selectedModifiers || []),
+        id: generateCartItemId(item.menuItemId, item.selectedModifiers || [], item.name),
         menuItemId: item.menuItemId,
         categoryId: item.categoryId || "",
         categoryName: item.categoryName || "",

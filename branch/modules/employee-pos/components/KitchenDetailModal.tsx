@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   Clock,
@@ -272,7 +272,12 @@ export default function KitchenDetailModal({
     }
   }, [localOrder]);
 
-  // Keyboard Shortcuts: Press 'B' to advance status, 'U' to undo status
+  const mountTimeRef = useRef<number>(Date.now());
+  useEffect(() => {
+    mountTimeRef.current = Date.now();
+  }, [order?._id]);
+
+  // Keyboard Shortcuts: Press 'Enter' or 'Escape' to close, 'B' to advance status, 'U' to undo status
   useEffect(() => {
     if (!localOrder || localOrder.orderNumber === "#DRAFT" || updating || isEditing || showCancelModal) return;
 
@@ -289,6 +294,13 @@ export default function KitchenDetailModal({
       }
 
       const key = e.key.toLowerCase();
+      if (key === "enter" || key === "escape") {
+        if (Date.now() - mountTimeRef.current < 200) return;
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
       if (key === "b") {
         e.preventDefault();
         const currentStationStatus =
@@ -338,7 +350,7 @@ export default function KitchenDetailModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [localOrder, updating, isEditing, showCancelModal, categoryFilter]);
+  }, [localOrder, updating, isEditing, showCancelModal, categoryFilter, onClose]);
 
   if (!localOrder) return null;
 

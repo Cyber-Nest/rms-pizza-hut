@@ -25,6 +25,8 @@ export default function CheckInOutModal({
   const [verifiedEmployee, setVerifiedEmployee] = useState<any>(null);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showManagerOverride, setShowManagerOverride] = useState(false);
+  const [overridePin, setOverridePin] = useState("");
 
   if (!isOpen) return null;
 
@@ -95,7 +97,10 @@ export default function CheckInOutModal({
     }
   };
 
-  const handleAttendanceAction = async (actionType: "check-in" | "break-in" | "break-out" | "check-out") => {
+  const handleAttendanceAction = async (
+    actionType: "check-in" | "break-in" | "break-out" | "check-out",
+    mgrPin?: string
+  ) => {
     const branchId = getBranchId();
     if (!branchId || !verifiedEmployee) return;
 
@@ -105,6 +110,7 @@ export default function CheckInOutModal({
       const res = await axios.post(`${apiUrl}/attendance/${actionType}`, {
         branchId,
         employeeId: verifiedEmployee._id,
+        managerPin: mgrPin || overridePin || undefined,
       }, { withCredentials: true });
 
       if (res.data.success) {
@@ -119,7 +125,16 @@ export default function CheckInOutModal({
         handleClose();
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || "Action failed");
+      const msg = err.response?.data?.message || err.message || "Action failed";
+      if (msg.startsWith("NOT_SCHEDULED")) {
+        setShowManagerOverride(true);
+        toast.error("Not scheduled today. Manager PIN required to check in.");
+      } else if (msg.startsWith("EARLY_CHECKIN")) {
+        const cleanMsg = msg.replace("EARLY_CHECKIN: ", "");
+        toast.error(cleanMsg, { duration: 5000 });
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setActionLoading(false);
     }
@@ -289,6 +304,43 @@ export default function CheckInOutModal({
 
             {/* Dynamic Actions Based on Current Status */}
             <div className="space-y-2.5 pt-1">
+              {showManagerOverride && (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-800 text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                      <KeyRound size={14} className="text-amber-600" />
+                      Require Manager Approval
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowManagerOverride(false)}
+                      className="text-[10px] text-amber-700 font-700 underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-amber-800 font-550">
+                    Employee is not scheduled today. Enter Manager / Supervisor PIN to approve check-in.
+                  </p>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    value={overridePin}
+                    onChange={(e) => setOverridePin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    placeholder="Enter Manager PIN (••••)"
+                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-mono font-800 text-neutral-900 focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAttendanceAction("check-in", overridePin)}
+                    disabled={actionLoading || overridePin.length < 4}
+                    className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-800 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    Approve Check-In (Override)
+                  </button>
+                </div>
+              )}
+
               {todayAttendance?.status === "checked-out" || !todayAttendance?.status ? (
                 /* ACTION: CHECK IN */
                 <button

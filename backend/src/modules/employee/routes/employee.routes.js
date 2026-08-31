@@ -2,6 +2,13 @@ const express = require("express");
 const router = express.Router();
 const employeeController = require("../controllers/employee.controller");
 const attendanceController = require("../controllers/attendance.controller");
+const scheduleController = require("../controllers/schedule.controller");
+
+// Schedule Routes (Must be defined BEFORE /employees/:id)
+router.get("/employees/schedule", scheduleController.getWeeklySchedule);
+router.post("/employees/schedule", scheduleController.saveShiftSchedule);
+router.post("/employees/schedule/copy-week", scheduleController.copyPreviousWeekSchedule);
+router.delete("/employees/schedule", scheduleController.deleteShiftSchedule);
 
 // Employee CRUD
 router.post("/employees", employeeController.createEmployee);

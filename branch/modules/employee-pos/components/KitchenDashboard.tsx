@@ -38,10 +38,25 @@ export default function KitchenDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'preparing' | 'in_oven' | 'ready'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'takeout' | 'drive-through' | 'dine-in' | 'delivery' | 'online'>('all');
-  const [stationFilter, setStationFilter] = useState<'cut_station' | 'make_table' | 'wings_station'>('make_table');
+  const [stationFilter, setStationFilter] = useState<'cut_station' | 'make_table' | 'wings_station'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('kitchen_station_filter');
+      if (saved === 'cut_station' || saved === 'make_table' || saved === 'wings_station') {
+        return saved;
+      }
+    }
+    return 'make_table';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kitchen_station_filter', stationFilter);
+    }
+  }, [stationFilter]);
   const [branchMenuItems, setBranchMenuItems] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [startIndex, setStartIndex] = useState(0);
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const ordersRef = useRef(orders);
   const visibleCardCount = useVisibleCardCount();
@@ -402,9 +417,10 @@ const playKitchenNotificationSound = () => {
   const countDelivery = orders.filter((o) => o.orderType === 'delivery' && o.orderSource === 'pos').length;
   const countOnline = orders.filter((o) => o.orderSource === 'online').length;
 
-  // Reset startIndex on filter change
+  // Reset startIndex and focusedIndex on filter change
   useEffect(() => {
     setStartIndex(0);
+    setFocusedIndex(0);
   }, [statusFilter, typeFilter, stationFilter]);
 
   // ── Filter and Sort All Candidates ──────────────────────────
@@ -567,6 +583,60 @@ const playKitchenNotificationSound = () => {
     return stationFiltered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, draftCart, statusFilter, typeFilter, stationFilter, currentTime]);
 
+  // Keep focusedIndex within valid bounds
+  useEffect(() => {
+    if (focusedIndex >= filteredOrders.length && filteredOrders.length > 0) {
+      setFocusedIndex(filteredOrders.length - 1);
+    }
+  }, [filteredOrders.length, focusedIndex]);
+
+  // Keyboard Navigation: ArrowLeft / ArrowRight to highlight card, Enter to open detail modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        selectedOrder ||
+        isSidebarOpen ||
+        (target &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.isContentEditable))
+      ) {
+        return;
+      }
+
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          if (filteredOrders.length === 0) return 0;
+          const next = Math.min(filteredOrders.length - 1, prev + 1);
+          if (next >= startIndex + visibleCardCount) {
+            setStartIndex(next - visibleCardCount + 1);
+          }
+          return next;
+        });
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          if (filteredOrders.length === 0) return 0;
+          const next = Math.max(0, prev - 1);
+          if (next < startIndex) {
+            setStartIndex(next);
+          }
+          return next;
+        });
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (filteredOrders[focusedIndex]) {
+          handleSelectOrder(filteredOrders[focusedIndex]);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedOrder, isSidebarOpen, filteredOrders, focusedIndex, startIndex, visibleCardCount, handleSelectOrder]);
+
   const visibleOrders = filteredOrders.slice(startIndex, startIndex + visibleCardCount);
 
   return (
@@ -694,18 +764,26 @@ const playKitchenNotificationSound = () => {
 
             {/* Responsive Grid: 1 col mobile / 2 cols small tablet / 3 cols tablet & small laptop / 4 cols large desktop */}
             <div className="flex-1 h-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-5 items-stretch justify-start min-h-0">
-              {visibleOrders.map((order) => (
-                <div
-                  key={order._id || order.orderNumber}
-                  className="h-full flex flex-col min-h-0"
-                >
-                  <KitchenOrderCard
-                    order={order}
-                    stationFilter={stationFilter}
-                    onClick={() => handleSelectOrder(order)}
-                  />
-                </div>
-              ))}
+              {visibleOrders.map((order, vIdx) => {
+                const globalIndex = startIndex + vIdx;
+                const isFocused = globalIndex === focusedIndex;
+                return (
+                  <div
+                    key={order._id || order.orderNumber}
+                    className="h-full flex flex-col min-h-0"
+                  >
+                    <KitchenOrderCard
+                      order={order}
+                      stationFilter={stationFilter}
+                      isFocused={isFocused}
+                      onClick={() => {
+                        setFocusedIndex(globalIndex);
+                        handleSelectOrder(order);
+                      }}
+                    />
+                  </div>
+                );
+              })}
 
               {/* Empty placeholder slots */}
               {filteredOrders.length > 0 && visibleOrders.length < visibleCardCount && (
