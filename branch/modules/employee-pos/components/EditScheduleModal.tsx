@@ -208,7 +208,7 @@ export default function EditScheduleModal({
                 Edit Shift Schedule
               </h3>
               <p className="text-[11px] text-neutral-300 font-550">
-                {employee.name} ({employee.role}) &bull; <span className="text-amber-300 font-700">{dayLabel}</span>
+                {employee.name} {employee.employeeId ? `(#${employee.employeeId})` : ""} &bull; <span className="capitalize">{employee.role}</span> &bull; <span className="text-amber-300 font-700">{dayLabel}</span>
               </p>
             </div>
           </div>

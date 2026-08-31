@@ -33,6 +33,30 @@ const shiftSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    scheduledShiftStart: {
+      type: String,
+      default: "",
+    },
+    scheduledShiftEnd: {
+      type: String,
+      default: "",
+    },
+    autoCheckoutGraceTime: {
+      type: Date,
+      default: null,
+    },
+    autoCheckedOut: {
+      type: Boolean,
+      default: false,
+    },
+    managerOverride: {
+      type: Boolean,
+      default: false,
+    },
+    notes: {
+      type: String,
+      default: "",
+    },
   },
   { _id: true }
 );

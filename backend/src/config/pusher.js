@@ -214,6 +214,25 @@ const triggerPrintJob = async (branchId, jobPayload) => {
   }
 };
 
+const triggerAttendanceUpdated = async (branchId, payload) => {
+  if (!pusherInstance) {
+    logger.debug("Pusher is not initialized, skipping attendance-updated trigger.");
+    return;
+  }
+
+  try {
+    const channels = ["attendance"];
+    if (branchId) {
+      channels.push(`attendance-${branchId.toString()}`);
+    }
+
+    await pusherInstance.trigger(channels, "attendance-updated", payload);
+    logger.info(`Pusher 'attendance-updated' event triggered for branch: ${branchId}`);
+  } catch (error) {
+    logger.error(`Failed to trigger Pusher attendance-updated event: ${error.message}`);
+  }
+};
+
 module.exports = {
   pusherInstance,
   triggerNewOrder,
@@ -223,4 +242,5 @@ module.exports = {
   triggerDeliveryStatusUpdate,
   triggerDriverStatusChange,
   triggerPrintJob,
+  triggerAttendanceUpdated,
 };

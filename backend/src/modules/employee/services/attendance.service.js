@@ -1,10 +1,13 @@
 const Attendance = require("../models/attendance.model");
 const Employee = require("../models/employee.model");
+const Schedule = require("../models/schedule.model");
 const Driver = require("../../delivery/models/Driver.model");
 const Vehicle = require("../../delivery/models/Vehicle.model");
+const bcrypt = require("bcryptjs");
+const { DateTime } = require("luxon");
 
-const { triggerDriverStatusChange } = require("../../../config/pusher");
-const { getLocalDateStr } = require("../../../shared/utils/timezone");
+const { triggerAttendanceUpdated, triggerDriverStatusChange } = require("../../../config/pusher");
+const { getLocalDateStr, TIMEZONE } = require("../../../shared/utils/timezone");
 
 const getTodayDateStr = () => getLocalDateStr();
 
@@ -15,19 +18,112 @@ const diffInMinutes = (start, end) => {
   return Math.max(0, Math.round(diffMs / (1000 * 60)));
 };
 
-exports.checkIn = async (branchId, employeeId) => {
+function parseTimeToMins(timeStr) {
+  if (!timeStr) return 0;
+  const str = String(timeStr).trim();
+  if (str.includes(":")) {
+    const [h, m] = str.split(":");
+    return (parseInt(h) || 0) * 60 + (parseInt(m) || 0);
+  }
+  const h = parseFloat(str) || 0;
+  return Math.round(h * 60);
+}
+
+function formatMinutesTo12H(totalMins) {
+  let mins = totalMins % 1440;
+  if (mins < 0) mins += 1440;
+  const h24 = Math.floor(mins / 60);
+  const m = mins % 60;
+  const period = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 || 12;
+  const mStr = m < 10 ? `0${m}` : `${m}`;
+  return `${h12}:${mStr} ${period}`;
+}
+
+// Microsecond Auto-Checkout Sweeper
+const checkAndAutoCheckoutOverdueShifts = async (branchId) => {
+  if (!branchId) return;
+
+  try {
+    const now = DateTime.now().setZone(TIMEZONE);
+    const dateStr = getTodayDateStr();
+
+    const activeRecords = await Attendance.find({
+      branchId,
+      date: dateStr,
+      status: { $in: ["checked-in", "on-break"] },
+    });
+
+    for (const attendance of activeRecords) {
+      const activeShift = attendance.shifts[attendance.shifts.length - 1];
+      if (!activeShift || activeShift.checkOut) continue;
+
+      if (activeShift.autoCheckoutGraceTime) {
+        const graceTimeDt = DateTime.fromJSDate(activeShift.autoCheckoutGraceTime, { zone: TIMEZONE });
+        if (now >= graceTimeDt) {
+          // Trigger Auto-Checkout!
+          const [endH, endM] = (activeShift.scheduledShiftEnd || "16:00").split(":").map(Number);
+          const scheduledCheckOutDt = now.set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+          const checkOutJsDate = scheduledCheckOutDt.toJSDate();
+
+          // Auto-close open breaks if any
+          if (attendance.status === "on-break") {
+            const openBreak = activeShift.breaks.find((b) => !b.breakOut);
+            if (openBreak) {
+              openBreak.breakOut = checkOutJsDate;
+            }
+          }
+
+          // Calculate break minutes
+          let totalBreakMins = 0;
+          activeShift.breaks.forEach((b) => {
+            if (b.breakIn && b.breakOut) {
+              totalBreakMins += diffInMinutes(b.breakIn, b.breakOut);
+            }
+          });
+          activeShift.totalBreakMinutes = totalBreakMins;
+
+          const totalShiftMins = diffInMinutes(activeShift.checkIn, checkOutJsDate);
+          activeShift.totalWorkMinutes = Math.max(0, totalShiftMins - totalBreakMins);
+          activeShift.checkOut = checkOutJsDate;
+          activeShift.autoCheckedOut = true;
+          activeShift.notes = `Auto-Checked Out by System (Shift End: ${activeShift.scheduledShiftEnd || "Scheduled End"})`;
+
+          attendance.status = "checked-out";
+          await attendance.save();
+
+          // Trigger Pusher Realtime update
+          await triggerAttendanceUpdated(branchId, {
+            employeeId: attendance.employeeId,
+            status: "auto-checked-out",
+            date: dateStr,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error in checkAndAutoCheckoutOverdueShifts:", err.message);
+  }
+};
+exports.checkAndAutoCheckoutOverdueShifts = checkAndAutoCheckoutOverdueShifts;
+
+exports.checkIn = async (branchId, employeeId, managerPin) => {
   if (!branchId || !employeeId) {
     throw new Error("Branch ID and Employee ID are required");
   }
+
+  // 1. Run auto-checkout sweeper for branch first
+  await checkAndAutoCheckoutOverdueShifts(branchId);
 
   const employee = await Employee.findOne({ _id: employeeId, branchId, isActive: true });
   if (!employee) {
     throw new Error("Employee not found or inactive");
   }
 
+  const now = DateTime.now().setZone(TIMEZONE);
   const dateStr = getTodayDateStr();
-  let attendance = await Attendance.findOne({ branchId, employeeId, date: dateStr });
 
+  let attendance = await Attendance.findOne({ branchId, employeeId, date: dateStr });
   if (!attendance) {
     attendance = new Attendance({
       branchId,
@@ -42,17 +138,115 @@ exports.checkIn = async (branchId, employeeId) => {
     throw new Error("Employee is already checked in");
   }
 
-  // Create new shift
+  // 2. Fetch Employee's Schedule for Today
+  const schedule = await Schedule.findOne({ branchId, employeeId, date: dateStr });
+
+  let matchedSegment = null;
+  let isManagerOverride = false;
+
+  const hasValidSchedule = schedule && !schedule.isOff && schedule.shifts && schedule.shifts.length > 0;
+
+  if (!hasValidSchedule) {
+    // Employee is OFF or No Schedule assigned
+    if (!managerPin) {
+      throw new Error("NOT_SCHEDULED: You are not scheduled to work today. Manager PIN approval is required to check in.");
+    }
+
+    // Verify Manager PIN
+    const managers = await Employee.find({
+      branchId,
+      isActive: true,
+      role: { $in: ["manager", "supervisor"] },
+    });
+
+    let pinValid = false;
+    for (const mgr of managers) {
+      const match = await bcrypt.compare(managerPin, mgr.pin);
+      if (match) {
+        pinValid = true;
+        break;
+      }
+    }
+
+    if (!pinValid) {
+      throw new Error("INVALID_MANAGER_PIN: Invalid Manager PIN. Override authorization failed.");
+    }
+
+    isManagerOverride = true;
+  } else {
+    // Employee HAS scheduled shifts for today
+    const nowMins = now.hour * 60 + now.minute;
+    const sortedShifts = [...schedule.shifts].sort(
+      (a, b) => parseTimeToMins(a.startTime) - parseTimeToMins(b.startTime)
+    );
+
+    // Find closest shift segment matching current time or next upcoming
+    let candidate = null;
+    for (const seg of sortedShifts) {
+      const startMins = parseTimeToMins(seg.startTime);
+      const endMins = parseTimeToMins(seg.endTime);
+      
+      if (nowMins >= startMins - 5 && (nowMins <= endMins || endMins <= startMins)) {
+        candidate = seg;
+        break;
+      }
+    }
+
+    if (!candidate) {
+      candidate = sortedShifts.find((seg) => parseTimeToMins(seg.startTime) > nowMins) || sortedShifts[0];
+    }
+
+    const startMins = parseTimeToMins(candidate.startTime);
+    // 5-minute buffer check: earliest allowed = startMins - 5
+    if (nowMins < startMins - 5) {
+      const earliestStr = formatMinutesTo12H(startMins - 5);
+      const shiftStartStr = formatMinutesTo12H(startMins);
+      throw new Error(
+        `EARLY_CHECKIN: Early Check-In Not Allowed! Your shift starts at ${shiftStartStr}. You can check in starting at ${earliestStr}.`
+      );
+    }
+
+    matchedSegment = candidate;
+  }
+
+  // 3. Create new shift record with metadata
+  let autoCheckoutGraceTime = null;
+  let scheduledStartStr = "";
+  let scheduledEndStr = "";
+
+  if (matchedSegment) {
+    scheduledStartStr = matchedSegment.startTime;
+    scheduledEndStr = matchedSegment.endTime;
+
+    const [endH, endM] = matchedSegment.endTime.split(":").map(Number);
+    // Grace time = scheduledEnd + 2 minutes
+    const graceDt = now.set({ hour: endH, minute: endM, second: 0, millisecond: 0 }).plus({ minutes: 2 });
+    autoCheckoutGraceTime = graceDt.toJSDate();
+  }
+
   attendance.shifts.push({
-    checkIn: new Date(),
+    checkIn: now.toJSDate(),
     checkOut: null,
     breaks: [],
     totalWorkMinutes: 0,
     totalBreakMinutes: 0,
+    scheduledShiftStart: scheduledStartStr,
+    scheduledShiftEnd: scheduledEndStr,
+    autoCheckoutGraceTime,
+    autoCheckedOut: false,
+    managerOverride: isManagerOverride,
+    notes: isManagerOverride ? "Checked in via Manager Override (Unscheduled / Day Off)" : "",
   });
 
   attendance.status = "checked-in";
   await attendance.save();
+
+  // Trigger Pusher Event
+  await triggerAttendanceUpdated(branchId, {
+    employeeId,
+    status: "checked-in",
+    date: dateStr,
+  });
 
   return exports.getAttendanceWithEmployee(attendance._id);
 };
@@ -286,6 +480,9 @@ exports.getAttendanceReport = async (branchId, options = {}) => {
     throw new Error("Branch ID is required");
   }
 
+  // Run auto-checkout sweeper first
+  await checkAndAutoCheckoutOverdueShifts(branchId);
+
   const { startDate, endDate, employeeId, role } = options;
 
   const query = { branchId };
@@ -358,6 +555,13 @@ exports.getAttendanceReport = async (branchId, options = {}) => {
         totalBreakHours: 0,
         totalPayableHours: 0,
         status: doc.status,
+        scheduledShiftStart: "",
+        scheduledShiftEnd: "",
+        autoCheckedOut: false,
+        managerOverride: false,
+        notes: "",
+        segmentIndex: 1,
+        totalSegments: 0,
       });
     } else {
       shifts.forEach((shift, sIdx) => {
@@ -459,7 +663,14 @@ exports.getAttendanceReport = async (branchId, options = {}) => {
           break3Out: formattedBreaks[2]?.breakOut || "--",
           totalBreakHours: totalBreakHrs,
           totalPayableHours: payableHrs,
-          status: !checkOutIso ? doc.status : "completed",
+          status: !shift.checkOut ? doc.status : "checked-out",
+          scheduledShiftStart: shift.scheduledShiftStart || "",
+          scheduledShiftEnd: shift.scheduledShiftEnd || "",
+          autoCheckedOut: !!shift.autoCheckedOut,
+          managerOverride: !!shift.managerOverride,
+          notes: shift.notes || "",
+          segmentIndex: sIdx + 1,
+          totalSegments: shifts.length,
         });
       });
     }

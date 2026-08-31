@@ -67,7 +67,12 @@ function getMondayOfDate(dateStr: string): string {
 // Get 7 consecutive dates starting from Monday YYYY-MM-DD
 function getWeekDates(mondayStr: string) {
   const [y, m, d] = mondayStr.split("-").map(Number);
-  const dates: Array<{ dateStr: string; dayName: string; dayShort: string; dateDisplay: string }> = [];
+  const dates: Array<{
+    dateStr: string;
+    dayName: string;
+    dayShort: string;
+    dateDisplay: string;
+  }> = [];
 
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -105,12 +110,16 @@ export default function EmployeeScheduleView() {
 
   // Week Navigation State
   const todayStr = getLocalTodayStr();
-  const [mondayStr, setMondayStr] = useState<string>(() => getMondayOfDate(todayStr));
+  const [mondayStr, setMondayStr] = useState<string>(() =>
+    getMondayOfDate(todayStr),
+  );
 
   // Branch Info & Schedule Data
   const [branchInfo, setBranchInfo] = useState<BranchInfo | null>(null);
   const [employees, setEmployees] = useState<EmployeeItem[]>([]);
-  const [scheduleMap, setScheduleMap] = useState<Record<string, ScheduleEntry>>({});
+  const [scheduleMap, setScheduleMap] = useState<Record<string, ScheduleEntry>>(
+    {},
+  );
 
   // Modal State
   const [selectedCell, setSelectedCell] = useState<{
@@ -144,7 +153,8 @@ export default function EmployeeScheduleView() {
 
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const res = await axios.get(`${apiUrl}/employees/schedule`, {
         params: {
           branchId,
@@ -193,7 +203,7 @@ export default function EmployeeScheduleView() {
 
     if (
       !confirm(
-        `Copy schedule from the previous week into Week ${weekNum} (${weekDates[0].dateDisplay} to ${weekDates[6].dateDisplay})?`
+        `Copy schedule from the previous week into Week ${weekNum} (${weekDates[0].dateDisplay} to ${weekDates[6].dateDisplay})?`,
       )
     ) {
       return;
@@ -201,7 +211,8 @@ export default function EmployeeScheduleView() {
 
     setCopying(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const res = await axios.post(`${apiUrl}/employees/schedule/copy-week`, {
         branchId,
         targetStartDate: mondayStr,
@@ -315,7 +326,11 @@ export default function EmployeeScheduleView() {
                       ? "bg-white text-neutral-800 font-800 border-neutral-200 hover:border-neutral-300 shadow-2xs"
                       : "bg-orange-50 hover:bg-orange-100 text-brand-primary font-800 border-orange-200"
                   }`}
-                  title={isCurrentWeek ? "Currently viewing Current Week" : "Click to jump to Current Week"}
+                  title={
+                    isCurrentWeek
+                      ? "Currently viewing Current Week"
+                      : "Click to jump to Current Week"
+                  }
                 >
                   {isCurrentWeek ? "Current Week" : "Jump to Current Week ↵"}
                 </button>
@@ -323,7 +338,8 @@ export default function EmployeeScheduleView() {
             })()}
 
             <span className="px-2 font-mono text-xs font-800 text-neutral-800">
-              Week {weekNum} ({weekDates[0]?.dateDisplay} &ndash; {weekDates[6]?.dateDisplay})
+              Week {weekNum} ({weekDates[0]?.dateDisplay} &ndash;{" "}
+              {weekDates[6]?.dateDisplay})
             </span>
 
             <button
@@ -369,21 +385,20 @@ export default function EmployeeScheduleView() {
       {/* Main Table Area (Edge-to-Edge Container) */}
       <div className="flex-1 overflow-y-auto p-6 print:p-0 print:overflow-visible">
         <div className="bg-white rounded-xl border border-neutral-200 shadow-xs overflow-hidden print:border-none print:shadow-none">
-          
           {/* Print Noticeboard Header (Visible ONLY on Print) */}
           <div className="hidden print:block text-center p-4 border-b-2 border-black">
             <h2 className="text-xl font-bold uppercase tracking-wide">
               {branchInfo?.locationStr || "PIZZAHUT (STORE SCHEDULE)"}
             </h2>
             <h3 className="text-base font-bold uppercase tracking-wider mt-1">
-              SCHEDULE WEEK {weekNum} ({weekDates[0]?.dateDisplay} TO {weekDates[6]?.dateDisplay})
+              SCHEDULE WEEK {weekNum} ({weekDates[0]?.dateDisplay} TO{" "}
+              {weekDates[6]?.dateDisplay})
             </h3>
           </div>
 
           {/* Matrix Grid Table */}
           <div className="overflow-x-auto overflow-y-auto flex-1 min-h-[500px]">
             <table className="w-full border-collapse text-center table-fixed border border-neutral-300 text-xs font-sans select-none">
-              
               {/* Header Row: Dates & Days */}
               <thead className="bg-neutral-100 text-neutral-800 uppercase font-800 border-b border-neutral-300 sticky top-0 z-10 print:static print:bg-neutral-200">
                 <tr className="border-b border-neutral-300">
@@ -433,8 +448,13 @@ export default function EmployeeScheduleView() {
                       >
                         {/* Employee Info Cell */}
                         <td className="px-3 py-3 border-r border-neutral-300 text-left font-800 text-neutral-900 bg-neutral-50/50 print:bg-transparent">
-                          <div className="font-800 text-xs lg:text-[13px] text-neutral-900 leading-tight">
-                            {emp.name}
+                          <div className="font-800 text-xs lg:text-[13px] text-neutral-900 leading-tight flex items-center gap-1.5 flex-wrap">
+                            <span>{emp.name}</span>
+                            {emp.employeeId ? (
+                              <span className="text-[10px] font-mono font-800 text-neutral-600 bg-neutral-200/80 px-1.5 py-0.2 rounded border border-neutral-300">
+                                #{emp.employeeId}
+                              </span>
+                            ) : null}
                           </div>
                           <div className="text-[9.5px] lg:text-[10.5px] font-600 text-neutral-400 capitalize mt-0.5">
                             {emp.role}
@@ -447,7 +467,9 @@ export default function EmployeeScheduleView() {
                           const entry = scheduleMap[key];
 
                           const isOff = entry?.isOff;
-                          const shiftText = formatShiftTimeDisplay(entry?.shifts);
+                          const shiftText = formatShiftTimeDisplay(
+                            entry?.shifts,
+                          );
                           const hours = entry?.totalHours || 0;
 
                           return (
@@ -469,7 +491,9 @@ export default function EmployeeScheduleView() {
                                     OFF
                                   </span>
                                 </div>
-                              ) : entry && entry.shifts && entry.shifts.length > 0 ? (
+                              ) : entry &&
+                                entry.shifts &&
+                                entry.shifts.length > 0 ? (
                                 <div className="space-y-1">
                                   <div className="font-700 text-[11px] lg:text-[12.5px] text-neutral-900 leading-tight font-mono">
                                     {shiftText}
@@ -489,7 +513,9 @@ export default function EmployeeScheduleView() {
 
                         {/* Employee Row Weekly Total Hours */}
                         <td className="px-3 py-3 font-900 text-xs lg:text-[13px] text-neutral-900 font-mono bg-neutral-100/60 border-l border-neutral-300 text-center">
-                          {rowTotal > 0 ? rowTotal.toFixed(rowTotal % 1 === 0 ? 0 : 1) : "0"}
+                          {rowTotal > 0
+                            ? rowTotal.toFixed(rowTotal % 1 === 0 ? 0 : 1)
+                            : "0"}
                         </td>
                       </tr>
                     );
@@ -518,7 +544,9 @@ export default function EmployeeScheduleView() {
                         key={`total_${d.dateStr}`}
                         className="px-2 py-3 border-r border-neutral-300 text-center font-mono text-xs lg:text-sm font-900"
                       >
-                        {colTotal > 0 ? colTotal.toFixed(colTotal % 1 === 0 ? 0 : 1) : "0"}
+                        {colTotal > 0
+                          ? colTotal.toFixed(colTotal % 1 === 0 ? 0 : 1)
+                          : "0"}
                       </td>
                     );
                   })}
