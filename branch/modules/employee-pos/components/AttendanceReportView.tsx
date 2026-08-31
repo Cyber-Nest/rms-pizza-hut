@@ -776,7 +776,7 @@ export default function AttendanceReportView() {
                                 className="px-2.5 py-0.5 rounded-full text-[10px] font-900 bg-amber-100 text-amber-900 border border-amber-300 cursor-help"
                                 title={row.notes || "Approved via Manager PIN Override"}
                               >
-                                🔑 Manager Override
+                                Manager Override
                               </span>
                             ) : (
                               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-700 bg-neutral-100 text-neutral-600 border border-neutral-200">
