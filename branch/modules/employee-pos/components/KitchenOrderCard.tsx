@@ -9,6 +9,7 @@ interface KitchenOrderCardProps {
   order: Order;
   onClick: () => void;
   stationFilter?: "cut_station" | "make_table" | "wings_station";
+  isFocused?: boolean;
 }
 
 interface GroupedModifier {
@@ -89,6 +90,7 @@ export default function KitchenOrderCard({
   order,
   onClick,
   stationFilter,
+  isFocused = false,
 }: KitchenOrderCardProps) {
   const [elapsedMins, setElapsedMins] = useState(0);
 
@@ -168,7 +170,11 @@ export default function KitchenOrderCard({
   return (
     <div
       onClick={onClick}
-      className={`flex flex-col h-full min-h-0 bg-white rounded-xl border border-neutral-200 overflow-hidden cursor-pointer hover:border-brand-primary/40 hover:shadow-lg transition-all duration-200 select-none ${
+      className={`flex flex-col h-full min-h-0 bg-white rounded-xl border overflow-hidden cursor-pointer transition-all duration-200 select-none ${
+        isFocused
+          ? "border-brand-primary ring-4 ring-brand-primary/40 shadow-xl scale-[1.015]"
+          : "border-neutral-200 hover:border-brand-primary/40 hover:shadow-lg"
+      } ${
         isDraft ? "border-dashed border-amber-400 bg-amber-50/20" : ""
       }`}
     >
