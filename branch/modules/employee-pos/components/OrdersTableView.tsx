@@ -30,7 +30,7 @@ export default function OrdersTableView({
 }: OrdersTableViewProps) {
   // ── Local Pagination States (Fallback for client-side) ──
   const [localCurrentPage, setLocalCurrentPage] = useState(1);
-  const [localEntriesPerPage, setLocalEntriesPerPage] = useState(10);
+  const [localEntriesPerPage, setLocalEntriesPerPage] = useState(25);
 
   // ── 24-Hour Date Formatting (Alberta Timezone) ──
   const formatDate = (dateStr: string) => {

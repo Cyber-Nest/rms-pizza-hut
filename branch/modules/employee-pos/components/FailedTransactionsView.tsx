@@ -22,7 +22,7 @@ export default function FailedTransactionsView({
 
   // Local Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
 
   // ── Date Formatting ──
   const formatDate = (dateStr: string) => {
@@ -310,9 +310,8 @@ export default function FailedTransactionsView({
               onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               className="border border-neutral-200 rounded px-2 py-0.5 bg-neutral-50 focus:outline-none focus:border-brand-primary cursor-pointer font-700"
             >
-              <option value={5}>5</option>
               <option value={10}>10</option>
-              <option value={20}>20</option>
+              <option value={25}>25</option>
               <option value={50}>50</option>
             </select>
             <span>entries</span>

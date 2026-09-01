@@ -32,7 +32,7 @@ export default function CustomersDashboard() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
 
   const { setCustomer } = usePosStore();
 
