@@ -2389,7 +2389,7 @@ exports.getMonthlySalesSummary = async ({
     const dateFilter = buildDateFilter(start, end, baseFilter);
 
     //group all orders by business date with all needed metrics
-    const [ordersByDayAgg, expensesRaw, depositsRaw] = await Promise.all([
+    const [ordersByDayAgg, expensesRaw, depositsRaw, closingsRaw] = await Promise.all([
       Order.aggregate([
         { $match: dateFilter },
         {
@@ -2417,6 +2417,15 @@ exports.getMonthlySalesSummary = async ({
             tax: { $sum: "$tax" },
             discount: { $sum: "$discount" },
             total: { $sum: "$total" },
+            deliveryFeeTotal: {
+              $sum: {
+                $cond: [
+                  { $ne: ["$status", "cancelled"] },
+                  { $ifNull: ["$deliveryFee", 0] },
+                  0,
+                ],
+              },
+            },
             // Payment breakdowns via conditional sums
             cashTotal: {
               $sum: {
@@ -2553,6 +2562,8 @@ exports.getMonthlySalesSummary = async ({
             orders: {
               $push: {
                 total: "$total",
+                tip: "$tip",
+                paymentMethod: "$paymentMethod",
                 payments: "$payments",
                 orderSource: "$orderSource",
                 status: "$status",
@@ -2575,10 +2586,21 @@ exports.getMonthlySalesSummary = async ({
         },
         ...(branchId ? { branchId } : {}),
       }).lean(),
+      AccountClosing.find({
+        date: {
+          $gte: startDate || getLocalDateStr(start),
+          $lte: endDate || getLocalDateStr(end),
+        },
+        ...(branchId ? { branchId } : {}),
+      }).lean(),
     ]);
 
     // Build date-keyed Maps
     const dayDataMap = new Map(); // date -> { active: {...}, cancelled: {...} }
+    const closingMap = new Map();
+    for (const c of closingsRaw || []) {
+      if (c.date) closingMap.set(c.date, c);
+    }
 
     for (const row of ordersByDayAgg) {
       const dateStr = row._id.date;
@@ -2588,6 +2610,7 @@ exports.getMonthlySalesSummary = async ({
           tax: 0,
           discount: 0,
           total: 0,
+          deliveryFee: 0,
           takeout: 0,
           dineIn: 0,
           delivery: 0,
@@ -2598,8 +2621,16 @@ exports.getMonthlySalesSummary = async ({
           paidCancelledCount: 0,
           unpaidCancelledCount: 0,
           cashSales: 0,
-          cardSales: 0,
+          creditCardSales: 0,
+          debitCardSales: 0,
           accountPaySales: 0,
+          tips: 0,
+          debitTips: 0,
+          creditTips: 0,
+          interacSales: 0,
+          visaSales: 0,
+          mastercardSales: 0,
+          giftCardSales: 0,
           orders: [],
         });
       }
@@ -2610,6 +2641,7 @@ exports.getMonthlySalesSummary = async ({
         day.tax += row.tax;
         day.discount += row.discount;
         day.total += row.total;
+        day.deliveryFee += row.deliveryFeeTotal || 0;
         day.takeout += row.takeoutTotal;
         day.dineIn += row.dineInTotal;
         day.delivery += row.deliveryTotal;
@@ -2627,8 +2659,16 @@ exports.getMonthlySalesSummary = async ({
     // Process payment & promo breakdowns per day from pushed orders
     for (const [, day] of dayDataMap) {
       let cashSales = 0,
-        cardSales = 0,
-        accountPaySales = 0;
+        creditCardSales = 0,
+        debitCardSales = 0,
+        accountPaySales = 0,
+        tips = 0,
+        debitTips = 0,
+        creditTips = 0,
+        interacSales = 0,
+        visaSales = 0,
+        mastercardSales = 0,
+        giftCardSales = 0;
       const promoMap = new Map();
 
       for (const o of day.orders) {
@@ -2648,25 +2688,79 @@ exports.getMonthlySalesSummary = async ({
           pData.totalDiscount += Number(o.discount || 0);
         }
 
+        const orderTip = Number(o.tip || 0);
+        tips += orderTip;
+
         const orderPayments =
           o.payments && o.payments.length > 0
             ? o.payments
-            : [{ method: "cash", amount: o.total || 0 }];
+            : [{ method: o.paymentMethod || "cash", amount: o.total || 0 }];
+
+        let isDebitOrder = false;
+        let isCreditOrder = false;
+
         for (const p of orderPayments) {
-          const method = p.method ? p.method.toLowerCase() : "cash";
-          if (method === "cash") cashSales += p.amount;
-          else if (
-            method === "credit" ||
-            method === "card" ||
-            method === "debit"
-          )
-            cardSales += p.amount;
-          else accountPaySales += p.amount;
+          const method = (p.method || "cash").toLowerCase();
+          const funding = (p.cardFunding || "").toLowerCase();
+          const brand = (p.cardBrand || "").toLowerCase();
+          const amt = Number(p.amount || 0);
+
+          if (
+            ["online", "doordash", "skip", "ubereats"].includes(o.orderSource) ||
+            method === "stripe" ||
+            method === "account"
+          ) {
+            accountPaySales += amt;
+            isCreditOrder = true;
+          } else if (method === "cash") {
+            cashSales += amt;
+          } else if (
+            method === "debit" ||
+            method === "interac" ||
+            funding === "debit"
+          ) {
+            debitCardSales += amt;
+            interacSales += amt;
+            isDebitOrder = true;
+          } else {
+            creditCardSales += amt;
+            isCreditOrder = true;
+
+            if (brand === "visa") visaSales += amt;
+            else if (brand === "mastercard") mastercardSales += amt;
+            else if (brand === "interac" || method === "interac") interacSales += amt;
+            else if (method === "giftcard") giftCardSales += amt;
+            else {
+              visaSales += amt * 0.6;
+              mastercardSales += amt * 0.4;
+            }
+          }
+        }
+
+        if (orderTip > 0) {
+          if (isDebitOrder) {
+            debitTips += orderTip;
+          } else if (isCreditOrder) {
+            creditTips += orderTip;
+          } else {
+            if (debitCardSales > creditCardSales) debitTips += orderTip;
+            else creditTips += orderTip;
+          }
         }
       }
+
       day.cashSales = cashSales;
-      day.cardSales = cardSales;
+      day.creditCardSales = creditCardSales;
+      day.debitCardSales = debitCardSales;
       day.accountPaySales = accountPaySales;
+      day.tips = tips;
+      day.debitTips = debitTips;
+      day.creditTips = creditTips;
+      day.interacSales = interacSales;
+      day.visaSales = visaSales;
+      day.mastercardSales = mastercardSales;
+      day.giftCardSales = giftCardSales;
+
       day.promoSummary = Array.from(promoMap.values()).map((p) => ({
         code: p.code,
         count: p.count,
@@ -2707,6 +2801,7 @@ exports.getMonthlySalesSummary = async ({
         tax: 0,
         discount: 0,
         total: 0,
+        deliveryFee: 0,
         takeout: 0,
         dineIn: 0,
         delivery: 0,
@@ -2717,8 +2812,16 @@ exports.getMonthlySalesSummary = async ({
         paidCancelledCount: 0,
         unpaidCancelledCount: 0,
         cashSales: 0,
-        cardSales: 0,
+        creditCardSales: 0,
+        debitCardSales: 0,
         accountPaySales: 0,
+        tips: 0,
+        debitTips: 0,
+        creditTips: 0,
+        interacSales: 0,
+        visaSales: 0,
+        mastercardSales: 0,
+        giftCardSales: 0,
       };
       const dayExpenses = expenseMap.get(dateStr) || [];
       const dayDeposit = depositMap.get(dateStr) || {
@@ -2726,15 +2829,46 @@ exports.getMonthlySalesSummary = async ({
         cardAmount: 0,
         accountPayAmount: 0,
       };
+      const dayClosing = closingMap.get(dateStr);
 
       const grandTotal = day.total;
-      const tips = grandTotal > 0 ? round2(grandTotal * 0.02) : 0;
+      const tips = round2(day.tips || 0);
       const finalAmount = round2(grandTotal + tips);
 
-      const debitCardSales = round2(day.cardSales * 0.4);
-      const creditCardSales = round2(day.cardSales * 0.6);
-      const finalCashSales = round2(day.cashSales);
-      const finalAccountPaySales = round2(day.accountPaySales);
+      // Primary priority to Account Closing deposits if entered by manager
+      let finalCashSales, debitCardSales, creditCardSales, finalAccountPaySales;
+      let interacFinalAmount, visaFinalAmount, mastercardFinalAmount, giftCardFinalAmount;
+
+      if (
+        dayClosing &&
+        (dayClosing.enteredGrandTotal > 0 ||
+          (dayClosing.terminalDeposits && dayClosing.terminalDeposits.length > 0))
+      ) {
+        finalCashSales = round2(dayClosing.enteredCash || 0);
+        debitCardSales = round2(dayClosing.enteredInterac || 0);
+        creditCardSales = round2(
+          (dayClosing.enteredVisa || 0) +
+            (dayClosing.enteredMastercard || 0) +
+            (dayClosing.enteredGiftCard || 0),
+        );
+        finalAccountPaySales = round2(day.accountPaySales || 0);
+
+        interacFinalAmount = round2(dayClosing.enteredInterac || 0);
+        visaFinalAmount = round2(dayClosing.enteredVisa || 0);
+        mastercardFinalAmount = round2(dayClosing.enteredMastercard || 0);
+        giftCardFinalAmount = round2(dayClosing.enteredGiftCard || 0);
+      } else {
+        finalCashSales = round2(day.cashSales || 0);
+        debitCardSales = round2(day.debitCardSales || 0);
+        creditCardSales = round2(day.creditCardSales || 0);
+        finalAccountPaySales = round2(day.accountPaySales || 0);
+
+        interacFinalAmount = round2(day.interacSales || 0);
+        visaFinalAmount = round2(day.visaSales || 0);
+        mastercardFinalAmount = round2(day.mastercardSales || 0);
+        giftCardFinalAmount = round2(day.giftCardSales || 0);
+      }
+
       const paymentGrandTotal = round2(
         finalCashSales +
           debitCardSales +
@@ -2742,8 +2876,8 @@ exports.getMonthlySalesSummary = async ({
           finalAccountPaySales,
       );
 
-      const debitTips = round2(tips * 0.4);
-      const creditTips = round2(tips * 0.6);
+      const debitTips = round2(day.debitTips || 0);
+      const creditTips = round2(day.creditTips || 0);
       const paymentFinalAmount = round2(
         paymentGrandTotal + debitTips + creditTips,
       );
@@ -2753,11 +2887,6 @@ exports.getMonthlySalesSummary = async ({
       );
 
       const gst = round2(day.tax);
-      const amexFinalAmount = round2(creditCardSales * 0.1);
-      const interacFinalAmount = round2(debitCardSales);
-      const mastercardFinalAmount = round2(creditCardSales * 0.4);
-      const visaFinalAmount = round2(creditCardSales * 0.5);
-
       const onlineTotal = round2(day.online);
       const posTotal = round2(day.pos);
 
@@ -2766,19 +2895,41 @@ exports.getMonthlySalesSummary = async ({
         0,
       );
 
-      const depositCash = dayDeposit.cashAmount || 0;
-      const depositCard = dayDeposit.cardAmount || 0;
+      const depositCash = dayDeposit.cashAmount || (dayClosing ? dayClosing.enteredCash || 0 : 0);
+      const depositCard = dayDeposit.cardAmount || (dayClosing ? dayClosing.enteredTotalCard || 0 : 0);
       const depositAccountPay = dayDeposit.accountPayAmount || 0;
       const expectedCash = Math.max(0, finalCashSales - totalExpense);
       const shortageCash = round2(depositCash - expectedCash);
+
+      let shortageAmount = 0;
+      let overageAmount = 0;
+
+      if (dayClosing) {
+        const grandShortage =
+          dayClosing.grandShortage !== undefined
+            ? dayClosing.grandShortage
+            : (dayClosing.enteredGrandTotal || 0) -
+              ((dayClosing.systemCash || 0) + (dayClosing.systemCard || 0));
+
+        if (grandShortage < 0) {
+          shortageAmount = round2(Math.abs(grandShortage));
+        } else if (grandShortage > 0) {
+          overageAmount = round2(grandShortage);
+        }
+      } else {
+        if (shortageCash < 0) {
+          shortageAmount = round2(Math.abs(shortageCash));
+        } else if (shortageCash > 0) {
+          overageAmount = round2(shortageCash);
+        }
+      }
 
       result.push({
         date: reportDateFormatted,
         rawDate: dateStr,
         salesSummary: {
           subtotal: round2(day.subtotal),
-          deliveryCharges: 0,
-          debitCharges: 0,
+          deliveryCharges: round2(day.deliveryFee || 0),
           discount: round2(day.discount),
           tax: round2(day.tax),
           grandTotal: round2(grandTotal),
@@ -2812,10 +2963,10 @@ exports.getMonthlySalesSummary = async ({
         },
         taxBreakdown: { pst: 0, gst, hst: 0, total: gst },
         cardType: {
-          amex: amexFinalAmount,
           interac: interacFinalAmount,
-          mastercard: mastercardFinalAmount,
           visa: visaFinalAmount,
+          mastercard: mastercardFinalAmount,
+          giftCard: giftCardFinalAmount,
         },
         online: {
           website: round2(day.online),
@@ -2826,7 +2977,7 @@ exports.getMonthlySalesSummary = async ({
         },
         pos: { posSales: posTotal, total: posTotal },
         expense: { amount: round2(totalExpense) },
-        shortage: { cash: shortageCash, card: 0, accountPay: 0 },
+        shortage: { shortage: shortageAmount, overage: overageAmount },
         deposit: {
           cash: round2(depositCash),
           card: round2(depositCard),
