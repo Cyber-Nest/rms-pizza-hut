@@ -36,7 +36,8 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
           !d.productId),
     );
     const szConfig = matchedDeal?.sizes?.find(
-      (s: any) => s.isEnabled && typeof s.dealPrice === "number" && s.dealPrice > 0,
+      (s: any) =>
+        s.isEnabled && typeof s.dealPrice === "number" && s.dealPrice > 0,
     );
     return szConfig ? szConfig.dealPrice : item.price;
   };
@@ -75,10 +76,14 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
       {/* Image */}
       <div className="h-[100px] lg:h-[115px] w-full overflow-hidden bg-neutral-100 relative flex-shrink-0">
         <img
-          src={item.image || 'https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60'}
+          src={
+            item.image ||
+            "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60"
+          }
           alt={item.name}
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60';
+            (e.target as HTMLImageElement).src =
+              "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=150&auto=format&fit=crop&q=60";
           }}
           className={`w-full h-full object-cover transition-transform duration-500 ${!isOutOfStock ? "group-hover:scale-105" : "grayscale"}`}
         />
@@ -110,7 +115,9 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
       {/* Body */}
       <div className="p-3 flex-1 flex flex-col justify-between gap-1.5">
         <div>
-          <h4 className={`text-[14px] lg:text-[16px] font-900 leading-tight transition-colors line-clamp-1 ${isOutOfStock ? "text-neutral-450" : "text-black group-hover:text-brand-primary"}`}>
+          <h4
+            className={`text-[14px] lg:text-[16px] font-900 leading-tight transition-colors line-clamp-1 ${isOutOfStock ? "text-neutral-450" : "text-black group-hover:text-brand-primary"}`}
+          >
             {item.name}
           </h4>
           <p className="text-[10px] lg:text-[12px] text-neutral-400 font-400 leading-snug line-clamp-2 mt-0.5">
@@ -119,10 +126,14 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
         </div>
 
         <div className="flex items-center justify-between mt-1">
-          <span className={`text-[13px] lg:text-[15px] font-800 ${isOutOfStock ? "text-neutral-400" : "text-neutral-900"}`}>
+          <span
+            className={`text-[13px] lg:text-[15px] font-800 ${isOutOfStock ? "text-neutral-400" : "text-neutral-900"}`}
+          >
             {(() => {
               const today = getLocalDayName();
-              const prodId = (item.id || (item as any)._id || item.productId) as string;
+              const prodId = (item.id ||
+                (item as any)._id ||
+                item.productId) as string;
               const deals = (item as any).dealsOfTheDay || [];
               const matchedDeal = deals.find(
                 (d: any) =>
@@ -134,25 +145,39 @@ export default function MenuCard({ item, onOpenModifiers }: MenuCardProps) {
                     !d.productId),
               );
               const szConfig = matchedDeal?.sizes?.find(
-                (s: any) => s.isEnabled && typeof s.dealPrice === "number" && s.dealPrice > 0,
+                (s: any) =>
+                  s.isEnabled &&
+                  typeof s.dealPrice === "number" &&
+                  s.dealPrice > 0,
               );
               const simpleDealPrice = szConfig ? szConfig.dealPrice : null;
 
-              if (item.hasVariants && item.variants && item.variants.length > 0) {
-                const availableVars = item.variants.filter((v) => v.isEnabled !== false);
-                const varsToUse = availableVars.length > 0 ? availableVars : item.variants;
+              if (
+                item.hasVariants &&
+                item.variants &&
+                item.variants.length > 0
+              ) {
+                const availableVars = item.variants.filter(
+                  (v) => v.isEnabled !== false,
+                );
+                const varsToUse =
+                  availableVars.length > 0 ? availableVars : item.variants;
                 const minPrice = Math.min(
                   ...varsToUse.map((v) => {
                     const dealSZ = matchedDeal?.sizes?.find(
                       (s: any) =>
-                        s.sizeCode === v.sizeCode && s.isEnabled && s.dealPrice > 0,
+                        s.sizeCode === v.sizeCode &&
+                        s.isEnabled &&
+                        s.dealPrice > 0,
                     );
                     return dealSZ ? dealSZ.dealPrice : v.price;
                   }),
                 );
                 return (
                   <>
-                    <span className="text-[10px] font-600 text-neutral-400">From </span>
+                    <span className="text-[10px] font-600 text-neutral-400">
+                      From{" "}
+                    </span>
                     ${minPrice.toFixed(2)}
                   </>
                 );
