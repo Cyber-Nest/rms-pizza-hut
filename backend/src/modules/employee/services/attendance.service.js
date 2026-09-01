@@ -48,9 +48,10 @@ const checkAndAutoCheckoutOverdueShifts = async (branchId) => {
     const now = DateTime.now().setZone(TIMEZONE);
     const dateStr = getTodayDateStr();
 
+    // Use $lte so past-date open shifts (e.g. employee forgot to check out yesterday) are also caught
     const activeRecords = await Attendance.find({
       branchId,
-      date: dateStr,
+      date: { $lte: dateStr },
       status: { $in: ["checked-in", "on-break"] },
     });
 
@@ -63,7 +64,9 @@ const checkAndAutoCheckoutOverdueShifts = async (branchId) => {
         if (now >= graceTimeDt) {
           // Trigger Auto-Checkout!
           const [endH, endM] = (activeShift.scheduledShiftEnd || "16:00").split(":").map(Number);
-          const scheduledCheckOutDt = now.set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+          // Use checkIn date as base so past-date shifts get correct checkout date (not today's date)
+          const scheduledCheckOutDt = DateTime.fromJSDate(activeShift.checkIn, { zone: TIMEZONE })
+            .set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
           const checkOutJsDate = scheduledCheckOutDt.toJSDate();
 
           // Auto-close open breaks if any
@@ -143,6 +146,7 @@ exports.checkIn = async (branchId, employeeId, managerPin) => {
 
   let matchedSegment = null;
   let isManagerOverride = false;
+  let approvingManager = null;
 
   const isDriverRole = employee.role === "driver";
   const hasValidSchedule = schedule && !schedule.isOff && schedule.shifts && schedule.shifts.length > 0;
@@ -169,6 +173,7 @@ exports.checkIn = async (branchId, employeeId, managerPin) => {
       const match = await bcrypt.compare(managerPin, mgr.pin);
       if (match) {
         pinValid = true;
+        approvingManager = mgr; // capture who approved
         break;
       }
     }
@@ -240,10 +245,13 @@ exports.checkIn = async (branchId, employeeId, managerPin) => {
     autoCheckoutGraceTime,
     autoCheckedOut: false,
     managerOverride: isManagerOverride,
+    managerOverrideBy: isManagerOverride && approvingManager
+      ? { name: approvingManager.name, employeeId: approvingManager.employeeId }
+      : { name: "", employeeId: "" },
     notes: isDriverRole
       ? "Driver Duty Check-In"
-      : isManagerOverride
-      ? "Checked in via Manager Override (Unscheduled / Day Off)"
+      : isManagerOverride && approvingManager
+      ? `Checked in via Manager Override — Approved by: ${approvingManager.name} (#${approvingManager.employeeId})`
       : "",
   });
 
@@ -358,8 +366,32 @@ exports.checkOut = async (branchId, employeeId) => {
     }
   }
 
-  const now = new Date();
+  // Lazy Auto-Checkout Grace Check:
+  // If employee clicks checkout AFTER the grace window has already passed,
+  // silently correct the checkout time to scheduledShiftEnd and mark autoCheckedOut.
+  // This handles the case where employee presses the button late (e.g. 22:10 when shift ended at 22:00 + 2min grace).
+  const nowDt = DateTime.now().setZone(TIMEZONE);
+  let checkOutTime = nowDt.toJSDate();
+  let isLateManualCheckout = false;
+
+  if (activeShift.autoCheckoutGraceTime) {
+    const graceTimeDt = DateTime.fromJSDate(activeShift.autoCheckoutGraceTime, { zone: TIMEZONE });
+    if (nowDt >= graceTimeDt && activeShift.scheduledShiftEnd) {
+      // Grace window has passed — snap checkout to scheduled end time
+      const [endH, endM] = activeShift.scheduledShiftEnd.split(":").map(Number);
+      const scheduledEndDt = DateTime.fromJSDate(activeShift.checkIn, { zone: TIMEZONE })
+        .set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+      checkOutTime = scheduledEndDt.toJSDate();
+      isLateManualCheckout = true;
+    }
+  }
+
+  const now = checkOutTime;
   activeShift.checkOut = now;
+  if (isLateManualCheckout) {
+    activeShift.autoCheckedOut = true;
+    activeShift.notes = `Auto-Checked Out by System (Shift End: ${activeShift.scheduledShiftEnd})`;
+  }
 
   // Calculate total break minutes
   let totalBreakMins = 0;
@@ -432,6 +464,9 @@ exports.getTodayAttendanceList = async (branchId, dateStr = null) => {
   if (!branchId) {
     throw new Error("Branch ID is required");
   }
+
+  // Run sweeper on every attendance list fetch (covers CheckInOutView / Sidebar refresh)
+  await checkAndAutoCheckoutOverdueShifts(branchId);
 
   const targetDate = dateStr || getTodayDateStr();
 
@@ -677,6 +712,7 @@ exports.getAttendanceReport = async (branchId, options = {}) => {
           scheduledShiftEnd: shift.scheduledShiftEnd || "",
           autoCheckedOut: !!shift.autoCheckedOut,
           managerOverride: !!shift.managerOverride,
+          managerOverrideBy: shift.managerOverrideBy || { name: "", employeeId: "" },
           notes: shift.notes || "",
           segmentIndex: sIdx + 1,
           totalSegments: shifts.length,

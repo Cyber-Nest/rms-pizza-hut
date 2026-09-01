@@ -30,6 +30,16 @@ export default function PosPage() {
       window.dispatchEvent(new Event("storage"));
     }
     fetchMenu();
+
+    // Silently fire the auto-checkout sweeper on every POS load/refresh.
+    try {
+      const rawBranch = typeof window !== "undefined" ? localStorage.getItem("rms_branch") : null;
+      const branchId = rawBranch ? JSON.parse(rawBranch)?._id || JSON.parse(rawBranch)?.id : null;
+      if (branchId) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+        fetch(`${apiUrl}/attendance/sweep?branchId=${branchId}`, { credentials: "include" }).catch(() => {});
+      }
+    } catch (_) {}
   }, [fetchMenu]);
 
   const handleOpenModifiers = (item: MenuItem) => {

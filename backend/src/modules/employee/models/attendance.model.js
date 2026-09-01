@@ -53,6 +53,10 @@ const shiftSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    managerOverrideBy: {
+      name: { type: String, default: "" },
+      employeeId: { type: String, default: "" },
+    },
     notes: {
       type: String,
       default: "",
