@@ -348,10 +348,6 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
           acc.depCard += r.deposit.card;
           acc.depAccountPay += r.deposit.accountPay;
 
-          acc.collCash += r.moneyToBeCollected.cash;
-          acc.collCard += r.moneyToBeCollected.card;
-          acc.collAccountPay += r.moneyToBeCollected.accountPay;
-
           return acc;
         },
         {
@@ -365,7 +361,6 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
           posSales: 0, posTotal: 0,
           expense: 0, shortage: 0, overage: 0,
           depCash: 0, depCard: 0, depAccountPay: 0,
-          collCash: 0, collCard: 0, collAccountPay: 0,
         }
       );
 
@@ -471,10 +466,6 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
           acc.depCard += r.deposit.card;
           acc.depAccountPay += r.deposit.accountPay;
 
-          acc.collCash += r.moneyToBeCollected.cash;
-          acc.collCard += r.moneyToBeCollected.card;
-          acc.collAccountPay += r.moneyToBeCollected.accountPay;
-
           return acc;
         }, {
           subtotal: 0, deliveryCharges: 0, discount: 0, tax: 0, grandTotal: 0, tips: 0, finalAmount: 0,
@@ -485,7 +476,7 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
           interac: 0, visa: 0, mastercard: 0, giftCard: 0,
           website: 0, uber: 0, skip: 0, doordash: 0, onlineTotal: 0,
           posSales: 0, posTotal: 0, expense: 0, shortage: 0, overage: 0,
-          depCash: 0, depCard: 0, depAccountPay: 0, collCash: 0, collCard: 0, collAccountPay: 0
+          depCash: 0, depCard: 0, depAccountPay: 0
         });
 
         // Use period grand total if it's the last chunk, else chunk total
@@ -614,12 +605,6 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
         renderRow("Cash Deposit", (r) => fmt(r.deposit.cash), () => fmt(effTot.depCash));
         renderRow("Card Deposit", (r) => fmt(r.deposit.card), () => fmt(effTot.depCard));
         renderRow("Account Pay Deposit", (r) => fmt(r.deposit.accountPay), () => fmt(effTot.depAccountPay));
-
-        // ── 12. MONEY TO BE COLLECTED ──
-        renderRow("12. MONEY TO BE COLLECTED", null, null, true);
-        renderRow("Cash (Net Register)", (r) => fmt(r.moneyToBeCollected.cash), () => fmt(effTot.collCash));
-        renderRow("Card", (r) => fmt(r.moneyToBeCollected.card), () => fmt(effTot.collCard));
-        renderRow("Account Pay", (r) => fmt(r.moneyToBeCollected.accountPay), () => fmt(effTot.collAccountPay));
       });
 
     } else if (type === "failed_transaction" || type === "refund_orders") {

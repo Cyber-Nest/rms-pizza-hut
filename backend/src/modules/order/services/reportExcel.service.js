@@ -122,8 +122,7 @@ exports.generateReportCsv = (type, data, dateRangeStr, res) => {
         "POS", "",
         "STORE EXPENSES",
         "SHORTAGE / OVERAGE", "",
-        "DEPOSITS", "", "",
-        "MONEY TO BE COLLECTED", "", ""
+        "DEPOSITS", "", ""
       ]);
 
       // Row 2: Sub Category Header Row
@@ -138,9 +137,8 @@ exports.generateReportCsv = (type, data, dateRangeStr, res) => {
         "Website", "Uber Eats", "Skip The Dishes", "DoorDash", "Total Online",
         "POS Sales", "Total POS",
         "Expense",
-        "Shortage Amount", "Overage Amount",
-        "Cash Deposit", "Card Deposit", "Account Pay Deposit",
-        "Cash (Net Register)", "Card", "Account Pay"
+        "Shortage", "Overage",
+        "Cash", "Card", "Account Pay"
       ]);
 
       const grand = {
@@ -154,7 +152,6 @@ exports.generateReportCsv = (type, data, dateRangeStr, res) => {
         posSales: 0, posTotal: 0,
         expense: 0, shortage: 0, overage: 0,
         depCash: 0, depCard: 0, depAccountPay: 0,
-        collCash: 0, collCard: 0, collAccountPay: 0,
       };
 
       data.forEach((row) => {
@@ -213,10 +210,6 @@ exports.generateReportCsv = (type, data, dateRangeStr, res) => {
         grand.depCash += row.deposit.cash;
         grand.depCard += row.deposit.card;
         grand.depAccountPay += row.deposit.accountPay;
-
-        grand.collCash += row.moneyToBeCollected.cash;
-        grand.collCard += row.moneyToBeCollected.card;
-        grand.collAccountPay += row.moneyToBeCollected.accountPay;
 
         csvContent += formatRow([
           "\t" + row.date,
@@ -277,10 +270,6 @@ exports.generateReportCsv = (type, data, dateRangeStr, res) => {
           row.deposit.cash.toFixed(2),
           row.deposit.card.toFixed(2),
           row.deposit.accountPay.toFixed(2),
-          // 12. Money To Be Collected (3)
-          row.moneyToBeCollected.cash.toFixed(2),
-          row.moneyToBeCollected.card.toFixed(2),
-          row.moneyToBeCollected.accountPay.toFixed(2),
         ]);
       });
 
@@ -342,10 +331,6 @@ exports.generateReportCsv = (type, data, dateRangeStr, res) => {
         grand.depCash.toFixed(2),
         grand.depCard.toFixed(2),
         grand.depAccountPay.toFixed(2),
-
-        grand.collCash.toFixed(2),
-        grand.collCard.toFixed(2),
-        grand.collAccountPay.toFixed(2),
       ]);
 
     } else if (type === "failed_transaction" || type === "refund_orders") {

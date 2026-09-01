@@ -77,11 +77,6 @@ interface MonthlySalesRow {
     card: number;
     accountPay: number;
   };
-  moneyToBeCollected: {
-    cash: number;
-    card: number;
-    accountPay: number;
-  };
 }
 
 interface MonthlySalesViewProps {
@@ -234,10 +229,6 @@ export default function MonthlySalesView({ startDate, endDate }: MonthlySalesVie
       acc.deposit.card += row.deposit.card;
       acc.deposit.accountPay += row.deposit.accountPay;
 
-      acc.moneyToBeCollected.cash += row.moneyToBeCollected.cash;
-      acc.moneyToBeCollected.card += row.moneyToBeCollected.card;
-      acc.moneyToBeCollected.accountPay += row.moneyToBeCollected.accountPay;
-
       return acc;
     },
     {
@@ -251,8 +242,7 @@ export default function MonthlySalesView({ startDate, endDate }: MonthlySalesVie
       pos: { posSales: 0, total: 0 },
       expense: { amount: 0 },
       shortage: { shortage: 0, overage: 0 },
-      deposit: { cash: 0, card: 0, accountPay: 0 },
-      moneyToBeCollected: { cash: 0, card: 0, accountPay: 0 }
+      deposit: { cash: 0, card: 0, accountPay: 0 }
     }
   );
 
@@ -295,8 +285,7 @@ export default function MonthlySalesView({ startDate, endDate }: MonthlySalesVie
                 <th colSpan={2} className="bg-purple-950/70 text-purple-200 border-r-2 border-neutral-350 w-[220px]">POS</th>
                 <th className="bg-lime-900/70 text-lime-100 border-r-2 border-neutral-350 w-[100px]">Expense</th>
                 <th colSpan={2} className="bg-rose-950/70 text-rose-200 border-r-2 border-neutral-350 w-[200px]">Shortage / Overage</th>
-                <th colSpan={3} className="bg-amber-950/70 text-amber-200 border-r-2 border-neutral-350 w-[320px]">Deposit</th>
-                <th colSpan={3} className="bg-emerald-900/90 text-emerald-50 w-[320px]">Money To Be Collected</th>
+                <th colSpan={3} className="bg-amber-950/70 text-amber-200 w-[320px]">Deposit</th>
               </tr>
 
               {/* Row 2: Sub Columns */}
@@ -345,9 +334,6 @@ export default function MonthlySalesView({ startDate, endDate }: MonthlySalesVie
                 <th className="py-2.5 px-3 text-right border-r-2 border-neutral-350 w-[100px]">Expense</th>
                 <th className="py-2.5 px-3 text-right w-[100px] border-r border-neutral-700">Shortage</th>
                 <th className="py-2.5 px-3 text-right border-r-2 border-neutral-350 w-[100px]">Overage</th>
-                <th className="py-2.5 px-3 text-right w-[100px] border-r border-neutral-700">Cash</th>
-                <th className="py-2.5 px-3 text-right w-[100px] border-r border-neutral-700">Card</th>
-                <th className="py-2.5 px-3 text-right border-r-2 border-neutral-350 w-[120px]">Account Pay</th>
                 <th className="py-2.5 px-3 text-right w-[100px] border-r border-neutral-700">Cash</th>
                 <th className="py-2.5 px-3 text-right w-[100px] border-r border-neutral-700">Card</th>
                 <th className="py-2.5 px-3 text-right w-[120px]">Account Pay</th>
@@ -403,10 +389,7 @@ export default function MonthlySalesView({ startDate, endDate }: MonthlySalesVie
                   <td className="py-1.5 px-3 text-right border-r-2 border-neutral-350 text-emerald-600">${(row.shortage?.overage || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right border-r border-neutral-200">${row.deposit.cash.toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right border-r border-neutral-200">${row.deposit.card.toFixed(2)}</td>
-                  <td className="py-1.5 px-3 text-right border-r-2 border-neutral-350">${row.deposit.accountPay.toFixed(2)}</td>
-                  <td className="py-1.5 px-3 text-right border-r border-neutral-200">${row.moneyToBeCollected.cash.toFixed(2)}</td>
-                  <td className="py-1.5 px-3 text-right border-r border-neutral-200">${row.moneyToBeCollected.card.toFixed(2)}</td>
-                  <td className="py-1.5 px-3 text-right">${row.moneyToBeCollected.accountPay.toFixed(2)}</td>
+                  <td className="py-1.5 px-3 text-right">${row.deposit.accountPay.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -459,10 +442,7 @@ export default function MonthlySalesView({ startDate, endDate }: MonthlySalesVie
                 <td className="py-2.5 px-3 text-right border-r-2 border-neutral-350/50">${totals.shortage.overage.toFixed(2)}</td>
                 <td className="py-2.5 px-3 text-right border-r border-neutral-300/20">${totals.deposit.cash.toFixed(2)}</td>
                 <td className="py-2.5 px-3 text-right border-r border-neutral-300/20">${totals.deposit.card.toFixed(2)}</td>
-                <td className="py-2.5 px-3 text-right border-r-2 border-neutral-350/50">${totals.deposit.accountPay.toFixed(2)}</td>
-                <td className="py-2.5 px-3 text-right border-r border-neutral-300/20">${totals.moneyToBeCollected.cash.toFixed(2)}</td>
-                <td className="py-2.5 px-3 text-right border-r border-neutral-300/20">${totals.moneyToBeCollected.card.toFixed(2)}</td>
-                <td className="py-2.5 px-3 text-right">${totals.moneyToBeCollected.accountPay.toFixed(2)}</td>
+                <td className="py-2.5 px-3 text-right">${totals.deposit.accountPay.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>
