@@ -384,8 +384,8 @@ exports.checkOut = async (branchId, employeeId) => {
     if (employee && (employee.role === "driver" || employee.driverRef)) {
 
       const driverFilter = employee.driverRef
-        ? { _id: employee.driverRef }
-        : { driverId: employee.employeeId };
+        ? { _id: employee.driverRef, restaurantId: String(branchId) }
+        : { restaurantId: String(branchId), driverId: employee.employeeId };
 
       const driverDoc = await Driver.findOne(driverFilter);
       if (driverDoc) {
