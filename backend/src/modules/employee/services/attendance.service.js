@@ -144,9 +144,14 @@ exports.checkIn = async (branchId, employeeId, managerPin) => {
   let matchedSegment = null;
   let isManagerOverride = false;
 
+  const isDriverRole = employee.role === "driver";
   const hasValidSchedule = schedule && !schedule.isOff && schedule.shifts && schedule.shifts.length > 0;
 
-  if (!hasValidSchedule) {
+  if (isDriverRole) {
+    // Drivers are excluded from Employee Schedule matrix — direct check-in allowed!
+    matchedSegment = null;
+    isManagerOverride = false;
+  } else if (!hasValidSchedule) {
     // Employee is OFF or No Schedule assigned
     if (!managerPin) {
       throw new Error("NOT_SCHEDULED: You are not scheduled to work today. Manager PIN approval is required to check in.");
@@ -156,7 +161,7 @@ exports.checkIn = async (branchId, employeeId, managerPin) => {
     const managers = await Employee.find({
       branchId,
       isActive: true,
-      role: { $in: ["manager", "supervisor"] },
+      role: "manager",
     });
 
     let pinValid = false;
@@ -235,7 +240,11 @@ exports.checkIn = async (branchId, employeeId, managerPin) => {
     autoCheckoutGraceTime,
     autoCheckedOut: false,
     managerOverride: isManagerOverride,
-    notes: isManagerOverride ? "Checked in via Manager Override (Unscheduled / Day Off)" : "",
+    notes: isDriverRole
+      ? "Driver Duty Check-In"
+      : isManagerOverride
+      ? "Checked in via Manager Override (Unscheduled / Day Off)"
+      : "",
   });
 
   attendance.status = "checked-in";
@@ -375,8 +384,8 @@ exports.checkOut = async (branchId, employeeId) => {
     if (employee && (employee.role === "driver" || employee.driverRef)) {
 
       const driverFilter = employee.driverRef
-        ? { _id: employee.driverRef }
-        : { driverId: employee.employeeId };
+        ? { _id: employee.driverRef, restaurantId: String(branchId) }
+        : { restaurantId: String(branchId), driverId: employee.employeeId };
 
       const driverDoc = await Driver.findOne(driverFilter);
       if (driverDoc) {

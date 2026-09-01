@@ -215,6 +215,36 @@ exports.getDeliveryOrders = async (req, res) => {
 exports.getDrivers = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
+
+    // fix cross side driver show 
+    // Self-healing sync: Ensure all active driver employees for this branch have a matched Driver doc
+    // try {
+    //   const driverEmployees = await Employee.find({ branchId: restaurantId, role: "driver", isActive: true });
+    //   for (const emp of driverEmployees) {
+    //     let driverDoc = await Driver.findOne({ restaurantId, driverId: emp.employeeId });
+    //     if (!driverDoc) {
+    //       driverDoc = new Driver({
+    //         driverId: emp.employeeId,
+    //         name: emp.name,
+    //         phone: emp.phone || "",
+    //         password: emp.pin || "0000",
+    //         restaurantId,
+    //         status: "offline",
+    //       });
+    //       await driverDoc.save();
+    //     } else if (driverDoc.name !== emp.name) {
+    //       driverDoc.name = emp.name;
+    //       if (emp.phone) driverDoc.phone = emp.phone;
+    //       await driverDoc.save();
+    //     }
+    //     if (!emp.driverRef || String(emp.driverRef) !== String(driverDoc._id)) {
+    //       await Employee.findByIdAndUpdate(emp._id, { driverRef: driverDoc._id });
+    //     }
+    //   }
+    // } catch (syncErr) {
+    //   console.warn("Driver auto-sync warning:", syncErr.message);
+    // }
+
     const drivers = await Driver.find({ restaurantId })
       .select(
         "_id driverId name phone status isDutyOnline color activeOrderIds currentLocation assignedVehicleId",

@@ -22,7 +22,7 @@ export default function FailedTransactionsView({
 
   // Local Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
 
   // ── Date Formatting ──
   const formatDate = (dateStr: string) => {
@@ -77,8 +77,16 @@ export default function FailedTransactionsView({
   };
 
   // ── Render Payment Status Badge ──
-  const renderPaymentStatusBadge = (status: string) => {
-    if (status === 'paid') {
+  const renderPaymentStatusBadge = (order: Order) => {
+    if (order.paymentStatus === 'refunded' || (order as any).refundedAt) {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-200/80">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+          PAID / REF
+        </span>
+      );
+    }
+    if (order.paymentStatus === 'paid') {
       return (
         <span className="px-2.5 py-1 rounded-full text-[10px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -261,7 +269,7 @@ export default function FailedTransactionsView({
 
                     {/* Payment */}
                     <td className="px-5 py-4">
-                      {renderPaymentStatusBadge(order.paymentStatus)}
+                      {renderPaymentStatusBadge(order)}
                     </td>
 
                     {/* Order Status */}
@@ -310,9 +318,8 @@ export default function FailedTransactionsView({
               onChange={(e) => { setEntriesPerPage(Number(e.target.value)); setCurrentPage(1); }}
               className="border border-neutral-200 rounded px-2 py-0.5 bg-neutral-50 focus:outline-none focus:border-brand-primary cursor-pointer font-700"
             >
-              <option value={5}>5</option>
               <option value={10}>10</option>
-              <option value={20}>20</option>
+              <option value={25}>25</option>
               <option value={50}>50</option>
             </select>
             <span>entries</span>

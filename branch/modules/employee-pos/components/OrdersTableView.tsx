@@ -30,7 +30,7 @@ export default function OrdersTableView({
 }: OrdersTableViewProps) {
   // ── Local Pagination States (Fallback for client-side) ──
   const [localCurrentPage, setLocalCurrentPage] = useState(1);
-  const [localEntriesPerPage, setLocalEntriesPerPage] = useState(10);
+  const [localEntriesPerPage, setLocalEntriesPerPage] = useState(25);
 
   // ── 24-Hour Date Formatting (Alberta Timezone) ──
   const formatDate = (dateStr: string) => {
@@ -79,8 +79,17 @@ export default function OrdersTableView({
   };
 
   // ── Render Payment Status Badge ──
-  const renderPaymentStatusBadge = (status: string) => {
-    if (status === 'paid') {
+  const renderPaymentStatusBadge = (order: Order) => {
+    const isRefunded = order.paymentStatus === 'refunded' || !!(order as any).refundedAt;
+    if (isRefunded) {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-[10px] lg:text-[12px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-200/80">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+          PAID / REF
+        </span>
+      );
+    }
+    if (order.paymentStatus === 'paid') {
       return (
         <span className="px-2.5 py-1 rounded-full text-[10px] lg:text-[12px] font-750 uppercase tracking-wider inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/60">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -99,7 +108,8 @@ export default function OrdersTableView({
 
   // ── Render Payment Type Badge ──
   const renderPaymentTypeBadge = (order: Order) => {
-    if (order.paymentStatus !== 'paid') {
+    const isRefunded = order.paymentStatus === 'refunded' || !!(order as any).refundedAt;
+    if (order.paymentStatus !== 'paid' && !isRefunded) {
       return (
         <span className="text-neutral-400 font-mono text-[11px] font-600">
           --
@@ -337,7 +347,7 @@ export default function OrdersTableView({
 
                     {/* Payment Status */}
                     <td className="px-5 py-4">
-                      {renderPaymentStatusBadge(order.paymentStatus)}
+                      {renderPaymentStatusBadge(order)}
                     </td>
 
                     {/* Payment Type */}

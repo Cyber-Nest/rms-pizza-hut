@@ -150,7 +150,7 @@ export default function VehiclesDashboard() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
 
   const loadData = useCallback(async () => {
     setLoading(true);

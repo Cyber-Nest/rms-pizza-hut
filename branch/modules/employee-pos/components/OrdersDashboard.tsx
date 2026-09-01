@@ -29,6 +29,8 @@ import {
   RefreshCw,
   X,
   Download,
+  FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
@@ -152,7 +154,7 @@ export default function OrdersDashboard() {
 
   // ── Server-side Pagination States ──
   const [currentPage, setCurrentPage] = useState(1);
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -1064,30 +1066,53 @@ export default function OrdersDashboard() {
                   {isExportDropdownOpen && (
                     <>
                       <div
-                        className="fixed inset-0 z-30"
+                        className="fixed inset-0 z-30 cursor-default"
                         onClick={() => setIsExportDropdownOpen(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-36 bg-white border border-neutral-250 rounded-xl shadow-lg py-1 z-40 animate-scale-up font-sans">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleExport("pdf");
-                            setIsExportDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-[11px] font-750 text-neutral-700 hover:bg-neutral-100/80 hover:text-neutral-900 cursor-pointer"
-                        >
-                          Export as PDF
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleExport("excel");
-                            setIsExportDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-[11px] font-750 text-neutral-700 hover:bg-neutral-100/80 hover:text-neutral-900 cursor-pointer"
-                        >
-                          Export as Excel
-                        </button>
+                      <div className="absolute right-0 mt-2.5 w-52 bg-white/95 backdrop-blur-md border border-neutral-200/90 rounded-2xl shadow-xl p-1.5 z-40 animate-scale-up font-sans divide-y divide-neutral-100 select-none">
+                        <div className="py-0.5 space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleExport("pdf");
+                              setIsExportDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-3 hover:bg-rose-50/80 group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-rose-100/70 group-hover:bg-rose-600 text-rose-600 group-hover:text-white flex items-center justify-center transition-colors flex-shrink-0">
+                              <FileText size={15} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11.5px] font-800 text-neutral-800 group-hover:text-rose-700 leading-tight">
+                                Export as PDF
+                              </span>
+                              <span className="text-[9.5px] text-neutral-400 font-500 truncate">
+                                Printable PDF Report
+                              </span>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleExport("excel");
+                              setIsExportDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-3 hover:bg-emerald-50/80 group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-emerald-100/70 group-hover:bg-emerald-600 text-emerald-600 group-hover:text-white flex items-center justify-center transition-colors flex-shrink-0">
+                              <FileSpreadsheet size={15} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11.5px] font-800 text-neutral-800 group-hover:text-emerald-700 leading-tight">
+                                Export as Excel
+                              </span>
+                              <span className="text-[9.5px] text-neutral-400 font-500 truncate">
+                                Spreadsheet (.csv)
+                              </span>
+                            </div>
+                          </button>
+                        </div>
                       </div>
                     </>
                   )}

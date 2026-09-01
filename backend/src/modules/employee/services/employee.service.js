@@ -64,7 +64,7 @@ exports.createEmployee = async (branchId, employeeData) => {
   // If role is driver, create a corresponding Driver entry
   if (role === "driver") {
     try {
-      const existingDriver = await Driver.findOne({ driverId: employeeId });
+      const existingDriver = await Driver.findOne({ restaurantId: String(branchId), driverId: employeeId });
       if (!existingDriver) {
         const driver = new Driver({
           driverId: employeeId,

@@ -630,6 +630,13 @@ const playKitchenNotificationSound = () => {
         if (filteredOrders[focusedIndex]) {
           handleSelectOrder(filteredOrders[focusedIndex]);
         }
+      } else if (e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        setStationFilter((prev) => {
+          if (prev === "cut_station") return "make_table";
+          if (prev === "make_table") return "wings_station";
+          return "cut_station";
+        });
       }
     };
 

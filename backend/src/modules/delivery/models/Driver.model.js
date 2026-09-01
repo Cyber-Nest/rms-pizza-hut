@@ -5,7 +5,6 @@ const driverSchema = new mongoose.Schema(
     driverId: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
     name: {
@@ -55,6 +54,7 @@ const driverSchema = new mongoose.Schema(
   },
 );
 
+driverSchema.index({ restaurantId: 1, driverId: 1 }, { unique: true });
 driverSchema.index({ restaurantId: 1, status: 1 });
 
 module.exports = mongoose.model("Driver", driverSchema);

@@ -13,7 +13,7 @@ export default function ExpenseDashboardView() {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [entriesPerPage, setEntriesPerPage] = useState(25);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [employeesList, setEmployeesList] = useState<{ id: string; name: string }[]>([]);
 
