@@ -2507,7 +2507,19 @@ exports.getMonthlySalesSummary = async ({
                   {
                     $and: [
                       { $ne: ["$status", "cancelled"] },
-                      { $eq: ["$orderSource", "online"] },
+                      {
+                        $in: [
+                          "$orderSource",
+                          [
+                            "online",
+                            "website",
+                            "ubereats",
+                            "uber",
+                            "skip",
+                            "doordash",
+                          ],
+                        ],
+                      },
                     ],
                   },
                   "$total",
@@ -2564,6 +2576,8 @@ exports.getMonthlySalesSummary = async ({
                 total: "$total",
                 tip: "$tip",
                 paymentMethod: "$paymentMethod",
+                paymentStatus: "$paymentStatus",
+                refundedAt: "$refundedAt",
                 payments: "$payments",
                 orderSource: "$orderSource",
                 status: "$status",
@@ -2649,11 +2663,8 @@ exports.getMonthlySalesSummary = async ({
         day.online += row.onlineTotal;
         day.pos += row.posTotal;
         if (row._id.status === "completed") day.completedCount += row.count;
-        day.orders.push(...row.orders);
-      } else {
-        day.paidCancelledCount += row.paidCancelled;
-        day.unpaidCancelledCount += row.unpaidCancelled;
       }
+      day.orders.push(...row.orders);
     }
 
     // Process payment & promo breakdowns per day from pushed orders
@@ -2662,17 +2673,52 @@ exports.getMonthlySalesSummary = async ({
         creditCardSales = 0,
         debitCardSales = 0,
         accountPaySales = 0,
+        websiteSales = 0,
+        uberSales = 0,
+        skipSales = 0,
+        doordashSales = 0,
         tips = 0,
         debitTips = 0,
         creditTips = 0,
         interacSales = 0,
         visaSales = 0,
         mastercardSales = 0,
-        giftCardSales = 0;
+        giftCardSales = 0,
+        paidCancelledCount = 0,
+        unpaidCancelledCount = 0,
+        refundCount = 0,
+        refundAmount = 0;
       const promoMap = new Map();
 
       for (const o of day.orders) {
-        if (o.status === "cancelled") continue;
+        const isRefund = o.paymentStatus === "refunded" || !!o.refundedAt;
+
+        if (isRefund) {
+          refundCount += 1;
+          refundAmount += Number(o.total || 0);
+          continue;
+        }
+
+        if (o.status === "cancelled") {
+          if (o.paymentStatus === "paid") {
+            paidCancelledCount += 1;
+          } else {
+            unpaidCancelledCount += 1;
+          }
+          continue;
+        }
+
+        const src = (o.orderSource || "").toLowerCase().trim();
+        const amtTotal = Number(o.total || 0);
+        if (src === "ubereats" || src === "uber") {
+          uberSales += amtTotal;
+        } else if (src === "skip") {
+          skipSales += amtTotal;
+        } else if (src === "doordash") {
+          doordashSales += amtTotal;
+        } else if (src === "online" || src === "website") {
+          websiteSales += amtTotal;
+        }
 
         if (o.promoCode) {
           const codeKey = String(o.promoCode).toUpperCase();
@@ -2753,6 +2799,10 @@ exports.getMonthlySalesSummary = async ({
       day.creditCardSales = creditCardSales;
       day.debitCardSales = debitCardSales;
       day.accountPaySales = accountPaySales;
+      day.websiteSales = websiteSales;
+      day.uberSales = uberSales;
+      day.skipSales = skipSales;
+      day.doordashSales = doordashSales;
       day.tips = tips;
       day.debitTips = debitTips;
       day.creditTips = creditTips;
@@ -2760,6 +2810,10 @@ exports.getMonthlySalesSummary = async ({
       day.visaSales = visaSales;
       day.mastercardSales = mastercardSales;
       day.giftCardSales = giftCardSales;
+      day.paidCancelledCount = paidCancelledCount;
+      day.unpaidCancelledCount = unpaidCancelledCount;
+      day.refundCount = refundCount;
+      day.refundAmount = refundAmount;
 
       day.promoSummary = Array.from(promoMap.values()).map((p) => ({
         code: p.code,
@@ -2958,8 +3012,8 @@ exports.getMonthlySalesSummary = async ({
           completed: day.completedCount,
           paidCancelled: day.paidCancelledCount,
           unpaidCancelled: day.unpaidCancelledCount,
-          refund: 0,
-          refundAmount: 0,
+          refund: day.refundCount || 0,
+          refundAmount: round2(day.refundAmount || 0),
         },
         taxBreakdown: { pst: 0, gst, hst: 0, total: gst },
         cardType: {
@@ -2969,11 +3023,16 @@ exports.getMonthlySalesSummary = async ({
           giftCard: giftCardFinalAmount,
         },
         online: {
-          website: round2(day.online),
-          uber: 0,
-          skip: 0,
-          doordash: 0,
-          total: onlineTotal,
+          website: round2(day.websiteSales || 0),
+          uber: round2(day.uberSales || 0),
+          skip: round2(day.skipSales || 0),
+          doordash: round2(day.doordashSales || 0),
+          total: round2(
+            (day.websiteSales || 0) +
+              (day.uberSales || 0) +
+              (day.skipSales || 0) +
+              (day.doordashSales || 0),
+          ),
         },
         pos: { posSales: posTotal, total: posTotal },
         expense: { amount: round2(totalExpense) },
