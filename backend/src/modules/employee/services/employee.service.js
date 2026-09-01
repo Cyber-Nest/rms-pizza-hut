@@ -1,6 +1,7 @@
 const Employee = require("../models/employee.model");
 const Driver = require("../../delivery/models/Driver.model");
 const Attendance = require("../models/attendance.model");
+const { checkAndAutoCheckoutOverdueShifts } = require("./attendance.service");
 
 const { getLocalDateStr } = require("../../../shared/utils/timezone");
 
@@ -332,6 +333,10 @@ exports.verifyEmployeePin = async (branchId, employeeId, pin) => {
   if (!isMatch) {
     throw new Error("Invalid 4-digit PIN");
   }
+
+  // Run sweeper first — catches any overdue open shifts for this branch
+  // This fires every time an employee enters their PIN (CheckInOutModal open)
+  await checkAndAutoCheckoutOverdueShifts(branchId);
 
   // Fetch today's attendance status for this employee
   const dateStr = getTodayDateStr();

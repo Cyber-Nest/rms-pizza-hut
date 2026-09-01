@@ -41,6 +41,7 @@ interface AttendanceReportRow {
   scheduledShiftEnd?: string;
   autoCheckedOut?: boolean;
   managerOverride?: boolean;
+  managerOverrideBy?: { name: string; employeeId: string };
   notes?: string;
   segmentIndex?: number;
   totalSegments?: number;
@@ -777,6 +778,11 @@ export default function AttendanceReportView() {
                                 title={row.notes || "Approved via Manager PIN Override"}
                               >
                                 Manager Override
+                                {row.managerOverrideBy?.employeeId && (
+                                  <span className="ml-1 opacity-70">
+                                    #{row.managerOverrideBy.employeeId}
+                                  </span>
+                                )}
                               </span>
                             ) : (
                               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-700 bg-neutral-100 text-neutral-600 border border-neutral-200">

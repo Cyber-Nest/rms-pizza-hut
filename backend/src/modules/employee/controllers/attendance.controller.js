@@ -164,3 +164,19 @@ exports.editAttendanceShift = async (req, res) => {
     });
   }
 };
+
+// Lightweight sweep endpoint — called silently on POS page load/refresh
+// Runs the auto-checkout sweeper without returning any sensitive data
+exports.runSweeper = async (req, res) => {
+  try {
+    const branchId = getBranchIdFromReq(req);
+    if (!branchId) {
+      return res.status(400).json({ success: false, message: "branchId required" });
+    }
+    await attendanceService.checkAndAutoCheckoutOverdueShifts(branchId);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    // Silent fail — don't block POS from loading
+    res.status(200).json({ success: true });
+  }
+};
