@@ -320,7 +320,7 @@ export default function CheckInOutModal({
                     </button>
                   </div>
                   <p className="text-[10.5px] text-amber-800 font-550">
-                    Employee is not scheduled today. Enter Manager / Supervisor PIN to approve check-in.
+                    Employee is not scheduled today. Enter Manager PIN to approve check-in.
                   </p>
                   <input
                     type="password"
