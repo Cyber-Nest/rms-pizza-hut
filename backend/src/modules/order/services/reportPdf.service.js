@@ -281,12 +281,192 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
       );
 
     } else if (type === "monthly_sales_summary") {
-      // ── TRANSPOSED 7-DAY MATRIX PDF LAYOUT ──
-      // Chunk days into 7-day batches so all 48 metrics fit vertically with 0 truncation
+      // ── SMART AGGREGATION & TRANSPOSED MATRIX PDF LAYOUT ──
+
+      // Helper function to aggregate an array of row objects into a single summary column object
+      const aggregateRows = (rowList, labelName) => {
+        const combined = {
+          date: labelName,
+          label: labelName,
+          salesSummary: { subtotal: 0, deliveryCharges: 0, discount: 0, tax: 0, grandTotal: 0, tips: 0, finalAmount: 0 },
+          paymentType: { cash: 0, accountPay: 0, creditCardSales: 0, debitCardSales: 0, grandTotal: 0, debitTips: 0, creditTips: 0, finalAmount: 0 },
+          orderType: { takeout: 0, dineIn: 0, delivery: 0, driveThrough: 0, total: 0 },
+          orders: { completed: 0, paidCancelled: 0, unpaidCancelled: 0, refund: 0, refundAmount: 0 },
+          taxBreakdown: { pst: 0, gst: 0, hst: 0, total: 0 },
+          cardType: { interac: 0, visa: 0, mastercard: 0, giftCard: 0 },
+          online: { website: 0, uber: 0, skip: 0, doordash: 0, total: 0 },
+          pos: { posSales: 0, total: 0 },
+          expense: { amount: 0 },
+          shortage: { shortage: 0, overage: 0 },
+          deposit: { cash: 0, card: 0, accountPay: 0 },
+        };
+
+        rowList.forEach((r) => {
+          combined.salesSummary.subtotal += r.salesSummary?.subtotal || 0;
+          combined.salesSummary.deliveryCharges += r.salesSummary?.deliveryCharges || 0;
+          combined.salesSummary.discount += r.salesSummary?.discount || 0;
+          combined.salesSummary.tax += r.salesSummary?.tax || 0;
+          combined.salesSummary.grandTotal += r.salesSummary?.grandTotal || 0;
+          combined.salesSummary.tips += r.salesSummary?.tips || 0;
+          combined.salesSummary.finalAmount += r.salesSummary?.finalAmount || 0;
+
+          combined.paymentType.cash += r.paymentType?.cash || 0;
+          combined.paymentType.accountPay += r.paymentType?.accountPay || 0;
+          combined.paymentType.creditCardSales += r.paymentType?.creditCardSales || 0;
+          combined.paymentType.debitCardSales += r.paymentType?.debitCardSales || 0;
+          combined.paymentType.grandTotal += r.paymentType?.grandTotal || 0;
+          combined.paymentType.debitTips += r.paymentType?.debitTips || 0;
+          combined.paymentType.creditTips += r.paymentType?.creditTips || 0;
+          combined.paymentType.finalAmount += r.paymentType?.finalAmount || 0;
+
+          combined.orderType.takeout += r.orderType?.takeout || 0;
+          combined.orderType.dineIn += r.orderType?.dineIn || 0;
+          combined.orderType.delivery += r.orderType?.delivery || 0;
+          combined.orderType.driveThrough += r.orderType?.driveThrough || 0;
+          combined.orderType.total += r.orderType?.total || 0;
+
+          combined.orders.completed += r.orders?.completed || 0;
+          combined.orders.paidCancelled += r.orders?.paidCancelled || 0;
+          combined.orders.unpaidCancelled += r.orders?.unpaidCancelled || 0;
+          combined.orders.refund += r.orders?.refund || 0;
+          combined.orders.refundAmount += r.orders?.refundAmount || 0;
+
+          combined.taxBreakdown.pst += r.taxBreakdown?.pst || 0;
+          combined.taxBreakdown.gst += r.taxBreakdown?.gst || 0;
+          combined.taxBreakdown.hst += r.taxBreakdown?.hst || 0;
+          combined.taxBreakdown.total += r.taxBreakdown?.total || 0;
+
+          combined.cardType.interac += r.cardType?.interac || 0;
+          combined.cardType.visa += r.cardType?.visa || 0;
+          combined.cardType.mastercard += r.cardType?.mastercard || 0;
+          combined.cardType.giftCard += r.cardType?.giftCard || 0;
+
+          combined.online.website += r.online?.website || 0;
+          combined.online.uber += r.online?.uber || 0;
+          combined.online.skip += r.online?.skip || 0;
+          combined.online.doordash += r.online?.doordash || 0;
+          combined.online.total += r.online?.total || 0;
+
+          combined.pos.posSales += r.pos?.posSales || 0;
+          combined.pos.total += r.pos?.total || 0;
+
+          combined.expense.amount += r.expense?.amount || 0;
+          combined.shortage.shortage += r.shortage?.shortage || 0;
+          combined.shortage.overage += r.shortage?.overage || 0;
+
+          combined.deposit.cash += r.deposit?.cash || 0;
+          combined.deposit.card += r.deposit?.card || 0;
+          combined.deposit.accountPay += r.deposit?.accountPay || 0;
+        });
+
+        return combined;
+      };
+
+      // Determine smart grouping based on total days count & date patterns
+      let processedColumnsData = [];
+
+      if (data.length >= 15 && data.length <= 31) {
+        // ── SINGLE MONTH OR CUSTOM MONTHLY RANGE (15-31 Days) ──
+        // Group into 7-day weeks + remaining days with accurate day labels
+        const getDayNum = (r, defaultNum) => {
+          if (!r || !r.date) return defaultNum;
+          if (r.date.includes("-")) {
+            const p = r.date.split("-");
+            if (p.length >= 3) return parseInt(p[2], 10) || defaultNum;
+          } else if (r.date.includes("/")) {
+            const p = r.date.split("/");
+            if (p.length >= 2) return parseInt(p[1], 10) || defaultNum;
+          }
+          return defaultNum;
+        };
+
+        const w1 = data.slice(0, 7);
+        const w2 = data.slice(7, 14);
+        const w3 = data.slice(14, 21);
+        const w4 = data.slice(21, 28);
+        const remaining = data.slice(28);
+
+        if (w1.length > 0) {
+          const s1 = getDayNum(w1[0], 1);
+          const e1 = getDayNum(w1[w1.length - 1], w1.length);
+          const label1 = w1.length === 7 ? `Week 1 (${s1}-${e1})` : s1 === e1 ? `Day ${s1}` : `Days ${s1}-${e1}`;
+          processedColumnsData.push(aggregateRows(w1, label1));
+        }
+
+        if (w2.length > 0) {
+          const s2 = getDayNum(w2[0], 8);
+          const e2 = getDayNum(w2[w2.length - 1], 7 + w2.length);
+          const label2 = w2.length === 7 ? `Week 2 (${s2}-${e2})` : s2 === e2 ? `Day ${s2}` : `Days ${s2}-${e2}`;
+          processedColumnsData.push(aggregateRows(w2, label2));
+        }
+
+        if (w3.length > 0) {
+          const s3 = getDayNum(w3[0], 15);
+          const e3 = getDayNum(w3[w3.length - 1], 14 + w3.length);
+          const label3 = w3.length === 7 ? `Week 3 (${s3}-${e3})` : s3 === e3 ? `Day ${s3}` : `Days ${s3}-${e3}`;
+          processedColumnsData.push(aggregateRows(w3, label3));
+        }
+
+        if (w4.length > 0) {
+          const s4 = getDayNum(w4[0], 22);
+          const e4 = getDayNum(w4[w4.length - 1], 21 + w4.length);
+          const label4 = w4.length === 7 ? `Week 4 (${s4}-${e4})` : s4 === e4 ? `Day ${s4}` : `Days ${s4}-${e4}`;
+          processedColumnsData.push(aggregateRows(w4, label4));
+        }
+
+        if (remaining.length > 0) {
+          const sRem = getDayNum(remaining[0], 29);
+          const eRem = getDayNum(remaining[remaining.length - 1], 28 + remaining.length);
+          const labelRem = sRem === eRem ? `Day ${sRem}` : `Days ${sRem}-${eRem}`;
+          processedColumnsData.push(aggregateRows(remaining, labelRem));
+        }
+      } else if (data.length > 31) {
+        // ── MULTI-MONTH OR YEARLY VIEW (32+ Days) ──
+        // Group by Month (e.g. "Aug 2026" or "2026-08")
+        const monthGroups = {};
+        const monthOrder = [];
+
+        data.forEach((r) => {
+          let monthKey = "Month";
+          if (r.date) {
+            if (r.date.includes("-")) {
+              const parts = r.date.split("-");
+              if (parts.length >= 2) {
+                const year = parts[0];
+                const monthNum = parseInt(parts[1], 10);
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                monthKey = `${monthNames[monthNum - 1] || parts[1]} ${year}`;
+              }
+            } else if (r.date.includes("/")) {
+              const parts = r.date.split("/");
+              if (parts.length >= 3) {
+                const monthNum = parseInt(parts[0], 10);
+                const year = parts[2];
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                monthKey = `${monthNames[monthNum - 1] || parts[0]} ${year}`;
+              }
+            }
+          }
+          if (!monthGroups[monthKey]) {
+            monthGroups[monthKey] = [];
+            monthOrder.push(monthKey);
+          }
+          monthGroups[monthKey].push(r);
+        });
+
+        monthOrder.forEach((mKey) => {
+          processedColumnsData.push(aggregateRows(monthGroups[mKey], mKey));
+        });
+      } else {
+        // ── SHORT RANGE VIEW (<= 14 Days) ──
+        processedColumnsData = data.map((r) => ({ ...r, label: r.date }));
+      }
+
+      // Chunk into batches of up to 7 columns so each chunk fits cleanly on 1 landscape page
       const chunkSize = 7;
       const chunks = [];
-      for (let i = 0; i < data.length; i += chunkSize) {
-        chunks.push(data.slice(i, i + chunkSize));
+      for (let i = 0; i < processedColumnsData.length; i += chunkSize) {
+        chunks.push(processedColumnsData.slice(i, i + chunkSize));
       }
 
       // Calculate period grand totals
@@ -398,8 +578,8 @@ exports.generateReportPdf = async (type, data, dateRangeStr, res, branchId = nul
 
           chunk.forEach((row, dIdx) => {
             const x = margin + colLabelW + dIdx * colDayW;
-            const shortDate = row.date.substring(0, 5); // "08/29"
-            doc.text(shortDate, x, yPos + 3.5, { width: colDayW - 4, align: "right" });
+            const headerLabel = row.label || row.date || "";
+            doc.text(headerLabel, x, yPos + 3.5, { width: colDayW - 4, align: "right" });
           });
           const totalX = margin + colLabelW + numDays * colDayW;
           doc.text(chunkIdx === chunks.length - 1 ? "PERIOD TOTAL" : "CHUNK TOTAL", totalX, yPos + 3.5, { width: colTotalW - 4, align: "right" });

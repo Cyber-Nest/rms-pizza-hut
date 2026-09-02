@@ -54,6 +54,7 @@ interface EmployeeItem {
   role: string;
   phone?: string;
   email?: string;
+  isScheduledToday?: boolean;
 }
 
 export default function AttendanceReportView() {
@@ -349,34 +350,6 @@ export default function AttendanceReportView() {
           >
             <RefreshCw size={15} className={loading ? "animate-spin text-[#e31837]" : ""} />
           </button>
-
-          {/* 
-          <button
-            onClick={handleExportCSV}
-            disabled={!selectedEmployee || reportRows.length === 0}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-[12px] lg:text-[13px] font-800 transition-all shadow-xs ${
-              selectedEmployee && reportRows.length > 0
-                ? "bg-[#059669] hover:bg-[#047857] cursor-pointer active:scale-95"
-                : "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
-            }`}
-          >
-            <Download size={14} />
-            <span>Export CSV</span>
-          </button>
-
-          <button
-            onClick={handlePrint}
-            disabled={!selectedEmployee}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-[12px] lg:text-[13px] font-800 transition-all shadow-xs ${
-              selectedEmployee
-                ? "bg-neutral-900 hover:bg-neutral-800 cursor-pointer active:scale-95"
-                : "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
-            }`}
-          >
-            <Printer size={14} />
-            <span>Print Report</span>
-          </button> 
-          */}
         </div>
       </div>
 
@@ -461,6 +434,15 @@ export default function AttendanceReportView() {
                             : "bg-neutral-50 text-neutral-700 border-neutral-200 hover:border-[#e31837]/40 hover:bg-neutral-100"
                         }`}
                       >
+                        {/* Green dot: scheduled today*/}
+                        {emp.isScheduledToday && (
+                          <span
+                            className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                              isSelected ? "bg-green-300" : "bg-green-500"
+                            }`}
+                            title="Scheduled Today"
+                          />
+                        )}
                         <span>{emp.name}</span>
                         <span
                           className={`text-[9.5px] px-1.5 py-0.2 rounded font-mono ${

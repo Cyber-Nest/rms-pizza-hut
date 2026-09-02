@@ -498,6 +498,7 @@ export default function ModifiersTab({
             required: false,
             minSelection: 0,
             maxSelection: 1,
+            freeSelectionLimit: 0,
             displayType: "radio",
             options: [{ name: "", price: 0, isDefault: false, image: "" }],
           });
@@ -1207,6 +1208,11 @@ export default function ModifiersTab({
                           Mandatory
                         </span>
                       )}
+                      {group.freeSelectionLimit ? group.freeSelectionLimit > 0 && (
+                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[8px] font-700 px-1.5 py-0.5 rounded">
+                          Free Limit: {group.freeSelectionLimit}
+                        </span>
+                      ) : null}
                       <span className="text-neutral-400 text-[9px]">
                         Limits: {group.minSelection}-{group.maxSelection}
                       </span>

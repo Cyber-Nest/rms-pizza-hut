@@ -164,7 +164,7 @@ export default function ModifierModal({
       if (itemIndex !== -1) {
         return itemIndex < targetGroup.freeSelectionLimit;
       }
-      return groupSelections.length < targetGroup.freeSelectionLimit;
+      return false;
     }
 
     return false;
@@ -247,7 +247,11 @@ export default function ModifierModal({
   // Recursively collect all active modifier groups (including nested groups for selected options)
   const allActiveGroups = useMemo(() => {
     if (!item || !item.modifierGroups) return [];
-    const result: { group: ModifierGroup; key: string }[] = [];
+    const result: {
+      group: ModifierGroup;
+      key: string;
+      parentOpt?: ModifierOption;
+    }[] = [];
     const visited = new Set<string>();
 
     const collect = (groups: ModifierGroup[], parentOpt?: ModifierOption) => {
@@ -255,7 +259,7 @@ export default function ModifierModal({
         const key = getGroupKey(g.id, parentOpt);
         if (!g || visited.has(key)) return;
         visited.add(key);
-        result.push({ group: g, key });
+        result.push({ group: g, key, parentOpt });
 
         const selectedOpts = selections[key] ?? [];
         selectedOpts.forEach((opt) => {
@@ -331,7 +335,7 @@ export default function ModifierModal({
             const includedOpts = subG.options.filter(
               (so) =>
                 !so.isDefault &&
-                isIncludedTopping(
+                isRecipeIncludedTopping(
                   subG.id,
                   so.id,
                   newSelections,
@@ -420,9 +424,10 @@ export default function ModifierModal({
     opt: ModifierOption,
     groupId?: string,
     groupName?: string,
+    parentOpt?: ModifierOption,
   ) => {
     // If this option is an included topping for an active selection, it's free ($0)
-    if (groupId && isIncludedTopping(groupId, opt.id)) {
+    if (groupId && isIncludedTopping(groupId, opt.id, selections, parentOpt)) {
       return 0;
     }
 
@@ -505,10 +510,10 @@ export default function ModifierModal({
 
   const getLivePrice = () => {
     let modSum = 0;
-    allActiveGroups.forEach(({ group: g, key }) => {
+    allActiveGroups.forEach(({ group: g, key, parentOpt }) => {
       const selectedOpts = selections[key] ?? [];
       selectedOpts.forEach((o) => {
-        modSum += getOptionPrice(o, g.id, g.name);
+        modSum += getOptionPrice(o, g.id, g.name, parentOpt);
       });
     });
     return (getBaseItemPrice() + modSum) * quantity;
@@ -518,7 +523,7 @@ export default function ModifierModal({
     if (!isValid()) return;
     const selectedMods: SelectedModifier[] = [];
 
-    allActiveGroups.forEach(({ group: g, key }) => {
+    allActiveGroups.forEach(({ group: g, key, parentOpt }) => {
       const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id) ?? false;
       const opts = selections[key] ?? [];
       opts.forEach((o) => {
@@ -527,7 +532,7 @@ export default function ModifierModal({
           groupName: g.name,
           optionId: o.id,
           optionName: o.name,
-          price: getOptionPrice(o, g.id, g.name),
+          price: getOptionPrice(o, g.id, g.name, parentOpt),
           isRoot,
         });
       });
