@@ -414,32 +414,63 @@ export default function OrdersDashboard() {
     }
   };
 
-  const handleExport = (format: "pdf" | "excel") => {
+  const handleExport = async (format: "pdf" | "excel") => {
     let branchId: string | undefined = undefined;
     if (typeof window !== "undefined") {
       const rawBranch = localStorage.getItem("rms_branch");
       if (rawBranch) {
         try {
           const b = JSON.parse(rawBranch);
-          branchId = b._id;
+          branchId = b._id || b.id || b.branchId;
         } catch (e) {}
       }
     }
 
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-    let params = `type=${activeSubTab}&format=${format}&startDate=${startDate}&endDate=${endDate}`;
-    if (branchId) params += `&branchId=${branchId}`;
-    if (
-      activeSubTab === "failed_transaction" ||
-      activeSubTab === "refund_orders"
-    ) {
-      if (searchKeyword)
-        params += `&search=${encodeURIComponent(searchKeyword)}`;
-      if (statusFilter) params += `&status=${encodeURIComponent(statusFilter)}`;
+    const toastId = toast.loading(`Generating ${format.toUpperCase()} report...`);
+
+    try {
+      const queryParams: Record<string, string> = {
+        type: activeSubTab,
+        format,
+        startDate,
+        endDate,
+      };
+      if (branchId) queryParams.branchId = branchId;
+      if (
+        activeSubTab === "failed_transaction" ||
+        activeSubTab === "refund_orders"
+      ) {
+        if (searchKeyword) queryParams.search = searchKeyword;
+        if (statusFilter) queryParams.status = statusFilter;
+      }
+
+      const response = await axios.get(`${apiUrl}/orders/export-report`, {
+        params: queryParams,
+        responseType: "blob",
+      });
+
+      const mimeType =
+        format === "pdf"
+          ? "application/pdf"
+          : "text/csv;charset=utf-8;";
+      const ext = format === "pdf" ? "pdf" : "csv";
+
+      const blob = new Blob([response.data], { type: mimeType });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${activeSubTab}_report_${startDate}_to_${endDate}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`${format.toUpperCase()} report downloaded!`, { id: toastId });
+    } catch (err: any) {
+      console.error("Export report error:", err);
+      toast.error(`Failed to download ${format.toUpperCase()} report.`, { id: toastId });
     }
-    const downloadUrl = `${apiUrl}/orders/export-report?${params}`;
-    window.open(downloadUrl, "_blank");
   };
 
   // ── Month Selection Helper (Advance Search) ──
