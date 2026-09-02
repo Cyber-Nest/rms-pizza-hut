@@ -240,7 +240,7 @@ export default function ModifierDrawer({
       if (itemIndex !== -1) {
         return itemIndex < targetGroup.freeSelectionLimit;
       }
-      return groupSelections.length < targetGroup.freeSelectionLimit;
+      return false;
     }
 
     return false;
@@ -469,9 +469,10 @@ export default function ModifierDrawer({
     groupName?: string,
     portion?: "whole" | "left" | "right",
     ignoreIncludedCheck: boolean = false,
+    parentOpt?: ModifierOption,
   ) => {
     // If this option is an included topping AND ignoreIncludedCheck is false, it's free for 1x
-    if (!ignoreIncludedCheck && groupId && isIncludedTopping(groupId, opt.id)) {
+    if (!ignoreIncludedCheck && groupId && isIncludedTopping(groupId, opt.id, selections, parentOpt)) {
       return 0;
     }
 
@@ -600,7 +601,7 @@ export default function ModifierDrawer({
     const key = getGroupKey(g.id, parentOpt);
     const qKey = `${key}__${opt.id}`;
     const curRemoved = removedIncluded[key] ?? [];
-    const isInc = isIncludedTopping(g.id, opt.id, selections, parentOpt);
+    const isInc = isRecipeIncludedTopping(g.id, opt.id, selections, parentOpt);
     const curSel = selections[key] ?? [];
     const isSel = curSel.some((o) => o.id === opt.id);
     const isRem = curRemoved.includes(opt.id);
@@ -653,7 +654,11 @@ export default function ModifierDrawer({
   // Recursive memo to get all active groups (with scoped keys) based on selections
   const allActiveGroups = useMemo(() => {
     if (!item || !item.modifierGroups) return [];
-    const result: { group: ModifierGroup; key: string }[] = [];
+    const result: {
+      group: ModifierGroup;
+      key: string;
+      parentOpt?: ModifierOption;
+    }[] = [];
     const visited = new Set<string>();
 
     const collect = (groups: ModifierGroup[], parentOpt?: ModifierOption) => {
@@ -666,7 +671,7 @@ export default function ModifierDrawer({
         const key = getGroupKey(g.id, parentOpt);
         if (!g || visited.has(key)) return;
         visited.add(key);
-        result.push({ group: g, key });
+        result.push({ group: g, key, parentOpt });
 
         const selectedOpts = selections[key] ?? [];
         selectedOpts.forEach((opt) => {
@@ -714,7 +719,7 @@ export default function ModifierDrawer({
     const cur = selections[key] ?? [];
     const curRemoved = removedIncluded[key] ?? [];
     const has = cur.some((o) => o.id === opt.id);
-    const isInc = isIncludedTopping(g.id, opt.id, selections, parentOpt);
+    const isInc = isRecipeIncludedTopping(g.id, opt.id, selections, parentOpt);
     const isRemoved = curRemoved.includes(opt.id);
 
     let next: ModifierOption[];
@@ -762,7 +767,7 @@ export default function ModifierDrawer({
             const includedOpts = subG.options.filter(
               (so) =>
                 !so.isDefault &&
-                isIncludedTopping(
+                isRecipeIncludedTopping(
                   subG.id,
                   so.id,
                   newSelections,
@@ -846,7 +851,7 @@ export default function ModifierDrawer({
   const livePrice = () => {
     let base = getBaseProductPrice();
     let modSum = 0;
-    allActiveGroups.forEach(({ group: g, key }) => {
+    allActiveGroups.forEach(({ group: g, key, parentOpt }) => {
       const gLower = g.name.toLowerCase();
       let groupPortion: "whole" | "left" | "right" = "whole";
       if (
@@ -866,7 +871,7 @@ export default function ModifierDrawer({
       const selectedOpts = selections[key] ?? [];
       selectedOpts.forEach((o) => {
         const optPortion = (o as any).portion || groupPortion;
-        modSum += getOptionPriceWithQty(o, g.id, g.name, optPortion);
+        modSum += getOptionPriceWithQty(o, g.id, g.name, optPortion, parentOpt);
       });
     });
     return (base + modSum) * quantity;
@@ -878,7 +883,7 @@ export default function ModifierDrawer({
 
     const isHalfProduct = !!(item as any)?.isHalfAndHalf;
 
-    allActiveGroups.forEach(({ group: g, key }) => {
+    allActiveGroups.forEach(({ group: g, key, parentOpt }) => {
       const isRoot = item.modifierGroups?.some((rg) => rg.id === g.id) ?? false;
       const opts = selections[key] ?? [];
 
@@ -934,11 +939,11 @@ export default function ModifierDrawer({
       opts.forEach((o) => {
         const qKey = `${key}__${o.id}`;
         const qty = optionQuantities[qKey] || 1;
-        const isRecipeInc = isRecipeIncludedTopping(g.id, o.id);
-        const isInc = isIncludedTopping(g.id, o.id, selections);
+        const isRecipeInc = isRecipeIncludedTopping(g.id, o.id, selections, parentOpt);
+        const isInc = isIncludedTopping(g.id, o.id, selections, parentOpt);
         const optPortion = (o as any).portion || groupPortion;
         const isDef =
-          o.isDefault && getOptionPrice(o, g.id, g.name, optPortion) === 0;
+          o.isDefault && getOptionPrice(o, g.id, g.name, optPortion, false, parentOpt) === 0;
 
         let groupName = g.name;
         let baseOptName = o.name;
@@ -975,6 +980,7 @@ export default function ModifierDrawer({
           g.id,
           g.name,
           optPortion,
+          parentOpt,
         );
 
         // Save custom additions OR extra upgraded included/recipe toppings (qty > 1)
