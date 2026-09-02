@@ -464,7 +464,8 @@ export default function OrdersDashboard() {
       | "this_week"
       | "last_week"
       | "this_month"
-      | "last_month",
+      | "last_month"
+      | "this_year",
   ) => {
     const todayStr = getLocalTodayStr();
     let startStr = todayStr;
@@ -521,6 +522,14 @@ export default function OrdersDashboard() {
         const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
         startStr = dateToLocalStr(lastMonthStart);
         endStr = dateToLocalStr(lastMonthEnd);
+        break;
+      }
+      case "this_year": {
+        const today = new Date(todayStr + "T12:00:00");
+        const yearStart = new Date(today.getFullYear(), 0, 1);
+        const yearEnd = new Date(today.getFullYear(), 11, 31);
+        startStr = dateToLocalStr(yearStart);
+        endStr = dateToLocalStr(yearEnd);
         break;
       }
     }
@@ -1299,6 +1308,7 @@ export default function OrdersDashboard() {
                     { id: "last_week", label: "Last week" },
                     { id: "this_month", label: "This month" },
                     { id: "last_month", label: "Last month" },
+                    { id: "this_year", label: "This year" },
                   ].map((btn) => (
                     <button
                       key={btn.id}
