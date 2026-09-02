@@ -1,6 +1,7 @@
 const Employee = require("../models/employee.model");
 const Driver = require("../../delivery/models/Driver.model");
 const Attendance = require("../models/attendance.model");
+const Schedule = require("../models/schedule.model");
 const { checkAndAutoCheckoutOverdueShifts } = require("./attendance.service");
 
 const { getLocalDateStr } = require("../../../shared/utils/timezone");
@@ -148,6 +149,32 @@ exports.getAllEmployees = async (branchId, query = {}) => {
     .select(projection)
     .sort({ createdAt: -1 })
     .lean();
+
+  // Attach isScheduledToday flag 
+  //attendance report chips use this flag
+  if (query.minimal === "true" || query.fields === "minimal") {
+    const todayStr = getTodayDateStr();
+    const employeeIds = employees.map((e) => e._id);
+
+    // Single batch query — fetch all today's schedules at once
+    const todaySchedules = await Schedule.find({
+      branchId,
+      employeeId: { $in: employeeIds },
+      date: todayStr,
+      isOff: false,
+    }).select("employeeId shifts").lean();
+
+    const scheduledSet = new Set(
+      todaySchedules
+        .filter((s) => s.shifts && s.shifts.length > 0)
+        .map((s) => s.employeeId.toString())
+    );
+
+    return employees.map((emp) => ({
+      ...emp,
+      isScheduledToday: scheduledSet.has(emp._id.toString()),
+    }));
+  }
 
   return employees;
 };
