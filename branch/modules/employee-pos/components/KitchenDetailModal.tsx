@@ -58,6 +58,7 @@ interface KitchenDetailModalProps {
   onClose: () => void;
   onStatusChange: () => void;
   categoryFilter?: string;
+  kitchenSettings?: KitchenSettings;
 }
 
 interface GroupedModifier {
@@ -143,6 +144,7 @@ export default function KitchenDetailModal({
   onClose,
   onStatusChange,
   categoryFilter = "all",
+  kitchenSettings: propKitchenSettings,
 }: KitchenDetailModalProps) {
   const [updating, setUpdating] = useState(false);
   const [showPrintReceipt, setShowPrintReceipt] = useState(false);
@@ -192,7 +194,7 @@ export default function KitchenDetailModal({
   const getFilteredItemForModal = (item: any): any | null => {
     if (!categoryFilter || categoryFilter === "all") return item;
 
-    const kitchenCfg = getKitchenSettings();
+    const kitchenCfg = propKitchenSettings || getKitchenSettings();
     const currentStationCfg = kitchenCfg.stations.find((s) => s.id === categoryFilter);
     const handlesTypes = currentStationCfg?.handlesItemTypes || (categoryFilter === "wings_station" ? ["wings"] : ["pizza"]);
     const handlesPizza = handlesTypes.includes("pizza");
@@ -207,6 +209,23 @@ export default function KitchenDetailModal({
         return "wings_station";
       if (i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza")
         return "make_table";
+      const name = (i.name || "").toLowerCase();
+      if (
+        name.includes("wing") ||
+        name.includes("chicken") ||
+        name.includes("strip") ||
+        name.includes("side") ||
+        name.includes("fries") ||
+        name.includes("drink") ||
+        name.includes("beverage") ||
+        name.includes("dip") ||
+        name.includes("dessert") ||
+        name.includes("frosting") ||
+        name.includes("brownie") ||
+        name.includes("pop")
+      ) {
+        return "wings_station";
+      }
       return "make_table";
     };
 
@@ -423,7 +442,7 @@ export default function KitchenDetailModal({
         }
       }
 
-      const kitchenCfg = getKitchenSettings();
+      const kitchenCfg = propKitchenSettings || getKitchenSettings();
       const currentStationCfg = kitchenCfg.stations.find((s) => s.id === categoryFilter);
       const handlesTypes = currentStationCfg?.handlesItemTypes || (categoryFilter === "wings_station" ? ["wings"] : ["pizza"]);
       const stationHandlesPizza = handlesTypes.includes("pizza");
@@ -503,7 +522,6 @@ export default function KitchenDetailModal({
         onStatusChange();
 
         // ── Auto-print on Station Completion / Handoff ────────────────────────
-        const kitchenCfg = getKitchenSettings();
         const makeTableCfg = kitchenCfg.stations.find((s) => s.id === "make_table");
         const hasCutStationHandoff = makeTableCfg ? makeTableCfg.nextStation === "cut_station" : true;
 
@@ -519,12 +537,36 @@ export default function KitchenDetailModal({
           const printPizza = stationCfg?.autoPrint?.pizza ?? false;
           const printWings = stationCfg?.autoPrint?.wings ?? false;
 
+          // Helper to check item base station assignment
+          const getItemLabel = (i: any): "make_table" | "wings_station" => {
+            if (i.kitchenLabel === "wings_station" || i.kitchenLabel === "chicken") return "wings_station";
+            if (i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza") return "make_table";
+            const name = (i.name || "").toLowerCase();
+            if (
+              name.includes("wing") ||
+              name.includes("chicken") ||
+              name.includes("strip") ||
+              name.includes("side") ||
+              name.includes("fries") ||
+              name.includes("drink") ||
+              name.includes("beverage") ||
+              name.includes("dip") ||
+              name.includes("dessert") ||
+              name.includes("frosting") ||
+              name.includes("brownie") ||
+              name.includes("pop")
+            ) {
+              return "wings_station";
+            }
+            return "make_table";
+          };
+
           // Determine what items this order actually has
           const orderHasPizza = (localOrder.items || []).some(
-            (i: any) => i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza"
+            (i: any) => getItemLabel(i) === "make_table"
           );
           const orderHasWings = (localOrder.items || []).some(
-            (i: any) => i.kitchenLabel === "wings_station" || i.kitchenLabel === "chicken"
+            (i: any) => getItemLabel(i) === "wings_station"
           );
 
           const stationHandlesPizza = stationCfg?.handlesItemTypes?.includes("pizza") ?? (categoryFilter !== "wings_station");

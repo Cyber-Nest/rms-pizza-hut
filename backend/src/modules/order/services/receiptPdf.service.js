@@ -48,14 +48,46 @@ exports.generateReceiptPdfStream = async (
     const startX = margin;
 
     // ── Items to render ──────────────────────────────────────────────────────
+    const isWingsItem = (i) => {
+      if (i.kitchenLabel === "wings_station" || i.kitchenLabel === "chicken") return true;
+      if (i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza") return false;
+      const lowerName = (i.name || "").toLowerCase();
+      if (
+        lowerName.includes("wing") ||
+        lowerName.includes("chicken") ||
+        lowerName.includes("strip") ||
+        lowerName.includes("side") ||
+        lowerName.includes("fries") ||
+        lowerName.includes("drink") ||
+        lowerName.includes("beverage") ||
+        lowerName.includes("dip") ||
+        lowerName.includes("dessert") ||
+        lowerName.includes("frosting") ||
+        lowerName.includes("brownie") ||
+        lowerName.includes("pop")
+      ) {
+        return true;
+      }
+      if (Array.isArray(i.selectedModifiers)) {
+        return i.selectedModifiers.some((m) => {
+          const modLabel = m.kitchenLabel;
+          if (modLabel === "wings_station" || modLabel === "chicken") return true;
+          const mName = ((m.groupName || "") + " " + (m.optionName || "")).toLowerCase();
+          return (
+            mName.includes("wing") ||
+            mName.includes("chicken") ||
+            mName.includes("side") ||
+            mName.includes("dip")
+          );
+        });
+      }
+      return false;
+    };
+
     const itemsToRender =
       order.items && Array.isArray(order.items)
         ? itemsFilter === "wings_only"
-          ? order.items.filter(
-              (i) =>
-                i.kitchenLabel === "wings_station" ||
-                i.kitchenLabel === "chicken",
-            )
+          ? order.items.filter(isWingsItem)
           : order.items
         : [];
 
