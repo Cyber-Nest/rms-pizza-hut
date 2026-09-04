@@ -411,10 +411,45 @@ exports.getBranchSettings = async (req, res) => {
     if (!branchId) {
       return res.status(400).json({ success: false, message: "Branch ID is required" });
     }
+
+    const isKitchenOnly =
+      req.query.kitchenOnly === "true" ||
+      req.query.kitchenOnly === "1" ||
+      req.query.section === "kitchen";
+
+    if (isKitchenOnly) {
+      const kitchenSettings = await branchService.getKitchenSettingsOnly(branchId);
+      return res.status(200).json({
+        success: true,
+        data: {
+          kitchenSettings,
+        },
+      });
+    }
+
     const settings = await branchService.getBranchSettings(branchId);
     res.status(200).json({ success: true, data: settings });
   } catch (error) {
     logger.error(`Error fetching branch settings: ${error.message}`);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+exports.getKitchenSettings = async (req, res) => {
+  try {
+    const branchId = req.query.branchId || req.activeBranchId || req.branch?.branchId || req.branch?._id;
+    if (!branchId) {
+      return res.status(400).json({ success: false, message: "Branch ID is required" });
+    }
+    const kitchenSettings = await branchService.getKitchenSettingsOnly(branchId);
+    res.status(200).json({
+      success: true,
+      data: {
+        kitchenSettings,
+      },
+    });
+  } catch (error) {
+    logger.error(`Error fetching kitchen settings: ${error.message}`);
     res.status(400).json({ success: false, message: error.message });
   }
 };

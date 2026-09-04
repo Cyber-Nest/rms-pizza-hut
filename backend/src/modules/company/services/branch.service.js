@@ -412,6 +412,16 @@ exports.getBranchSettings = async (branchId) => {
   return branch.settings || {};
 };
 
+exports.getKitchenSettingsOnly = async (branchId) => {
+  const branch = await Branch.findById(branchId)
+    .select("settings.kitchenSettings")
+    .lean();
+  if (!branch) {
+    throw new Error("Branch not found");
+  }
+  return branch.settings?.kitchenSettings || null;
+};
+
 exports.updateBranchSettings = async (branchId, settingsData) => {
   const $set = {};
 
@@ -461,6 +471,9 @@ exports.updateBranchSettings = async (branchId, settingsData) => {
   }
   if (settingsData.tills) {
     $set["settings.tills"] = settingsData.tills;
+  }
+  if (settingsData.kitchenSettings) {
+    $set["settings.kitchenSettings"] = settingsData.kitchenSettings;
   }
 
   const updated = await Branch.findByIdAndUpdate(
