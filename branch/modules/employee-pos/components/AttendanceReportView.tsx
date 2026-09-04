@@ -435,14 +435,14 @@ export default function AttendanceReportView() {
                         }`}
                       >
                         {/* Green dot: scheduled today*/}
-                        {emp.isScheduledToday && (
+                        {/* {emp.isScheduledToday && (
                           <span
                             className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
                               isSelected ? "bg-green-300" : "bg-green-500"
                             }`}
                             title="Scheduled Today"
                           />
-                        )}
+                        )} */}
                         <span>{emp.name}</span>
                         <span
                           className={`text-[9.5px] px-1.5 py-0.2 rounded font-mono ${
