@@ -920,6 +920,7 @@ const playKitchenNotificationSound = () => {
         onClose={() => setSelectedOrder(null)}
         onStatusChange={fetchOrders}
         categoryFilter={stationFilter}
+        kitchenSettings={kitchenSettings}
       />
 
       {/* Sidebar Drawer Component */}
