@@ -273,7 +273,7 @@ exports.silentPrintOrderReceipt = async (req, res) => {
       await triggerPrintJob(order.branchId, {
         orderId: order._id.toString(),
         orderNumber: order.orderNumber,
-        pdfUrl: `/api/orders/${order._id}/pdf?paperSize=${paperSize}`,
+        pdfUrl: `/api/orders/${order._id}/pdf?paperSize=${paperSize}&itemsFilter=${itemsFilter}`,
         paperSize,
         itemsFilter,
         printerName: printerName || null,
