@@ -12,9 +12,10 @@ import TillSetupTab from './settings-components/TillSetupTab';
 import StoreTimingsTab from './settings-components/StoreTimingsTab';
 import StoreTimingsUpdateTab from './settings-components/StoreTimingsUpdateTab';
 import HolidaysTab from './settings-components/HolidaysTab';
+import KitchenStationsTab from './settings-components/KitchenStationsTab';
 
 // Shared Types
-import { TabType, Terminal, Till, StoreTiming, TimingUpdate, Holiday, TaxFeesSettings } from './settings-components/settingsTypes';
+import { TabType, Terminal, Till, StoreTiming, TimingUpdate, Holiday, TaxFeesSettings, KitchenSettings, DEFAULT_KITCHEN_SETTINGS } from './settings-components/settingsTypes';
 
 export default function SettingsDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -68,6 +69,9 @@ export default function SettingsDashboard() {
 
   // ── 7. Holidays State ──
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+
+  // ── 8. Kitchen Station & Printing Settings State ──
+  const [kitchenSettings, setKitchenSettings] = useState<KitchenSettings>(DEFAULT_KITCHEN_SETTINGS);
 
   // ── Get Active Branch ID ──
   const getBranchId = () => {
@@ -131,6 +135,15 @@ export default function SettingsDashboard() {
         if (s.holidays) setHolidays(s.holidays);
         if (s.terminals) setTerminals(s.terminals);
         if (s.tills) setTills(s.tills);
+        if (s.kitchenSettings && s.kitchenSettings.stations && s.kitchenSettings.stations.length > 0) {
+          setKitchenSettings(s.kitchenSettings);
+          // Keep rms_branch_settings in sync so KitchenDashboard reads latest config on next load
+          try {
+            const raw = localStorage.getItem('rms_branch_settings');
+            const stored = raw ? JSON.parse(raw) : {};
+            localStorage.setItem('rms_branch_settings', JSON.stringify({ ...stored, kitchenSettings: s.kitchenSettings }));
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.warn('Could not load branch settings from backend');
@@ -219,6 +232,18 @@ export default function SettingsDashboard() {
       saveSettingsToBackend({ holidays: updated }, 'Holidays saved!');
       return updated;
     });
+  };
+
+  // ── Kitchen Stations Submit Handler ──
+  const handleKitchenSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveSettingsToBackend({ kitchenSettings }, 'Kitchen Station settings saved!');
+    // Also update localStorage so Kitchen View reads new config immediately (no refresh needed)
+    try {
+      const raw = localStorage.getItem('rms_branch_settings');
+      const stored = raw ? JSON.parse(raw) : {};
+      localStorage.setItem('rms_branch_settings', JSON.stringify({ ...stored, kitchenSettings }));
+    } catch (e) {}
   };
 
   const handleUpdateTerminals = (newVal: React.SetStateAction<Terminal[]>) => {
@@ -318,6 +343,17 @@ export default function SettingsDashboard() {
             </button>
 
             <button
+              onClick={() => setActiveTab('kitchen_stations')}
+              className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
+                activeTab === 'kitchen_stations'
+                  ? 'bg-brand-primary text-white shadow-sm'
+                  : 'text-neutral-500 hover:text-brand-primary'
+              }`}
+            >
+              Kitchen Stations
+            </button>
+
+            <button
               onClick={() => setActiveTab('holidays')}
               className={`px-3 md:px-4 py-1.5 rounded-lg text-[10px] md:text-[11px] lg:text-[12.5px] font-800 tracking-wide uppercase transition-all duration-150 cursor-pointer whitespace-nowrap ${
                 activeTab === 'holidays'
@@ -389,6 +425,15 @@ export default function SettingsDashboard() {
                 <StoreTimingsUpdateTab
                   timingsUpdates={timingsUpdates}
                   setTimingsUpdates={handleUpdateTimingsUpdates}
+                />
+              )}
+
+              {activeTab === 'kitchen_stations' && (
+                <KitchenStationsTab
+                  kitchenSettings={kitchenSettings}
+                  setKitchenSettings={setKitchenSettings}
+                  onSubmit={handleKitchenSettingsSubmit}
+                  saving={saving}
                 />
               )}
 

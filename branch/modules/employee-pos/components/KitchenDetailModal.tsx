@@ -17,6 +17,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { Order } from "../types";
 import ThermalReceipt from "./ThermalReceipt";
+import { KitchenSettings, DEFAULT_KITCHEN_SETTINGS } from "./settings-components/settingsTypes";
 
 // Read defaultTimeMinutes from saved branch settings (localStorage)
 const getBranchDefaultPrepTime = (): number => {
@@ -37,6 +38,19 @@ const getBranchDefaultPrepTime = (): number => {
     }
   } catch (e) {}
   return 15;
+};
+
+// Read kitchenSettings from saved branch settings (localStorage)
+const getKitchenSettings = (): KitchenSettings => {
+  try {
+    if (typeof window === "undefined") return DEFAULT_KITCHEN_SETTINGS;
+    const raw = localStorage.getItem("rms_branch_settings");
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s?.kitchenSettings?.stations?.length > 0) return s.kitchenSettings;
+    }
+  } catch (e) {}
+  return DEFAULT_KITCHEN_SETTINGS;
 };
 
 interface KitchenDetailModalProps {
@@ -176,19 +190,17 @@ export default function KitchenDetailModal({
   };
 
   const getFilteredItemForModal = (item: any): any | null => {
-    if (
-      !categoryFilter ||
-      categoryFilter === "all" ||
-      categoryFilter === "cut_station" ||
-      categoryFilter === "make_table" ||
-      categoryFilter === "pizza"
-    ) {
-      return item;
-    }
-    const targetStation =
-      categoryFilter === "wings_station" || categoryFilter === "chicken"
-        ? "wings_station"
-        : "make_table";
+    if (!categoryFilter || categoryFilter === "all") return item;
+
+    const kitchenCfg = getKitchenSettings();
+    const currentStationCfg = kitchenCfg.stations.find((s) => s.id === categoryFilter);
+    const handlesTypes = currentStationCfg?.handlesItemTypes || (categoryFilter === "wings_station" ? ["wings"] : ["pizza"]);
+    const handlesPizza = handlesTypes.includes("pizza");
+    const handlesWings = handlesTypes.includes("wings");
+
+    if (handlesPizza) return item; // Make Station shows full order items in modal!
+
+    const targetStation = handlesWings && !handlesPizza ? "wings_station" : "make_table";
 
     const getItemBaseLabel = (i: any): "make_table" | "wings_station" => {
       if (i.kitchenLabel === "wings_station" || i.kitchenLabel === "chicken")
@@ -411,6 +423,23 @@ export default function KitchenDetailModal({
         }
       }
 
+      const kitchenCfg = getKitchenSettings();
+      const currentStationCfg = kitchenCfg.stations.find((s) => s.id === categoryFilter);
+      const handlesTypes = currentStationCfg?.handlesItemTypes || (categoryFilter === "wings_station" ? ["wings"] : ["pizza"]);
+      const stationHandlesPizza = handlesTypes.includes("pizza");
+      const stationHandlesWings = handlesTypes.includes("wings");
+
+      let effectiveStation: string | undefined = undefined;
+      if (stationHandlesPizza && stationHandlesWings) {
+        effectiveStation = undefined; // Updates BOTH stations in backend!
+      } else if (stationHandlesPizza && !stationHandlesWings) {
+        effectiveStation = "make_table";
+      } else if (stationHandlesWings && !stationHandlesPizza) {
+        effectiveStation = "wings_station";
+      } else {
+        effectiveStation = categoryFilter;
+      }
+
       const apiUrl =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const note = `Kitchen updated status to ${nextStatus}`;
@@ -420,7 +449,7 @@ export default function KitchenDetailModal({
           status: nextStatus,
           note,
           userName: activeEmpName,
-          station: categoryFilter,
+          station: effectiveStation,
         },
       );
 
@@ -473,50 +502,86 @@ export default function KitchenDetailModal({
 
         onStatusChange();
 
-        // ── Auto-download receipt on Complete ──────────────────────────────
-        if (nextStatus === "completed") {
-          const isComboOrder =
-            !!(
-              localOrder.hasPizza ||
-              (localOrder.items || []).some(
-                (i: any) =>
-                  i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza",
-              )
-            ) &&
-            !!(
-              localOrder.hasWings ||
-              (localOrder.items || []).some(
-                (i: any) =>
-                  i.kitchenLabel === "wings_station" ||
-                  i.kitchenLabel === "chicken",
-              )
-            );
+        // ── Auto-print on Station Completion / Handoff ────────────────────────
+        const kitchenCfg = getKitchenSettings();
+        const makeTableCfg = kitchenCfg.stations.find((s) => s.id === "make_table");
+        const hasCutStationHandoff = makeTableCfg ? makeTableCfg.nextStation === "cut_station" : true;
 
-          const wingsOnlyDownload =
-            categoryFilter === "wings_station" && isComboOrder;
+        const isStationFinished =
+          nextStatus === "completed" ||
+          (nextStatus === "in_oven" &&
+            (categoryFilter === "make_table" || categoryFilter === "pizza") &&
+            hasCutStationHandoff);
 
-          const itemsFilterParam = wingsOnlyDownload ? "wings_only" : "all";
-          const apiUrl =
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+        if (isStationFinished) {
+          const stationCfg = kitchenCfg.stations.find((s) => s.id === categoryFilter);
 
-          // Silent backend print via pdf-to-printer (SumatraPDF) — no browser dialog
-          axios
-            .post(`${apiUrl}/orders/${localOrder._id}/print`, {
-              paperSize: "80mm",
-              itemsFilter: itemsFilterParam,
-            })
-            .then(() => {
-              toast.success("Receipt sent to printer!");
-            })
-            .catch((err) => {
-              console.warn("[print] Backend print failed:", err);
-              toast.error("Print failed — check printer connection.");
-            });
+          const printPizza = stationCfg?.autoPrint?.pizza ?? false;
+          const printWings = stationCfg?.autoPrint?.wings ?? false;
+
+          // Determine what items this order actually has
+          const orderHasPizza = (localOrder.items || []).some(
+            (i: any) => i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza"
+          );
+          const orderHasWings = (localOrder.items || []).some(
+            (i: any) => i.kitchenLabel === "wings_station" || i.kitchenLabel === "chicken"
+          );
+
+          const stationHandlesPizza = stationCfg?.handlesItemTypes?.includes("pizza") ?? (categoryFilter !== "wings_station");
+          const stationHandlesWings = stationCfg?.handlesItemTypes?.includes("wings") ?? (categoryFilter === "wings_station");
+
+          let itemsFilterParam: string | null = null;
+          if (stationHandlesWings && !stationHandlesPizza) {
+            // Wings-only station (e.g. Wings Station): ALWAYS print wings/sides only ticket!
+            if (printWings && orderHasWings) {
+              itemsFilterParam = "wings_only";
+            }
+          } else if (stationHandlesPizza && !stationHandlesWings) {
+            // Pizza-only station (e.g. Make Station / Cut Station): print pizza ticket!
+            if (printPizza && orderHasPizza) {
+              itemsFilterParam = "all";
+            }
+          } else {
+            // Combined station handling BOTH (e.g. 1-Station mode):
+            if (printPizza && printWings && orderHasPizza && orderHasWings) {
+              itemsFilterParam = "all";
+            } else if (printPizza && orderHasPizza) {
+              itemsFilterParam = "all";
+            } else if (printWings && orderHasWings) {
+              itemsFilterParam = "wings_only";
+            }
+          }
+
+          if (itemsFilterParam) {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+            axios
+              .post(`${apiUrl}/orders/${localOrder._id}/print`, {
+                paperSize: "80mm",
+                itemsFilter: itemsFilterParam,
+              })
+              .then(() => {
+                toast.success("Receipt sent to printer!");
+              })
+              .catch((err) => {
+                console.warn("[print] Backend print failed:", err);
+                toast.error("Print failed — check printer connection.");
+              });
+          }
         }
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
 
-        if (nextStatus === "completed" || nextStatus === "in_oven") {
+        if (nextStatus === "completed") {
           onClose();
+        } else if (nextStatus === "in_oven") {
+          // 3-station mode: order passes to Cut Station tab → close modal
+          // 2-station / 1-station mode (nextStation=null): stay open so user can press Complete
+          const kitchenCfgForClose = getKitchenSettings();
+          const makeTableCfgForClose = kitchenCfgForClose.stations.find((s) => s.id === "make_table");
+          const makeTableNextStationForClose = makeTableCfgForClose ? makeTableCfgForClose.nextStation : "cut_station";
+          if (makeTableNextStationForClose === "cut_station") {
+            onClose(); // order now visible on Cut Station tab
+          }
+          // else: stay open — user will see Complete button next
         }
       } else {
         throw new Error(res.data.message || "Transition failed");
@@ -969,12 +1034,41 @@ export default function KitchenDetailModal({
       );
     }
 
-    const currentStationStatus =
-      categoryFilter === "make_table"
-        ? localOrder.makeTableStatus || localOrder.status
-        : categoryFilter === "wings_station"
-          ? localOrder.wingsStatus || localOrder.status
-          : localOrder.makeTableStatus || localOrder.status;
+    const kitchenCfg = getKitchenSettings();
+    const currentStationCfg = kitchenCfg.stations.find((s) => s.id === categoryFilter);
+    const handlesTypes = currentStationCfg?.handlesItemTypes || (categoryFilter === "wings_station" ? ["wings"] : ["pizza"]);
+    const stationHandlesPizza = handlesTypes.includes("pizza");
+    const stationHandlesWings = handlesTypes.includes("wings");
+
+    const orderHasPizza = (localOrder.items || []).some(
+      (i: any) => i.kitchenLabel === "make_table" || i.kitchenLabel === "pizza"
+    );
+    const orderHasWings = (localOrder.items || []).some(
+      (i: any) => i.kitchenLabel === "wings_station" || i.kitchenLabel === "chicken"
+    );
+
+    let currentStationStatus = "pending";
+    if (stationHandlesPizza && !stationHandlesWings) {
+      currentStationStatus = localOrder.makeTableStatus || localOrder.status;
+    } else if (stationHandlesWings && !stationHandlesPizza) {
+      currentStationStatus = localOrder.wingsStatus || localOrder.status;
+    } else {
+      // Station handles BOTH (or fallback)
+      if (orderHasPizza && !orderHasWings) {
+        currentStationStatus = localOrder.makeTableStatus || localOrder.status;
+      } else if (orderHasWings && !orderHasPizza) {
+        currentStationStatus = localOrder.wingsStatus || localOrder.status;
+      } else {
+        // Both items exist in order:
+        if (localOrder.makeTableStatus === "completed" && localOrder.wingsStatus !== "completed") {
+          currentStationStatus = localOrder.wingsStatus || localOrder.status;
+        } else if (localOrder.wingsStatus === "completed" && localOrder.makeTableStatus !== "completed") {
+          currentStationStatus = localOrder.makeTableStatus || localOrder.status;
+        } else {
+          currentStationStatus = localOrder.makeTableStatus || localOrder.status;
+        }
+      }
+    }
 
     let previousStatus: "pending" | "preparing" | "in_oven" | "ready" | null = null;
     if (currentStationStatus === "preparing") {
@@ -982,7 +1076,7 @@ export default function KitchenDetailModal({
     } else if (currentStationStatus === "in_oven") {
       previousStatus = "preparing";
     } else if (currentStationStatus === "ready") {
-      previousStatus = (categoryFilter === "make_table" || categoryFilter === "pizza") ? "in_oven" : "preparing";
+      previousStatus = (stationHandlesPizza && orderHasPizza) ? "in_oven" : "preparing";
     } else if (currentStationStatus === "completed") {
       previousStatus = "ready";
     }
@@ -997,9 +1091,6 @@ export default function KitchenDetailModal({
       >
         <RotateCcw size={13} className="text-neutral-600" />
         <span>Undo</span>
-        {/* <span className="ml-0.5 text-[9px] bg-neutral-250 text-neutral-700 px-1 py-0.5 rounded font-mono font-900 border border-neutral-300">
-          U
-        </span> */}
       </button>
     ) : null;
 
@@ -1014,16 +1105,14 @@ export default function KitchenDetailModal({
             title="Advance status to Preparing (Press 'B')"
           >
             <span>In Preparing</span>
-            {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
-              B
-            </span> */}
           </button>
         </div>
       );
     }
 
     if (currentStationStatus === "preparing") {
-      if (categoryFilter === "make_table" || categoryFilter === "pizza") {
+      // Show "In the Oven" ONLY IF the station handles pizza AND the order actually contains Pizza items
+      if (stationHandlesPizza && orderHasPizza) {
         return (
           <div className="flex items-center gap-2">
             {undoBtn}
@@ -1034,9 +1123,6 @@ export default function KitchenDetailModal({
               title="Advance status to In Oven (Press 'B')"
             >
               <span>In the Oven</span>
-              {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
-                B
-              </span> */}
             </button>
           </div>
         );
@@ -1055,18 +1141,30 @@ export default function KitchenDetailModal({
                 ? "Ready For Delivery"
                 : "Ready For Pickup"}
             </span>
-            {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
-              B
-            </span> */}
           </button>
         </div>
       );
     }
 
-    if (
-      currentStationStatus === "in_oven" ||
-      currentStationStatus === "ready"
-    ) {
+    if (currentStationStatus === "in_oven" || currentStationStatus === "ready") {
+      // Check if make_table has nextStation=null (no cut station handoff) → show Complete directly
+      // OR if we are on cut_station / wings_station → show Complete as usual
+      const kitchenCfg = getKitchenSettings();
+      const makeTableCfg = kitchenCfg.stations.find((s) => s.id === "make_table");
+      const makeTableNextStation = makeTableCfg ? makeTableCfg.nextStation : "cut_station";
+
+      // For make_table: when in_oven and nextStation=null → Complete here (no cut station)
+      // For make_table: when in_oven and nextStation=cut_station → close modal (order goes to cut station tab)
+      if (categoryFilter === "make_table" && currentStationStatus === "in_oven" && makeTableNextStation === "cut_station") {
+        // In 3-station mode: "In Oven" button was clicked, order now shows on Cut Station tab → close modal
+        return (
+          <div className="flex items-center gap-2">
+            {undoBtn}
+            <span className="text-[11.5px] text-neutral-500 font-600 italic">Order moved to Cut Station →</span>
+          </div>
+        );
+      }
+
       return (
         <div className="flex items-center gap-2">
           {undoBtn}
@@ -1077,9 +1175,6 @@ export default function KitchenDetailModal({
             title="Complete order (Press 'B')"
           >
             <span>Complete Order</span>
-            {/* <span className="text-[9px] bg-white/25 text-white px-1 py-0.5 rounded font-mono font-900 border border-white/20">
-              B
-            </span> */}
           </button>
         </div>
       );

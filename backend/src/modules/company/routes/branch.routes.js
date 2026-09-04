@@ -22,6 +22,7 @@ router.post("/branches/logout", branchController.logoutBranch);
 router.get("/branches/me", protectBranch, branchController.getMe);
 router.get("/branches/check-session", protectBranch, branchController.checkSession);
 router.get("/branches/settings", branchController.getBranchSettings);
+router.get("/branches/kitchen-settings", branchController.getKitchenSettings);
 router.patch("/branches/settings", branchController.updateBranchSettings);
 router.put("/branches/profile", branchController.updateBranchProfile);
 router.patch("/branches/change-password", branchController.changePassword);

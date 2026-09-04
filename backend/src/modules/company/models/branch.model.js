@@ -124,6 +124,31 @@ const branchSchema = new mongoose.Schema(
         tillName: { type: String },
         createdDate: { type: String },
       }],
+      // ── Kitchen Station & Auto-Print Configuration ──────────────
+      // presetMode: '3_station' | '2_station' | '1_station' | 'custom'
+      kitchenSettings: {
+        presetMode: { type: String, default: '3_station' },
+        stations: {
+          type: [
+            {
+              id: { type: String },           // 'make_table' | 'cut_station' | 'wings_station'
+              label: { type: String },        // Display name
+              isEnabled: { type: Boolean, default: true },
+              handlesItemTypes: [{ type: String }], // ['pizza'] | ['wings'] | ['pizza','wings']
+              nextStation: { type: String, default: null }, // 'cut_station' | null
+              autoPrint: {
+                pizza: { type: Boolean, default: false },
+                wings: { type: Boolean, default: false },
+              },
+            }
+          ],
+          default: [
+            { id: 'make_table',   label: 'Make Station',  isEnabled: true,  handlesItemTypes: ['pizza'],        nextStation: 'cut_station', autoPrint: { pizza: false, wings: false } },
+            { id: 'cut_station',  label: 'Cut Station',   isEnabled: true,  handlesItemTypes: ['pizza'],        nextStation: null,          autoPrint: { pizza: true,  wings: false } },
+            { id: 'wings_station',label: 'Wings Station', isEnabled: true,  handlesItemTypes: ['wings'],        nextStation: null,          autoPrint: { pizza: false, wings: true  } },
+          ],
+        },
+      },
     },
   },
   {
