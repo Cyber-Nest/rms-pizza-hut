@@ -3,6 +3,8 @@ const receiptPdfService = require("../services/receiptPdf.service");
 const reportPdfService = require("../services/reportPdf.service");
 const reportExcelService = require("../services/reportExcel.service");
 const silentPrintService = require("../services/silentPrint.service");
+const emailService = require("../../../shared/services/email.service");
+const Order = require("../models/order.model");
 const { triggerPrintJob } = require("../../../config/pusher");
 const fs = require("fs");
 const logger = require("../../../shared/utils/logger");
@@ -940,3 +942,60 @@ exports.silentPrintAccountClosing = async (req, res) => {
     }
   }
 };
+
+exports.sendEmailReceipt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, name } = req.body || {};
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+
+    let targetEmail = (email || order.customer?.email || "").trim();
+    let targetName = (name || order.customer?.name || "").trim();
+
+    if (!targetEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer email address is required.",
+      });
+    }
+
+    // Permanently update customer info in MongoDB if updated/provided
+    let isUpdated = false;
+    if (!order.customer) {
+      order.customer = { name: "No Name", phone: "", email: "" };
+    }
+
+    if (email && email.trim() !== (order.customer.email || "")) {
+      order.customer.email = email.trim();
+      isUpdated = true;
+    }
+
+    if (name && name.trim() && name.trim() !== (order.customer.name || "") && name.trim() !== "No Name") {
+      order.customer.name = name.trim();
+      isUpdated = true;
+    }
+
+    if (isUpdated) {
+      await order.save();
+    }
+
+    await emailService.sendOrderReceiptEmail({
+      order,
+      recipientEmail: targetEmail,
+      recipientName: targetName,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Receipt sent successfully to ${targetEmail}`,
+      data: order,
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+

@@ -32,6 +32,7 @@ router.get("/", orderController.getAllOrders);
 router.get("/:id", orderController.getOrderById);
 router.get("/:id/pdf", orderController.downloadReceiptPdf);
 router.post("/:id/print", orderController.silentPrintOrderReceipt); // Silent print to physical printer
+router.post("/:id/send-receipt", orderController.sendEmailReceipt);
 router.patch("/:id/status", orderController.updateOrderStatus);
 router.patch("/:id/kitchen-clear", orderController.kitchenClear);
 router.patch("/:id/due-time", orderController.updateOrderDueTime);
