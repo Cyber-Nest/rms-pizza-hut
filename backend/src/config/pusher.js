@@ -180,6 +180,8 @@ const triggerDriverStatusChange = async (restaurantId, driverData) => {
     await pusherInstance.trigger(`private-restaurant-${restaurantId}`, "driver-status-change", {
       driverId: driverData.driverId,
       status: driverData.status,
+      posCheckedIn: driverData.posCheckedIn !== undefined ? driverData.posCheckedIn : (driverData.checkedOut ? false : undefined),
+      checkedOut: driverData.checkedOut !== undefined ? driverData.checkedOut : (driverData.posCheckedIn === false),
       timestamp: new Date().toISOString(),
     });
     logger.info(`Pusher 'driver-status-change' (${driverData.status}) for driver: ${driverData.driverId}`);
