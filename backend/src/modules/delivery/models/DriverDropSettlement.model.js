@@ -65,6 +65,11 @@ const driverDropSettlementSchema = new mongoose.Schema(
     totalTipsEarned: { type: Number, default: 0 },
     totalDriverEarning: { type: Number, default: 0 },
     netCashPayoutToDriver: { type: Number, default: 0 },
+    shiftNumber: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
     status: {
       type: String,
       enum: ["settled"],
@@ -85,10 +90,17 @@ const driverDropSettlementSchema = new mongoose.Schema(
 );
 
 driverDropSettlementSchema.index(
-  { branchId: 1, date: 1, driverId: 1 },
+  { branchId: 1, date: 1, driverId: 1, shiftNumber: 1 },
   { unique: true }
 );
 
 driverDropSettlementSchema.index({ branchId: 1, date: 1 });
 
-module.exports = mongoose.model("DriverDropSettlement", driverDropSettlementSchema);
+const DriverDropSettlement = mongoose.model("DriverDropSettlement", driverDropSettlementSchema);
+
+// Sync indexes to automatically drop obsolete unique index (branchId_1_date_1_driverId_1) from MongoDB
+DriverDropSettlement.syncIndexes().catch((err) => {
+  console.warn("DriverDropSettlement index sync notice:", err.message);
+});
+
+module.exports = DriverDropSettlement;

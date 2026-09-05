@@ -1285,19 +1285,30 @@ exports.getSalesSummary = async (filters = {}) => {
         card: round2(cardTotal),
         accountPay: round2(accountPayTotal),
       },
-      driverReport: (driverSettlements || []).map((ds) => ({
-        driverName: ds.driverName,
-        deliveryCount: ds.totalOrders,
-        prepaidSales: round2(ds.prepaidSales),
-        cashSales: round2(ds.cashSales),
-        cardSales: round2(ds.terminalSales),
-        prepaidTip: round2(ds.prepaidTips),
-        terminalTip: round2(ds.terminalTips),
-        totalTip: round2(ds.totalTipsEarned),
-        totalSales: round2(ds.totalSales),
-        driverEarning: round2(ds.totalDriverEarning),
-        expectedPayout: round2(ds.netCashPayoutToDriver),
-      })),
+      driverReport: (() => {
+        // Group settlements by driver to detect multi-shift drivers
+        const driverShiftCounts = {};
+        (driverSettlements || []).forEach((ds) => {
+          const key = ds.driverName || "Unknown";
+          driverShiftCounts[key] = (driverShiftCounts[key] || 0) + 1;
+        });
+        return (driverSettlements || []).map((ds) => ({
+          driverName: (driverShiftCounts[ds.driverName] > 1 || ds.shiftNumber > 1)
+            ? `${ds.driverName} (Shift ${ds.shiftNumber || 1})`
+            : ds.driverName,
+          shiftNumber: ds.shiftNumber || 1,
+          deliveryCount: ds.totalOrders,
+          prepaidSales: round2(ds.prepaidSales),
+          cashSales: round2(ds.cashSales),
+          cardSales: round2(ds.terminalSales),
+          prepaidTip: round2(ds.prepaidTips),
+          terminalTip: round2(ds.terminalTips),
+          totalTip: round2(ds.totalTipsEarned),
+          totalSales: round2(ds.totalSales),
+          driverEarning: round2(ds.totalDriverEarning),
+          expectedPayout: round2(ds.netCashPayoutToDriver),
+        }));
+      })(),
       deposit: deposit
         ? {
             cashAmount: round2(deposit.cashAmount),
@@ -3166,8 +3177,18 @@ const calculateDaySystemTotals = async (targetDateStr, branchId) => {
   );
   const expectedNetDeposit = round2(adjustedSystemCash + systemCard);
 
+  // Build driverReport: detect multi-shift drivers for labeling
+  const driverShiftCounts2 = {};
+  (driverSettlements || []).forEach((ds) => {
+    const key = ds.driverName || "Unknown";
+    driverShiftCounts2[key] = (driverShiftCounts2[key] || 0) + 1;
+  });
+
   const driverReport = (driverSettlements || []).map((ds) => ({
-    driverName: ds.driverName,
+    driverName: (driverShiftCounts2[ds.driverName] > 1 || ds.shiftNumber > 1)
+      ? `${ds.driverName} (Shift ${ds.shiftNumber || 1})`
+      : ds.driverName,
+    shiftNumber: ds.shiftNumber || 1,
     deliveryCount: ds.totalOrders,
     totalSales: round2(ds.totalSales),
     cashSales: round2(ds.cashSales),
