@@ -1003,7 +1003,7 @@ export default function AccountClosingView() {
                     <span>Driver Payout Summary</span>
                   </span>
                   <span className="text-[11px] lg:text-[13px] bg-white/20 px-2.5 py-0.5 rounded-full font-800">
-                    {driverReport.length} Drivers Settled
+                    {driverReport.length} Settlements
                   </span>
                 </div>
                 <div className="overflow-x-auto">
@@ -1011,6 +1011,7 @@ export default function AccountClosingView() {
                     <thead>
                       <tr className="bg-neutral-100 text-neutral-700 font-800 text-[10px] lg:text-[12px] uppercase tracking-wider border-b border-neutral-200">
                         <th className="py-2.5 px-3">Driver</th>
+                        <th className="py-2.5 px-3 text-center">Shift</th>
                         <th className="py-2.5 px-3 text-center"># Delivery</th>
                         <th className="py-2.5 px-3 text-right">Total Sales</th>
                         <th className="py-2.5 px-3 text-right">Prepaid</th>
@@ -1030,6 +1031,17 @@ export default function AccountClosingView() {
                           >
                             <td className="py-2.5 px-3 font-800 text-neutral-900">
                               {d.driverName}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-800 uppercase ${
+                                (d.shiftNumber || 1) === 1
+                                  ? "bg-blue-100 text-blue-800"
+                                  : (d.shiftNumber || 1) === 2
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-purple-100 text-purple-800"
+                              }`}>
+                                S{d.shiftNumber || 1}
+                              </span>
                             </td>
                             <td className="py-2.5 px-3 text-center font-800 text-neutral-700">
                               {d.deliveryCount}
@@ -1060,7 +1072,7 @@ export default function AccountClosingView() {
                       ) : (
                         <tr>
                           <td
-                            colSpan={9}
+                            colSpan={10}
                             className="py-6 text-center text-neutral-400 font-600 text-xs"
                           >
                             No driver settlements found for selected date.

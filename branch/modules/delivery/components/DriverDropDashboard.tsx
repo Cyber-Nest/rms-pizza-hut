@@ -24,6 +24,7 @@ import {
   Car,
   Download,
   LogOut,
+  RotateCcw,
 } from "lucide-react";
 import PosNavbar from "@/modules/employee-pos/components/PosNavbar";
 import POSSidebarDrawer from "@/modules/employee-pos/components/POSSidebarDrawer";
@@ -44,7 +45,11 @@ export interface DriverInfo {
   vehicle: string;
   status: string;
   isSettled?: boolean;
+  hasNewOrders?: boolean;
+  latestShiftNumber?: number;
+  lastSettledAt?: string | null;
   settlementSummary?: any;
+  allSettlements?: any[];
 }
 
 interface OrderRow {
@@ -94,6 +99,15 @@ export default function DriverDropDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+
+  // ── Shift State ──
+  const [currentShiftNumber, setCurrentShiftNumber] = useState<number>(1);
+  const [lastSettledAt, setLastSettledAt] = useState<string | null>(null);
+  const [isStartingNewShift, setIsStartingNewShift] = useState(false);
+  // When true, the dashboard is in "New Shift" mode for the selected driver
+  const [isNewShiftMode, setIsNewShiftMode] = useState(false);
+  const [currentShiftSettlement, setCurrentShiftSettlement] = useState<any | null>(null);
+  const [isCurrentShiftSettled, setIsCurrentShiftSettled] = useState<boolean>(false);
 
   // Fetch Drivers for selected date & branch
   const fetchDrivers = useCallback(async () => {
@@ -149,6 +163,13 @@ export default function DriverDropDashboard() {
     return null;
   }, [selectedDriverId, driverSearchInput, drivers]);
 
+  // Reset shift state when driver changes
+  useEffect(() => {
+    setCurrentShiftNumber(1);
+    setLastSettledAt(null);
+    setIsNewShiftMode(false);
+  }, [selectedDriverId, driverSearchInput]);
+
   // Fetch Summary / Orders for selected driver
   useEffect(() => {
     if (!selectedDriver) return;
@@ -172,16 +193,20 @@ export default function DriverDropDashboard() {
           params: {
             driverId: drvId,
             date: selectedDate,
+            shiftNumber: currentShiftNumber,
             ...(branchId ? { branchId } : {}),
           },
         });
 
         if (res.data.success && res.data.data) {
-          const { isSettled, settlement, orders: orderList } = res.data.data;
+          const { isSettled, settlement, orders: orderList, shiftNumber: returnedShift } = res.data.data;
           const currentOrders = orderList || [];
           setOrdersMap((prev) => ({ ...prev, [drvId]: currentOrders }));
 
-          if (isSettled && settlement) {
+          setIsCurrentShiftSettled(Boolean(isSettled));
+          setCurrentShiftSettlement(settlement || null);
+
+          if (isSettled && settlement && !isNewShiftMode) {
             setTerminalSalesInput(
               Number(settlement.terminalSales || 0).toFixed(2),
             );
@@ -204,7 +229,7 @@ export default function DriverDropDashboard() {
               setAdditionalReason("");
             }
           } else {
-            // Unsettled shift: Default all reconciliation inputs to "0.00" so manager manually verifies / enters cash & terminal totals
+            // Unsettled shift or New Shift mode: reset all inputs
             setTerminalSalesInput("0.00");
             setTerminalTipsInput("0.00");
             setCashSalesInput("0.00");
@@ -220,7 +245,7 @@ export default function DriverDropDashboard() {
     };
 
     fetchSummary();
-  }, [selectedDriver, selectedDate]);
+  }, [selectedDriver, selectedDate, currentShiftNumber, isNewShiftMode]);
 
   // Active Orders
   const orders = useMemo(() => {
@@ -252,8 +277,8 @@ export default function DriverDropDashboard() {
       };
     }
 
-    if (selectedDriver?.isSettled && selectedDriver?.settlementSummary) {
-      const s = selectedDriver.settlementSummary;
+    if (isCurrentShiftSettled && currentShiftSettlement && !isNewShiftMode) {
+      const s = currentShiftSettlement;
       const baseComm = s.driverBaseCommission ?? (s.totalOrders || orders.length) * 6.0;
       const addComm = s.additionalCommission ?? 0;
       const totalComm = s.driverTotalCommission ?? (baseComm + addComm);
@@ -344,13 +369,19 @@ export default function DriverDropDashboard() {
     cashSalesInput,
     hasAdditionalCommissionToggle,
     additionalCommission,
+    isCurrentShiftSettled,
+    currentShiftSettlement,
+    isNewShiftMode,
   ]);
 
-  // Submit button disabled if no driver selected OR Sale Due > 0.009 OR driver already settled
+  // Submit button disabled:
+  // - No driver selected, OR
+  // - Sale Due > 0.009 (reconciliation mismatch), OR
+  // - Driver already settled AND not in new shift mode
   const isSubmitDisabled =
     !selectedDriver ||
     calculations.saleDue > 0.009 ||
-    Boolean(selectedDriver?.isSettled);
+    Boolean(isCurrentShiftSettled && !isNewShiftMode);
 
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -378,6 +409,7 @@ export default function DriverDropDashboard() {
           driverId: selectedDriver.id,
           date: selectedDate,
           type: slipType,
+          shiftNumber: currentShiftNumber,
           terminalSales: parseFloat(terminalSalesInput) || 0,
           terminalTips: parseFloat(terminalTipsInput) || 0,
           cashSales: parseFloat(cashSalesInput) || 0,
@@ -427,6 +459,7 @@ export default function DriverDropDashboard() {
             driverId: selectedDriver.id,
             date: selectedDate,
             type: slipType,
+            shiftNumber: currentShiftNumber,
             terminalSales: parseFloat(terminalSalesInput) || 0,
             terminalTips: parseFloat(terminalTipsInput) || 0,
             cashSales: parseFloat(cashSalesInput) || 0,
@@ -446,7 +479,7 @@ export default function DriverDropDashboard() {
       link.href = url;
       link.setAttribute(
         "download",
-        `Driver_Receipt_${slipType}_${selectedDriver.driverId || selectedDriver.id.slice(-4)}_${selectedDate}.pdf`,
+        `Driver_Receipt_${slipType}_${selectedDriver.driverId || selectedDriver.id.slice(-4)}_Shift${currentShiftNumber}_${selectedDate}.pdf`,
       );
       document.body.appendChild(link);
       link.click();
@@ -631,10 +664,13 @@ export default function DriverDropDashboard() {
         payload,
       );
       if (res.data.success) {
+        const settledShift = res.data.shiftNumber || currentShiftNumber;
         toast.success(
-          `Drop settlement finalized for ${selectedDriver.name}! ${autoCheckout ? "Driver checked out from POS & vehicle unassigned." : ""} Net Cash Payout: $${calculations.netCashPayoutToDriver.toFixed(2)}`,
+          `Shift ${settledShift} settlement finalized for ${selectedDriver.name}! ${autoCheckout ? "Driver checked out from POS & vehicle unassigned." : ""} Net Cash Payout: $${calculations.netCashPayoutToDriver.toFixed(2)}`,
           { id: toastId },
         );
+        setCurrentShiftNumber(settledShift);
+        setIsNewShiftMode(false);
         fetchDrivers();
         setActivePrintModal("both");
       } else {
@@ -651,6 +687,54 @@ export default function DriverDropDashboard() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ── New Shift Handler ──
+  const handleStartNewShift = async () => {
+    if (!selectedDriver || isStartingNewShift) return;
+    setIsStartingNewShift(true);
+    const toastId = toast.loading(`Preparing new shift for ${selectedDriver.name}...`);
+    try {
+      let branchId: string | undefined = undefined;
+      if (typeof window !== "undefined") {
+        const rawBranch = localStorage.getItem("rms_branch");
+        if (rawBranch) {
+          try { branchId = JSON.parse(rawBranch)._id; } catch (e) {}
+        }
+      }
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const res = await axios.post(`${apiUrl}/delivery/driver-drop/new-shift`, {
+        driverId: selectedDriver.id,
+        date: selectedDate,
+        ...(branchId ? { branchId } : {}),
+      });
+
+      if (res.data.success && res.data.data.canStart) {
+        const { nextShiftNumber, lastSettledAt: settledAt, newOrderCount } = res.data.data;
+        setCurrentShiftNumber(nextShiftNumber);
+        setLastSettledAt(settledAt);
+        setIsNewShiftMode(true);
+        // Reset all reconciliation inputs for fresh shift
+        setTerminalSalesInput("0.00");
+        setTerminalTipsInput("0.00");
+        setCashSalesInput("0.00");
+        setHasAdditionalCommissionToggle(false);
+        setAdditionalCommission("0.00");
+        setAdditionalReason("");
+        // Clear orders to force a fresh fetch
+        setOrdersMap((prev) => ({ ...prev, [selectedDriver.id]: [] }));
+        toast.success(
+          `Shift ${nextShiftNumber} started for ${selectedDriver.name}! ${newOrderCount} new order(s) found.`,
+          { id: toastId },
+        );
+      } else {
+        toast.error(res.data.message || "Cannot start new shift.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to start new shift.", { id: toastId });
+    } finally {
+      setIsStartingNewShift(false);
     }
   };
 
@@ -827,17 +911,14 @@ export default function DriverDropDashboard() {
                         className={`px-3 py-1.5 rounded-lg text-[11px] lg:text-[12.5px] font-800 uppercase transition-all cursor-pointer border flex items-center gap-2 ${
                           isSelected
                             ? "bg-brand-primary text-white border-brand-primary shadow-xs"
-                            : d.isSettled
+                            : d.isSettled && !d.hasNewOrders
                               ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                              : "bg-neutral-50 text-neutral-700 border-neutral-200 hover:border-brand-primary/30 hover:bg-brand-primary-light"
+                              : d.isSettled && d.hasNewOrders
+                                ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                                : "bg-neutral-50 text-neutral-700 border-neutral-200 hover:border-brand-primary/30 hover:bg-brand-primary-light"
                         }`}
                       >
                         <span>{d.name}</span>
-                        <span
-                          className={`text-[9.5px] px-1.5 py-0.2 rounded ${isSelected ? "bg-white/20 text-white" : d.isSettled ? "bg-emerald-200 text-emerald-900" : "bg-neutral-200 text-neutral-700"}`}
-                        >
-                          {d.isSettled ? "Settled" : d.driverId}
-                        </span>
                       </button>
                     );
                   })
@@ -881,9 +962,75 @@ export default function DriverDropDashboard() {
                     </div>
                   </div>
 
-                  {/* <span className="px-2.5 py-1 rounded-full text-[10px] font-800 uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    {selectedDriver.status}
-                  </span> */}
+                  {/* Shift Selector Tabs & New Shift Button */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Shift Tabs */}
+                    {Array.from({
+                      length: Math.max(
+                        1,
+                        isNewShiftMode
+                          ? currentShiftNumber
+                          : (selectedDriver.latestShiftNumber || 1),
+                      ),
+                    }).map((_, idx) => {
+                      const shiftNum = idx + 1;
+                      const isSelectedTab = currentShiftNumber === shiftNum;
+                      const isShiftSettled =
+                        selectedDriver.allSettlements?.some(
+                          (s) => s.shiftNumber === shiftNum,
+                        ) || shiftNum <= (selectedDriver.latestShiftNumber || 0);
+
+                      return (
+                        <button
+                          key={shiftNum}
+                          type="button"
+                          onClick={() => {
+                            setCurrentShiftNumber(shiftNum);
+                            setIsNewShiftMode(
+                              shiftNum > (selectedDriver.latestShiftNumber || 0),
+                            );
+                          }}
+                          className={`px-3 py-1 rounded-full text-[10.5px] font-900 uppercase tracking-wide border transition-all cursor-pointer flex items-center gap-1.5 ${
+                            isSelectedTab
+                              ? "bg-brand-primary text-white border-brand-primary shadow-xs scale-105"
+                              : isShiftSettled
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                                : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                          }`}
+                        >
+                          <span>Shift {shiftNum}</span>
+                          {isShiftSettled ? (
+                            <Check
+                              size={11}
+                              className={
+                                isSelectedTab ? "text-white" : "text-emerald-600"
+                              }
+                            />
+                          ) : (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {/* New Shift Button */}
+                    {selectedDriver.isSettled && !isNewShiftMode && (
+                      <button
+                        type="button"
+                        onClick={handleStartNewShift}
+                        disabled={isStartingNewShift}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-[10.5px] font-900 rounded-full uppercase tracking-wide transition-all cursor-pointer shadow-sm disabled:opacity-60"
+                        title="Start a new shift for this driver"
+                      >
+                        {isStartingNewShift ? (
+                          <RefreshCw size={11} className="animate-spin" />
+                        ) : (
+                          <RotateCcw size={11} />
+                        )}
+                        <span>+ New Shift</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Quick Stat Badges */}
@@ -1020,12 +1167,12 @@ export default function DriverDropDashboard() {
                             type="number"
                             step="0.01"
                             value={terminalSalesInput}
-                            disabled={Boolean(selectedDriver?.isSettled)}
+                            disabled={Boolean(isCurrentShiftSettled && !isNewShiftMode)}
                             onChange={(e) =>
                               setTerminalSalesInput(e.target.value)
                             }
                             className={`w-28 rounded-lg pl-6 pr-2.5 py-1 text-right font-800 text-rose-600 focus:outline-none focus:border-brand-primary font-mono text-xs shadow-2xs transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                              selectedDriver?.isSettled
+                              isCurrentShiftSettled && !isNewShiftMode
                                 ? "bg-neutral-100/90 text-neutral-500 cursor-not-allowed border border-neutral-200"
                                 : "bg-white border border-neutral-300"
                             }`}
@@ -1048,12 +1195,12 @@ export default function DriverDropDashboard() {
                             type="number"
                             step="0.01"
                             value={terminalTipsInput}
-                            disabled={Boolean(selectedDriver?.isSettled)}
+                            disabled={Boolean(isCurrentShiftSettled && !isNewShiftMode)}
                             onChange={(e) =>
                               setTerminalTipsInput(e.target.value)
                             }
                             className={`w-28 rounded-lg pl-6 pr-2.5 py-1 text-right font-800 text-rose-600 focus:outline-none focus:border-brand-primary font-mono text-xs shadow-2xs transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                              selectedDriver?.isSettled
+                              isCurrentShiftSettled && !isNewShiftMode
                                 ? "bg-neutral-100/90 text-neutral-500 cursor-not-allowed border border-neutral-200"
                                 : "bg-white border border-neutral-300"
                             }`}
@@ -1066,20 +1213,6 @@ export default function DriverDropDashboard() {
                     <tr className="bg-neutral-50/70">
                       <td className="py-2 px-4 text-neutral-800 font-700 pl-6 flex items-center justify-between">
                         <span>Cash Sales (-)</span>
-                        {/* {!selectedDriver?.isSettled && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCashSalesInput(
-                                calculations.totalNewSales.toFixed(2),
-                              )
-                            }
-                            className="text-[9.5px] font-800 text-brand-primary bg-brand-primary-light hover:bg-brand-primary/20 border border-brand-primary-muted px-2 py-0.5 rounded transition-all cursor-pointer"
-                            title="Auto fill expected cash amount"
-                          >
-                            Auto-Fill (${calculations.totalNewSales.toFixed(2)})
-                          </button>
-                        )} */}
                       </td>
                       <td className="py-1.5 px-4 text-right">
                         <div className="inline-flex items-center relative">
@@ -1090,10 +1223,10 @@ export default function DriverDropDashboard() {
                             type="number"
                             step="0.01"
                             value={cashSalesInput}
-                            disabled={Boolean(selectedDriver?.isSettled)}
+                            disabled={Boolean(isCurrentShiftSettled && !isNewShiftMode)}
                             onChange={(e) => setCashSalesInput(e.target.value)}
                             className={`w-28 rounded-lg pl-6 pr-2.5 py-1 text-right font-800 text-rose-600 focus:outline-none focus:border-brand-primary font-mono text-xs shadow-2xs transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
-                              selectedDriver?.isSettled
+                              isCurrentShiftSettled && !isNewShiftMode
                                 ? "bg-neutral-100/90 text-neutral-500 cursor-not-allowed border border-neutral-200"
                                 : "bg-white border border-neutral-300"
                             }`}
@@ -1124,7 +1257,7 @@ export default function DriverDropDashboard() {
                 <div className="divide-y divide-neutral-200/60">
                   <div className="bg-brand-primary text-white px-4 py-2.5 font-900 text-[12px] uppercase tracking-wider flex items-center justify-between">
                     <span>Driver Settlement Payout</span>
-                    {selectedDriver?.isSettled && (
+                    {isCurrentShiftSettled && !isNewShiftMode && (
                       <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded font-800 flex items-center gap-1 tracking-normal">
                         <CheckCircle size={11} /> Settled & Paid
                       </span>
@@ -1169,10 +1302,10 @@ export default function DriverDropDashboard() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          disabled={Boolean(selectedDriver?.isSettled)}
+                          disabled={Boolean(isCurrentShiftSettled && !isNewShiftMode)}
                           onClick={() => setHasAdditionalCommissionToggle(true)}
                           className={`px-4 py-1 rounded-lg font-900 text-xs transition-all ${
-                            selectedDriver?.isSettled
+                            isCurrentShiftSettled && !isNewShiftMode
                               ? "opacity-60 cursor-not-allowed"
                               : "cursor-pointer"
                           } ${
@@ -1185,12 +1318,12 @@ export default function DriverDropDashboard() {
                         </button>
                         <button
                           type="button"
-                          disabled={Boolean(selectedDriver?.isSettled)}
+                          disabled={Boolean(isCurrentShiftSettled && !isNewShiftMode)}
                           onClick={() =>
                             setHasAdditionalCommissionToggle(false)
                           }
                           className={`px-4 py-1 rounded-lg font-900 text-xs transition-all ${
-                            selectedDriver?.isSettled
+                            isCurrentShiftSettled && !isNewShiftMode
                               ? "opacity-60 cursor-not-allowed"
                               : "cursor-pointer"
                           } ${
@@ -1218,12 +1351,12 @@ export default function DriverDropDashboard() {
                               type="number"
                               step="0.01"
                               value={additionalCommission}
-                              disabled={Boolean(selectedDriver?.isSettled)}
+                              disabled={Boolean(isCurrentShiftSettled && !isNewShiftMode)}
                               onChange={(e) =>
                                 setAdditionalCommission(e.target.value)
                               }
                               className={`w-full rounded-lg pl-6 pr-2.5 py-1.5 text-xs font-900 focus:outline-none focus:border-brand-primary font-mono shadow-2xs ${
-                                selectedDriver?.isSettled
+                                isCurrentShiftSettled && !isNewShiftMode
                                   ? "bg-neutral-100/90 text-neutral-500 cursor-not-allowed border border-neutral-200"
                                   : "bg-white border border-neutral-300 text-neutral-900"
                               }`}
@@ -1239,12 +1372,12 @@ export default function DriverDropDashboard() {
                             type="text"
                             placeholder="e.g. Rain Allowance"
                             value={additionalReason}
-                            disabled={Boolean(selectedDriver?.isSettled)}
+                            disabled={Boolean(isCurrentShiftSettled && !isNewShiftMode)}
                             onChange={(e) =>
                               setAdditionalReason(e.target.value)
                             }
                             className={`w-full rounded-lg px-2.5 py-1.5 text-xs font-600 focus:outline-none focus:border-brand-primary ${
-                              selectedDriver?.isSettled
+                              isCurrentShiftSettled && !isNewShiftMode
                                 ? "bg-neutral-100/90 text-neutral-500 cursor-not-allowed border border-neutral-200"
                                 : "bg-white border border-neutral-300 text-neutral-900"
                             }`}
@@ -1294,14 +1427,14 @@ export default function DriverDropDashboard() {
                       onClick={handleFinalizeSettlement}
                       disabled={isSubmitDisabled || isSubmitting}
                       className={`px-5 py-2.5 font-900 text-[12px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 ${
-                        selectedDriver?.isSettled
+                        isCurrentShiftSettled && !isNewShiftMode
                           ? "bg-emerald-700 text-white cursor-not-allowed opacity-90 shadow-xs"
                           : isSubmitDisabled || isSubmitting
                             ? "bg-neutral-300 text-neutral-500 cursor-not-allowed opacity-60"
                             : "bg-[#e31837] hover:bg-[#b9142d] text-white cursor-pointer active:scale-95 shadow-md"
                       }`}
                     >
-                      {selectedDriver?.isSettled ? (
+                      {isCurrentShiftSettled && !isNewShiftMode ? (
                         <>
                           <CheckCircle size={14} />
                           <span>SETTLED & PAID</span>

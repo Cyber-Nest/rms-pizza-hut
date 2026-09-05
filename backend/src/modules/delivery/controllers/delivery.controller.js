@@ -1544,16 +1544,19 @@ exports.getDriverDropDrivers = async (req, res) => {
       attendances.map((a) => a.employeeId.toString()),
     );
 
-    // Find existing settlements for this date
+    // Find ALL settlements for this date (multiple shifts per driver possible)
     const settlements = await DriverDropSettlement.find({
       branchId: restaurantId,
       date: dateStr,
-    }).lean();
+    }).sort({ shiftNumber: 1 }).lean();
 
-    const settlementMap = new Map();
+    // Build map: driverId → array of settlements (sorted by shiftNumber)
+    const settlementsByDriver = new Map();
     settlements.forEach((s) => {
       if (s.driverId) {
-        settlementMap.set(s.driverId.toString(), s);
+        const key = s.driverId.toString();
+        if (!settlementsByDriver.has(key)) settlementsByDriver.set(key, []);
+        settlementsByDriver.get(key).push(s);
       }
     });
 
@@ -1564,9 +1567,7 @@ exports.getDriverDropDrivers = async (req, res) => {
       }
     });
     settlements.forEach((s) => {
-      if (s.driverId) {
-        validDriverIds.add(s.driverId.toString());
-      }
+      if (s.driverId) validDriverIds.add(s.driverId.toString());
     });
 
     let drivers = [];
@@ -1600,8 +1601,18 @@ exports.getDriverDropDrivers = async (req, res) => {
       return isRefMatch || isCodeMatch;
     });
 
-    const result = driverRoleOnly.map((d) => {
-      const settlement = settlementMap.get(d._id.toString());
+    const startOfDay = getLocalStartOfDay(dateStr);
+    const endOfDay = getLocalEndOfDay(dateStr);
+
+    const result = await Promise.all(driverRoleOnly.map(async (d) => {
+      const driverShifts = settlementsByDriver.get(d._id.toString()) || [];
+      const latestSettlement = driverShifts.length > 0
+        ? driverShifts[driverShifts.length - 1]
+        : null;
+      const latestShiftNumber = latestSettlement?.shiftNumber || 0;
+      const lastSettledAt = latestSettlement?.settledAt || null;
+      const isSettled = Boolean(latestSettlement);
+
       let vehicleStr = "No Vehicle";
       if (d.assignedVehicleId) {
         const v = d.assignedVehicleId;
@@ -1615,21 +1626,33 @@ exports.getDriverDropDrivers = async (req, res) => {
         }
       }
 
+      // Check if there are new assignments after last settlement (for New Shift detection)
+      let hasNewOrders = false;
+      if (isSettled && lastSettledAt) {
+        const newAssignCount = await DeliveryAssignment.countDocuments({
+          driverId: d._id,
+          createdAt: { $gt: new Date(lastSettledAt), $lte: endOfDay },
+        });
+        hasNewOrders = newAssignCount > 0;
+      }
+
       return {
         id: d._id.toString(),
         driverId: d.driverId || d._id.toString().slice(-4),
         name: d.name,
         phone: d.phone || "",
         vehicle: vehicleStr,
-        status: settlement
-          ? "Completed Shift"
-          : d.status === "offline"
-            ? "Available"
-            : d.status,
-        isSettled: Boolean(settlement),
-        settlementSummary: settlement || null,
+        status: isSettled
+          ? hasNewOrders ? `Shift ${latestShiftNumber} Settled — New Orders` : `Shift ${latestShiftNumber} Settled`
+          : d.status === "offline" ? "Available" : d.status,
+        isSettled,
+        hasNewOrders,
+        latestShiftNumber,
+        lastSettledAt,
+        allSettlements: driverShifts,
+        settlementSummary: latestSettlement || null,
       };
-    });
+    }));
 
     res.status(200).json({ success: true, data: result });
   } catch (error) {
@@ -1639,12 +1662,17 @@ exports.getDriverDropDrivers = async (req, res) => {
 
 /**
  * GET: Fetch live delivered orders breakdown & totals for a specific driver and date
- * Query params: driverId, date, branchId / restaurantId
+ * Query params: driverId, date, shiftNumber (optional), branchId / restaurantId
+ * - shiftNumber=1 → returns Shift 1 settlement data (if settled)
+ * - shiftNumber=2 → returns orders AFTER Shift 1 settledAt (fresh data for Shift 2)
+ * - no shiftNumber → returns full day data or settled data
  */
 exports.getDriverDropSummary = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
     const { driverId, date } = req.query;
+    const requestedShift = req.query.shiftNumber ? parseInt(req.query.shiftNumber, 10) : null;
+
     if (!driverId) {
       return res
         .status(400)
@@ -1655,32 +1683,75 @@ exports.getDriverDropSummary = async (req, res) => {
     const startOfDay = getLocalStartOfDay(targetDate);
     const endOfDay = getLocalEndOfDay(targetDate);
 
-    // Check if already settled
-    const existingSettlement = await DriverDropSettlement.findOne({
+    // Fetch ALL settlements for this driver+date sorted by shiftNumber
+    const allSettlements = await DriverDropSettlement.find({
       branchId: restaurantId,
       driverId,
       date: targetDate,
-    }).lean();
+    }).sort({ shiftNumber: 1 }).lean();
 
-    if (existingSettlement) {
-      const orders = (existingSettlement.orders || []).map((o) => ({
-        ...o,
-        ticketName: o.ticketName || `${o.orderNumber || ""} ${o.customerName || "Customer"}`.trim(),
-      }));
-      return res.status(200).json({
-        success: true,
-        data: {
-          isSettled: true,
-          settlement: existingSettlement,
-          orders,
-        },
-      });
+    const latestSettlement = allSettlements.length > 0
+      ? allSettlements[allSettlements.length - 1]
+      : null;
+    const latestShiftNumber = latestSettlement?.shiftNumber || 0;
+
+    // Determine target shift to return:
+    let targetShift = requestedShift;
+    if (!targetShift) {
+      if (latestSettlement) {
+        const windowStart = new Date(latestSettlement.settledAt);
+        const newAssignCount = await DeliveryAssignment.countDocuments({
+          driverId,
+          createdAt: { $gt: windowStart, $lte: endOfDay },
+        });
+        targetShift = newAssignCount > 0 ? latestShiftNumber + 1 : latestShiftNumber;
+      } else {
+        targetShift = 1;
+      }
     }
 
-    // Find all delivery assignments for this driver on the date
+    // ── Case 1: Settled shift requested (targetShift <= latestShiftNumber) ──
+    if (targetShift <= latestShiftNumber) {
+      const targetSettlement = allSettlements.find((s) => s.shiftNumber === targetShift);
+      if (targetSettlement) {
+        const orders = (targetSettlement.orders || []).map((o) => ({
+          ...o,
+          id: o.id || o.orderId?.toString() || String(o._id || Math.random()),
+          ticketName: o.ticketName || `${o.orderNumber || ""} ${o.customerName || "Customer"}`.trim(),
+          customerName: o.customerName || "Customer",
+          phone: o.phone || "",
+          address: o.address || "",
+          time: o.time || "",
+          total: Number(o.total || 0),
+          dc: Number(o.dc || 6.0),
+          pd: o.pd || "CS",
+          prepaidTip: Number(o.prepaidTip || 0),
+          terminalTip: Number(o.terminalTip || 0),
+          cashGiven: Number(o.cashGiven || 0),
+        }));
+        return res.status(200).json({
+          success: true,
+          data: {
+            isSettled: true,
+            shiftNumber: targetShift,
+            latestShiftNumber,
+            settlement: targetSettlement,
+            orders,
+          },
+        });
+      }
+    }
+
+    // ── Case 2: New shift requested (shiftNumber > latestShiftNumber) or no settlement yet ──
+    // Determine window: if there's a previous settlement, fetch orders only AFTER its settledAt
+    const windowStart = latestSettlement?.settledAt
+      ? new Date(latestSettlement.settledAt)
+      : startOfDay;
+
+    // Find assignments in the window
     const assignments = await DeliveryAssignment.find({
       driverId,
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      createdAt: { $gt: windowStart, $lte: endOfDay },
     })
       .populate("orderId")
       .lean();
@@ -1690,8 +1761,6 @@ exports.getDriverDropSummary = async (req, res) => {
       .filter((a) => a.orderId)
       .map((a) => {
         const order = a.orderId;
-
-        // Payment Detail code: PP (Prepaid online), TM (Terminal card), CS (Cash)
         let pd = "CS";
         if (
           ["online", "doordash", "skip", "ubereats"].includes(order.orderSource) ||
@@ -1742,6 +1811,8 @@ exports.getDriverDropSummary = async (req, res) => {
       success: true,
       data: {
         isSettled: false,
+        shiftNumber: latestShiftNumber + 1,
+        latestShiftNumber,
         settlement: null,
         orders,
       },
@@ -1752,8 +1823,67 @@ exports.getDriverDropSummary = async (req, res) => {
 };
 
 /**
+ * POST: Start New Shift for a settled driver
+ * Body: { driverId, date }
+ * Returns: { canStart, nextShiftNumber, lastSettledAt, newOrderCount }
+ */
+exports.startNewShift = async (req, res) => {
+  try {
+    const restaurantId = getRestaurantIdFromReq(req);
+    const { driverId, date } = req.body;
+
+    if (!driverId) {
+      return res.status(400).json({ success: false, message: "driverId is required" });
+    }
+
+    const targetDate = date || getLocalDateStr();
+    const endOfDay = getLocalEndOfDay(targetDate);
+
+    // Get all existing settlements for this driver today
+    const allSettlements = await DriverDropSettlement.find({
+      branchId: restaurantId,
+      driverId,
+      date: targetDate,
+    }).sort({ shiftNumber: 1 }).lean();
+
+    const latestSettlement = allSettlements.length > 0
+      ? allSettlements[allSettlements.length - 1]
+      : null;
+
+    if (!latestSettlement) {
+      return res.status(400).json({
+        success: false,
+        message: "No existing settlement found for this driver today. Please settle the current shift first.",
+      });
+    }
+
+    const nextShiftNumber = latestSettlement.shiftNumber + 1;
+    const lastSettledAt = latestSettlement.settledAt;
+
+    // Count new assignments AFTER last settlement
+    const newOrderCount = await DeliveryAssignment.countDocuments({
+      driverId,
+      createdAt: { $gt: new Date(lastSettledAt), $lte: endOfDay },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        canStart: true,
+        nextShiftNumber,
+        lastSettledAt,
+        newOrderCount,
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 500);
+  }
+};
+
+/**
  * POST: Submit Driver Drop Settlement
- * Body: { branchId, driverId, date, terminalSales, terminalTips, cashSales, additionalCommission, additionalReason, settledBy }
+ * Body: { branchId, driverId, date, shiftNumber, terminalSales, terminalTips, cashSales, additionalCommission, additionalReason, settledBy }
+ * shiftNumber is auto-calculated if not provided (max existing + 1)
  */
 exports.settleDriverDrop = async (req, res) => {
   try {
@@ -1771,6 +1901,14 @@ exports.settleDriverDrop = async (req, res) => {
       checkoutDriver = false,
     } = req.body;
 
+    // Auto-calculate shiftNumber: count existing settlements for this driver today + 1
+    const existingShiftCount = await DriverDropSettlement.countDocuments({
+      branchId: restaurantId,
+      driverId,
+      date,
+    });
+    const shiftNumber = existingShiftCount + 1;
+
     if (!driverId || !date) {
       return res
         .status(400)
@@ -1787,9 +1925,23 @@ exports.settleDriverDrop = async (req, res) => {
     const startOfDay = getLocalStartOfDay(date);
     const endOfDay = getLocalEndOfDay(date);
 
+    // If this is Shift 2+, only fetch orders AFTER the previous shift's settledAt
+    let assignmentWindowStart = startOfDay;
+    if (shiftNumber > 1) {
+      const prevSettlement = await DriverDropSettlement.findOne({
+        branchId: restaurantId,
+        driverId,
+        date,
+        shiftNumber: shiftNumber - 1,
+      }).lean();
+      if (prevSettlement?.settledAt) {
+        assignmentWindowStart = new Date(prevSettlement.settledAt);
+      }
+    }
+
     const assignments = await DeliveryAssignment.find({
       driverId,
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      createdAt: { $gt: assignmentWindowStart, $lte: endOfDay },
     })
       .populate("orderId")
       .lean();
@@ -1881,6 +2033,7 @@ exports.settleDriverDrop = async (req, res) => {
       driverCode: driver.driverId || "",
       driverName: driver.name,
       date,
+      shiftNumber,
       orders,
       totalOrders,
       totalSales,
@@ -1903,11 +2056,33 @@ exports.settleDriverDrop = async (req, res) => {
       settledAt: new Date(),
     };
 
-    const settlement = await DriverDropSettlement.findOneAndUpdate(
-      { branchId: restaurantId, driverId: driver._id, date },
-      settlementPayload,
-      { upsert: true, new: true, runValidators: true },
-    );
+    // Always create/update settlement document (one per shift)
+    let settlement;
+    try {
+      settlement = await DriverDropSettlement.findOneAndUpdate(
+        { branchId: restaurantId, driverId: driver._id, date, shiftNumber },
+        settlementPayload,
+        { upsert: true, new: true, runValidators: true },
+      );
+    } catch (err) {
+      if (err.code === 11000) {
+        try {
+          await DriverDropSettlement.collection.dropIndex("branchId_1_date_1_driverId_1");
+        } catch (e1) {
+          try {
+            await DriverDropSettlement.collection.dropIndex("branchId_1_driverId_1_date_1");
+          } catch (e2) {}
+        }
+        await DriverDropSettlement.syncIndexes();
+        settlement = await DriverDropSettlement.findOneAndUpdate(
+          { branchId: restaurantId, driverId: driver._id, date, shiftNumber },
+          settlementPayload,
+          { upsert: true, new: true, runValidators: true },
+        );
+      } else {
+        throw err;
+      }
+    }
 
     // Auto checkout driver from POS if requested
     let checkedOut = false;
@@ -1935,9 +2110,10 @@ exports.settleDriverDrop = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Driver Drop settlement submitted successfully for ${driver.name}.${checkedOut ? " Driver checked out from POS." : ""}`,
+      message: `Driver Drop Shift ${shiftNumber} settlement submitted successfully for ${driver.name}.${checkedOut ? " Driver checked out from POS." : ""}`,
       data: settlement,
       checkedOut,
+      shiftNumber,
     });
   } catch (error) {
     handleError(res, error, 500);
@@ -1955,6 +2131,7 @@ exports.downloadDriverDropPdf = async (req, res) => {
       driverId,
       date,
       type = "both",
+      shiftNumber,
       terminalSales,
       terminalTips,
       cashSales,
@@ -1975,11 +2152,16 @@ exports.downloadDriverDropPdf = async (req, res) => {
         .json({ success: false, message: "Driver not found." });
     }
 
-    const settlement = await DriverDropSettlement.findOne({
+    // If shiftNumber specified, fetch that specific shift's settlement
+    const settlementQuery = {
       branchId: restaurantId,
       driverId,
       date,
-    }).lean();
+      ...(shiftNumber ? { shiftNumber: parseInt(shiftNumber, 10) } : {}),
+    };
+    const settlement = shiftNumber
+      ? await DriverDropSettlement.findOne(settlementQuery).lean()
+      : await DriverDropSettlement.findOne({ branchId: restaurantId, driverId, date }).sort({ shiftNumber: -1 }).lean();
 
     const startOfDay = getLocalStartOfDay(date);
     const endOfDay = getLocalEndOfDay(date);
@@ -2041,7 +2223,8 @@ exports.downloadDriverDropPdf = async (req, res) => {
     };
 
     const driverCode = driver.driverId || driver._id.toString().slice(-4);
-    const filename = `Driver_Receipt_${type}_${driverCode}_${date}.pdf`;
+    const resolvedShift = settlement?.shiftNumber || (shiftNumber ? parseInt(shiftNumber, 10) : 1);
+    const filename = `Driver_Receipt_${type}_${driverCode}_Shift${resolvedShift}_${date}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
@@ -2067,6 +2250,7 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
       driverId,
       date,
       type = "both",
+      shiftNumber,
       terminalSales,
       terminalTips,
       cashSales,
@@ -2089,11 +2273,15 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
         .json({ success: false, message: "Driver not found." });
     }
 
-    const settlement = await DriverDropSettlement.findOne({
+    const settlementQuery = {
       branchId: restaurantId,
       driverId,
       date: targetDate,
-    }).lean();
+      ...(shiftNumber ? { shiftNumber: parseInt(shiftNumber, 10) } : {}),
+    };
+    const settlement = shiftNumber
+      ? await DriverDropSettlement.findOne(settlementQuery).lean()
+      : await DriverDropSettlement.findOne({ branchId: restaurantId, driverId, date: targetDate }).sort({ shiftNumber: -1 }).lean();
 
     const startOfDay = getLocalStartOfDay(targetDate);
     const endOfDay = getLocalEndOfDay(targetDate);
@@ -2147,7 +2335,8 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
     }
 
     const driverCode = driver.driverId || driver._id.toString().slice(-4);
-    const filename = `driver-drop-${driverCode}-${targetDate}-${Date.now()}.pdf`;
+    const resolvedShiftPrint = settlement?.shiftNumber || (shiftNumber ? parseInt(shiftNumber, 10) : 1);
+    const filename = `driver-drop-${driverCode}-Shift${resolvedShiftPrint}-${targetDate}-${Date.now()}.pdf`;
     tempPdfPath = silentPrintService.getTempReceiptPath(filename);
 
     const fileStream = fs.createWriteStream(tempPdfPath);

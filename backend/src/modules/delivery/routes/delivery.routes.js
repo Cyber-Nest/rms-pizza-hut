@@ -37,6 +37,7 @@ router.post("/driver/:driverId/complete-active", protectBranch, enforceBranch, d
 router.get("/driver-drop/drivers", protectBranch, enforceBranch, deliveryController.getDriverDropDrivers);
 router.get("/driver-drop/summary", protectBranch, enforceBranch, deliveryController.getDriverDropSummary);
 router.post("/driver-drop/settle", protectBranch, enforceBranch, deliveryController.settleDriverDrop);
+router.post("/driver-drop/new-shift", protectBranch, enforceBranch, deliveryController.startNewShift);
 router.get("/driver-drop/receipt/pdf", protectBranch, enforceBranch, deliveryController.downloadDriverDropPdf);
 router.post("/driver-drop/receipt/print", protectBranch, enforceBranch, deliveryController.silentPrintDriverDropPdf);
 
