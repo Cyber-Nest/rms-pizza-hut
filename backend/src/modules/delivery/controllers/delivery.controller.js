@@ -2098,8 +2098,25 @@ exports.settleDriverDrop = async (req, res) => {
           .lean();
 
         if (employee) {
-          await attendanceService.checkOut(restaurantId, employee._id);
-          checkedOut = true;
+          try {
+            await attendanceService.checkOut(restaurantId, employee._id);
+            checkedOut = true;
+          } catch (coErr) {
+            driver.status = "offline";
+            driver.isDutyOnline = false;
+            driver.assignedVehicleId = null;
+            driver.activeOrderIds = [];
+            await driver.save();
+
+            const { triggerDriverStatusChange } = require("../../../config/pusher");
+            await triggerDriverStatusChange(restaurantId, {
+              driverId: driver._id.toString(),
+              status: "offline",
+              posCheckedIn: false,
+              checkedOut: true,
+            });
+            checkedOut = true;
+          }
         }
       } catch (checkoutErr) {
         logger.warn(
