@@ -208,6 +208,7 @@ export default function AttendanceReportView() {
       });
 
       return () => {
+        channel.unbind_all();
         pusher.unsubscribe(channelName);
       };
     } catch (e) {}

@@ -68,7 +68,7 @@ const triggerOrderUpdated = async (order) => {
   }
 
   try {
-    const channels = ["orders", `private-order-${order._id.toString()}`];
+    const channels = [`private-order-${order._id.toString()}`];
     if (order.branchId) {
       channels.push(`orders-${order.branchId.toString()}`);
     }
@@ -223,13 +223,15 @@ const triggerAttendanceUpdated = async (branchId, payload) => {
   }
 
   try {
-    const channels = ["attendance"];
+    const channels = [];
     if (branchId) {
       channels.push(`attendance-${branchId.toString()}`);
     }
 
-    await pusherInstance.trigger(channels, "attendance-updated", payload);
-    logger.info(`Pusher 'attendance-updated' event triggered for branch: ${branchId}`);
+    if (channels.length > 0) {
+      await pusherInstance.trigger(channels, "attendance-updated", payload);
+      logger.info(`Pusher 'attendance-updated' event triggered for branch: ${branchId}`);
+    }
   } catch (error) {
     logger.error(`Failed to trigger Pusher attendance-updated event: ${error.message}`);
   }
