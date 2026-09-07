@@ -60,8 +60,20 @@ export default function OnlineOrderBanner() {
 
   // Subscribe to Pusher
   useEffect(() => {
+    let branchId: string | undefined = undefined;
+    if (typeof window !== 'undefined') {
+      const rawBranch = localStorage.getItem('rms_branch');
+      if (rawBranch) {
+        try {
+          const b = JSON.parse(rawBranch);
+          branchId = b._id || b.id;
+        } catch (e) {}
+      }
+    }
+
     const pusher = getPusherClient();
-    const channel = pusher.subscribe('orders');
+    const channelName = branchId ? `orders-${branchId}` : 'orders';
+    const channel = pusher.subscribe(channelName);
 
     channel.bind('new-order', (data: any) => {
       // ONLY trigger banner for Online Orders
@@ -75,7 +87,7 @@ export default function OnlineOrderBanner() {
 
     return () => {
       channel.unbind_all();
-      pusher.unsubscribe('orders');
+      pusher.unsubscribe(channelName);
     };
   }, []);
 

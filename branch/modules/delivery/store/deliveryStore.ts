@@ -438,10 +438,14 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
     // Listen for new-order and order-updated from user-frontend
     ordersChannel.bind("new-order", (data: any) => {
-      get().fetchOrders();
+      if (!data?.orderType || data.orderType === "delivery") {
+        get().fetchOrders();
+      }
     });
     ordersChannel.bind("order-updated", (data: any) => {
-      get().fetchOrders();
+      if (!data?.orderType || data.orderType === "delivery") {
+        get().fetchOrders();
+      }
     });
 
     // 1. Listen for Pusher location events (both client events & server-relay fallback)
