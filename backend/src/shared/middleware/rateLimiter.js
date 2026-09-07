@@ -17,7 +17,6 @@ if (cleanupTimer.unref) {
 
 /**
  * Custom Rate Limiter Factory
- * @param {Object} options
  * @param {number} options.windowMs - Time window in milliseconds (default: 60000 = 1 min)
  * @param {number} options.max - Maximum requests per IP per window (default: 60)
  * @param {string} options.message - Error message returned when rate limit exceeded
