@@ -214,28 +214,7 @@ orderSchema.statics.generateOrderNumber = async function (
   const dateString = getLocalDateStr(targetDate);
   const counterKey = `${branchId ? branchId.toString() : "main"}_${dateString}`;
 
-  // Get local day boundaries as UTC Date objects
-  const startOfDay = getLocalStartOfDay(dateString);
-  const endOfDay = getLocalEndOfDay(dateString);
-
-  const dateQuery = {
-    $or: [
-      { orderTiming: { $ne: "later" }, createdAt: { $gte: startOfDay, $lte: endOfDay } },
-      { orderTiming: "later", scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
-    ],
-  };
-  const query = branchId ? { branchId, ...dateQuery } : dateQuery;
-
-  const countToday = await this.countDocuments(query);
-
-  if (countToday === 0) {
-    await OrderCounter.findOneAndUpdate(
-      { _id: counterKey },
-      { $set: { count: 0 } },
-      { upsert: true },
-    );
-  }
-
+  // Atomic O(1) counter increment - O(1) indexed primary key lookup
   const counter = await OrderCounter.findOneAndUpdate(
     { _id: counterKey },
     { $inc: { count: 1 } },
@@ -254,26 +233,8 @@ orderSchema.statics.previewNextOrderNumber = async function (
   const dateString = getLocalDateStr();
   const counterKey = `${branchId ? branchId.toString() : "main"}_${dateString}`;
 
-  // Get local day boundaries as UTC Date objects
-  const startOfDay = getLocalStartOfDay(dateString);
-  const endOfDay = getLocalEndOfDay(dateString);
-
-  const dateQuery = {
-    $or: [
-      { orderTiming: { $ne: "later" }, createdAt: { $gte: startOfDay, $lte: endOfDay } },
-      { orderTiming: "later", scheduledAt: { $gte: startOfDay, $lte: endOfDay } },
-    ],
-  };
-  const query = branchId ? { branchId, ...dateQuery } : dateQuery;
-
-  const countToday = await this.countDocuments(query);
-
-  if (countToday === 0) {
-    return "101";
-  }
-
-  const counter = await OrderCounter.findOne({ _id: counterKey });
-  const currentCount = counter ? Math.max(counter.count, countToday) : countToday;
+  const counter = await OrderCounter.findOne({ _id: counterKey }).lean();
+  const currentCount = counter ? counter.count : 0;
   return String(currentCount + 101);
 };
 
@@ -285,6 +246,8 @@ orderSchema.index({ "customer.email": 1 }, { sparse: true });
 
 orderSchema.index({ branchId: 1, createdAt: -1 });
 orderSchema.index({ branchId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ branchId: 1, orderTiming: 1, createdAt: -1 });
+orderSchema.index({ branchId: 1, orderTiming: 1, scheduledAt: -1 });
 orderSchema.index({ branchId: 1, "customer.phone": 1, createdAt: -1 });
 orderSchema.index({ branchId: 1, "customer.email": 1, createdAt: -1 });
 orderSchema.index({ orderTiming: 1, createdAt: -1 });
