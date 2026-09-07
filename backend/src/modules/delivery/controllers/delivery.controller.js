@@ -342,21 +342,25 @@ exports.getVehicles = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
 
-    // Auto-migrate legacy 'default' vehicles to the active restaurant branch if any
-    if (restaurantId !== "default") {
-      const branchCount = await Vehicle.countDocuments({ restaurantId });
-      if (branchCount === 0) {
+    let vehicles = await Vehicle.find({ restaurantId })
+      .select("_id number label status isAssigned assignedDriverId")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    // Auto-migrate legacy 'default' vehicles only if this branch has 0 vehicles
+    if (vehicles.length === 0 && restaurantId !== "default") {
+      const defaultCount = await Vehicle.countDocuments({ restaurantId: "default" });
+      if (defaultCount > 0) {
         await Vehicle.updateMany(
           { restaurantId: "default" },
           { $set: { restaurantId } },
         );
+        vehicles = await Vehicle.find({ restaurantId })
+          .select("_id number label status isAssigned assignedDriverId")
+          .sort({ createdAt: 1 })
+          .lean();
       }
     }
-
-    const vehicles = await Vehicle.find({ restaurantId })
-      .select("_id number label status isAssigned assignedDriverId")
-      .sort({ createdAt: 1 })
-      .lean();
 
     res.status(200).json({ success: true, data: vehicles });
   } catch (error) {

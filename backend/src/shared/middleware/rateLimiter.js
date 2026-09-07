@@ -3,7 +3,7 @@ const logger = require("../utils/logger");
 const requestsMap = new Map();
 const CLEANUP_INTERVAL = 60 * 1000; // 1 minute
 
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of requestsMap.entries()) {
     if (now > record.resetTime) {
@@ -11,6 +11,9 @@ setInterval(() => {
     }
   }
 }, CLEANUP_INTERVAL);
+if (cleanupTimer.unref) {
+  cleanupTimer.unref();
+}
 
 /**
  * Custom Rate Limiter Factory
