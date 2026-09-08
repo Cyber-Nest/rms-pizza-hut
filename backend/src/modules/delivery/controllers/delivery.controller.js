@@ -2563,7 +2563,7 @@ exports.generateBranchQrToken = async (req, res) => {
   }
 };
 
-// Helper for Haversine Distance in meters
+//Helper for Haversine Distance in meters
 function calculateHaversineMeters(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
   const R = 6371000;
