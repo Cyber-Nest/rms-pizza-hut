@@ -4,7 +4,7 @@ const deliveryController = require("../controllers/delivery.controller");
 const protectBranch = require("../../../shared/middleware/protectBranch");
 const enforceBranch = require("../../../shared/middleware/enforceBranch");
 const protectDriver = require("../../../shared/middleware/protectDriver");
-const { driverLoginLimiter } = require("../../../shared/middleware/rateLimiter");
+const { driverLoginLimiter, driverApiLimiter } = require("../../../shared/middleware/rateLimiter");
 
 // ── Public Routes (Pusher auth, Customer tracking, Driver App) ──
 router.post("/auth", deliveryController.pusherAuth);
@@ -13,11 +13,11 @@ router.get("/track/:orderId", deliveryController.trackDelivery);
 // Driver App Routes
 router.post("/driver/login", driverLoginLimiter, deliveryController.driverLogin);
 // router.post("/driver/location", deliveryController.updateDriverLocation);
-router.get("/driver/:id", protectDriver, deliveryController.getDriverById);
+router.get("/driver/:id", driverApiLimiter, protectDriver, deliveryController.getDriverById);
 // router.get("/driver/:id/assignments", protectDriver, deliveryController.getDriverAssignments);
-router.patch("/driver/deliver/:assignmentId", protectDriver, deliveryController.markDelivered);
-router.patch("/driver/complete/:assignmentId", protectDriver, deliveryController.markCompleted);
-router.patch("/driver/:id/status", protectDriver, deliveryController.updateDriverStatus);
+router.patch("/driver/deliver/:assignmentId", driverApiLimiter, protectDriver, deliveryController.markDelivered);
+router.patch("/driver/complete/:assignmentId", driverApiLimiter, protectDriver, deliveryController.markCompleted);
+router.patch("/driver/:id/status", driverApiLimiter, protectDriver, deliveryController.updateDriverStatus);
 
 // ── Branch Dashboard Protected Routes (protectBranch + enforceBranch) ──
 router.get("/orders", protectBranch, enforceBranch, deliveryController.getDeliveryOrders);
