@@ -12,9 +12,9 @@ router.get("/track/:orderId", deliveryController.trackDelivery);
 
 // Driver App Routes
 router.post("/driver/login", driverLoginLimiter, deliveryController.driverLogin);
-router.post("/driver/location", deliveryController.updateDriverLocation);
+// router.post("/driver/location", deliveryController.updateDriverLocation);
 router.get("/driver/:id", protectDriver, deliveryController.getDriverById);
-router.get("/driver/:id/assignments", protectDriver, deliveryController.getDriverAssignments);
+// router.get("/driver/:id/assignments", protectDriver, deliveryController.getDriverAssignments);
 router.patch("/driver/deliver/:assignmentId", protectDriver, deliveryController.markDelivered);
 router.patch("/driver/complete/:assignmentId", protectDriver, deliveryController.markCompleted);
 router.patch("/driver/:id/status", protectDriver, deliveryController.updateDriverStatus);
