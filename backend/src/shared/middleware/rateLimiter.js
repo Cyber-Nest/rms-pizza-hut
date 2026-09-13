@@ -66,5 +66,12 @@ module.exports = {
     max: 5, // 5 attempts
     message: "Too many login attempts. Account temporarily locked. Try again in 5 minutes.",
   }),
+  // Throttle Flutter driver app API calls — prevents background polling abuse
+  // 20 requests/min per IP = enough for legitimate use, blocks runaway timers
+  driverApiLimiter: createRateLimiter({
+    windowMs: 60 * 1000, // 1 min
+    max: 20,
+    message: "Driver API rate limit exceeded. Please slow down requests.",
+  }),
   generalLimiter: createRateLimiter({ windowMs: 60 * 1000, max: 200 }),
 };
