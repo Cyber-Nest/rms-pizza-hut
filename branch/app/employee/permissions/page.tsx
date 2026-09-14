@@ -96,6 +96,13 @@ const PERMISSION_DEFS: PermissionDef[] = [
     group: "POS Routes",
   },
   {
+    key: "employees",
+    label: "Employee Mgmt",
+    shortLabel: "Employees",
+    description: "Employee staff roster & account management",
+    group: "POS Routes",
+  },
+  {
     key: "permissions",
     label: "Permissions",
     shortLabel: "Permissions",
@@ -103,10 +110,24 @@ const PERMISSION_DEFS: PermissionDef[] = [
     group: "POS Routes",
   },
   {
+    key: "employee_schedule",
+    label: "Employee Schedule",
+    shortLabel: "Schedule",
+    description: "View weekly employee shift schedules",
+    group: "POS Routes",
+  },
+  {
     key: "attendance_report",
     label: "Attendance Report",
     shortLabel: "Attendance",
     description: "Shift working hours and break reports",
+    group: "POS Routes",
+  },
+  {
+    key: "account_closing",
+    label: "Account Closing",
+    shortLabel: "Acc Closing",
+    description: "Daily register account settlement and closing",
     group: "POS Routes",
   },
   {

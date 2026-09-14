@@ -1,10 +1,13 @@
-import EmployeeScheduleView from "@/modules/employee-pos/components/EmployeeScheduleView";
+"use client";
 
-export const metadata = {
-  title: "Employee Schedule | Pizza Hut RMS",
-  description: "Manage weekly employee work schedules",
-};
+import React from "react";
+import EmployeeScheduleView from "@/modules/employee-pos/components/EmployeeScheduleView";
+import EmployeePermissionGuard from "@/modules/employee-pos/components/EmployeePermissionGuard";
 
 export default function EmployeeSchedulePage() {
-  return <EmployeeScheduleView />;
+  return (
+    <EmployeePermissionGuard permissionKey="employee_schedule">
+      <EmployeeScheduleView />
+    </EmployeePermissionGuard>
+  );
 }
