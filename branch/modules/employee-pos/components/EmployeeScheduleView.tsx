@@ -196,8 +196,32 @@ export default function EmployeeScheduleView() {
     setMondayStr(getMondayOfDate(getLocalTodayStr()));
   };
 
+  // Active Employee / Session State
+  const [activeEmployee, setActiveEmployee] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("rms_active_employee");
+        if (raw) setActiveEmployee(JSON.parse(raw));
+      } catch (e) {}
+    }
+  }, []);
+
+  // Only Branch Admin (Master Login / no staff PIN active) can edit or set schedule.
+  // Managers and staff have View-Only access.
+  const isBranchAdmin = !activeEmployee;
+  const canEditSchedule = isBranchAdmin;
+
   // Copy Schedule from Previous Week
   const handleCopyPreviousWeek = async () => {
+    if (!canEditSchedule) {
+      toast.error(
+        "Access Restricted: Only Branch Admin can copy or edit employee schedules.",
+      );
+      return;
+    }
+
     const branchId = getBranchId();
     if (!branchId) return;
 
@@ -298,10 +322,19 @@ export default function EmployeeScheduleView() {
 
       {/* Edge-to-Edge Top Control Bar */}
       <div className="bg-white border-b border-neutral-200 px-6 py-3.5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 shadow-sm flex-shrink-0 select-none print:hidden">
-        <div className="flex items-center gap-4 flex-wrap">
-          <h1 className="text-xl font-900 text-neutral-900 tracking-tight leading-none min-w-[140px] flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-xl font-900 text-neutral-900 tracking-tight leading-none flex items-center gap-2">
             <span>Employee Schedule</span>
           </h1>
+          {canEditSchedule ? (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-800 bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
+              Branch Admin (Edit Access)
+            </span>
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-800 bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wide" title="Only Branch Admin can edit schedules. Manager & staff have view-only access.">
+              View Only ({activeEmployee?.role ? activeEmployee.role : "Staff"})
+            </span>
+          )}
         </div>
 
         {/* Week Controls & Actions */}
@@ -476,6 +509,12 @@ export default function EmployeeScheduleView() {
                             <td
                               key={d.dateStr}
                               onClick={() => {
+                                if (!canEditSchedule) {
+                                  toast.error(
+                                    "Access Restricted: Only Branch Admin can set or edit employee schedules.",
+                                  );
+                                  return;
+                                }
                                 setSelectedCell({
                                   employee: emp,
                                   date: d.dateStr,
@@ -483,7 +522,11 @@ export default function EmployeeScheduleView() {
                                   initialSchedule: entry || null,
                                 });
                               }}
-                              className="px-2 py-3 border-r border-neutral-300 text-center cursor-pointer hover:bg-orange-50/60 transition-all relative group print:cursor-default"
+                              className={`px-2 py-3 border-r border-neutral-300 text-center transition-all relative group print:cursor-default ${
+                                canEditSchedule
+                                  ? "cursor-pointer hover:bg-orange-50/60"
+                                  : "cursor-default hover:bg-neutral-50"
+                              }`}
                             >
                               {isOff ? (
                                 <div className="py-1">

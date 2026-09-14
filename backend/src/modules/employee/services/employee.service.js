@@ -303,7 +303,8 @@ exports.deleteEmployee = async (branchId, id) => {
 const VALID_PERMISSION_KEYS = [
   // Separate route pages
   "pos", "kitchen", "reception_view", "delivery", "driver_drop",
-  "vehicles", "customers", "employees", "menus", "setting",
+  "vehicles", "customers", "employees", "permissions", "menus", "setting",
+  "account_closing", "employee_schedule", "attendance_report",
   // /employee/orders sub-tabs
   "dashboard", "orders", "orders_list", "sales_summary", "expense_payout", "reports",
   "item_sales", "hourly_sales", "cash_out_summary",

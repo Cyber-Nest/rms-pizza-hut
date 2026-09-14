@@ -114,7 +114,8 @@ export default function POSSidebarDrawer({ isOpen, onClose, activeTab, onSelectT
   ];
 
   // Filter menu items based on role
-  const isManagerMode = !activeEmployee || activeEmployee.role === 'manager';
+  const isSuperAdminImp = typeof window !== 'undefined' && localStorage.getItem('rms_superadmin_impersonation') === 'true';
+  const isManagerMode = !activeEmployee || activeEmployee.role === 'manager' || isSuperAdminImp;
 
   const menuItems = rawMenuItems.filter(item => {
     // Master Logout: only for manager/admin (no active employee OR active employee is manager)
