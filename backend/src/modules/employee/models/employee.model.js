@@ -61,8 +61,11 @@ const employeeSchema = new mongoose.Schema(
       vehicles:               { type: Boolean, default: false },
       customers:              { type: Boolean, default: false },
       employees:              { type: Boolean, default: false },
+      permissions:            { type: Boolean, default: false },
       menus:                  { type: Boolean, default: false },
       setting:                { type: Boolean, default: false },
+      account_closing:        { type: Boolean, default: false },
+      employee_schedule:      { type: Boolean, default: false },
       //orders sub-tabs
       dashboard:              { type: Boolean, default: false },
       orders:                 { type: Boolean, default: false },
