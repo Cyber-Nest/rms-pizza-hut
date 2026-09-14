@@ -1444,18 +1444,9 @@ exports.unassignDriver = async (req, res) => {
       });
     }
 
-    // Trigger Pusher events to update maps in real-time
+    // Trigger Pusher event to update branch delivery dashboard
     const pusher = require("../../../config/pusher");
     if (pusher.pusherInstance) {
-      // 1. Tell order tracking map driver is unassigned
-      pusher.pusherInstance.trigger(
-        `private-order-${orderId}`,
-        "delivery-unassigned",
-        {
-          orderId,
-        },
-      );
-      // 2. Tell branch dashboard to re-fetch/update
       pusher.pusherInstance.trigger(
         `private-restaurant-${restaurantId}`,
         "delivery-assigned",

@@ -33,10 +33,12 @@ const triggerNewOrder = async (order) => {
   }
 
   try {
-    const channels = ["orders"];
+    //Only branch-specific channel used.
+    const channels = [];
     if (order.branchId) {
       channels.push(`orders-${order.branchId.toString()}`);
     }
+    if (channels.length === 0) return;
 
     await pusherInstance.trigger(channels, "new-order", {
       _id: order._id,
@@ -68,10 +70,11 @@ const triggerOrderUpdated = async (order) => {
   }
 
   try {
-    const channels = [`private-order-${order._id.toString()}`];
+    const channels = [];
     if (order.branchId) {
       channels.push(`orders-${order.branchId.toString()}`);
     }
+    if (channels.length === 0) return;
 
     await pusherInstance.trigger(channels, "order-updated", {
       _id: order._id,
@@ -128,10 +131,7 @@ const triggerDeliveryAssigned = async (restaurantId, orderId, driverInfo) => {
   };
 
   try {
-    await Promise.all([
-      pusherInstance.trigger(`private-restaurant-${restaurantId}`, "delivery-assigned", payload),
-      pusherInstance.trigger(`private-order-${orderId}`, "delivery-assigned", payload),
-    ]);
+    await pusherInstance.trigger(`private-restaurant-${restaurantId}`, "delivery-assigned", payload);
     logger.info(`Pusher 'delivery-assigned' triggered for order: ${orderId}`);
   } catch (error) {
     logger.error(`Failed to trigger delivery-assigned: ${error.message}`);
@@ -156,10 +156,6 @@ const triggerDeliveryStatusUpdate = async (restaurantId, orderId, statusData) =>
 
   try {
     const channels = [`private-restaurant-${restaurantId}`];
-    // Only send to order channel if not 'completed' (user tracking already ended)
-    if (statusData.status !== "completed") {
-      channels.push(`private-order-${orderId}`);
-    }
     await pusherInstance.trigger(channels, "delivery-status-update", payload);
     logger.info(`Pusher 'delivery-status-update' (${statusData.status}) for order: ${orderId}`);
   } catch (error) {
