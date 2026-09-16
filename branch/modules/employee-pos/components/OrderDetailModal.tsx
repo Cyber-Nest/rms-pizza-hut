@@ -847,22 +847,78 @@ export default function OrderDetailModal({
                           ))}
                         </div>
 
-                        {payMethod === "cash" && (
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-neutral-500 font-700">
-                              Cash Given
-                            </label>
-                            <input
-                              type="number"
-                              value={cashGivenInput}
-                              onChange={(e) =>
-                                setCashGivenInput(e.target.value)
-                              }
-                              placeholder={`$${(order.total ?? 0).toFixed(2)}`}
-                              className="w-full bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-[11.5px] text-neutral-800 focus:outline-none focus:border-brand-primary"
-                            />
-                          </div>
-                        )}
+                        {payMethod === "cash" && (() => {
+                          const orderTotal = order.total ?? 0;
+                          const parsedCash = parseFloat(cashGivenInput);
+                          const isCashEntered = cashGivenInput.trim() !== "" && !isNaN(parsedCash);
+                          const changeToReturn = isCashEntered && parsedCash > orderTotal ? parsedCash - orderTotal : 0;
+                          const isUnderpaid = isCashEntered && parsedCash < orderTotal;
+
+                          return (
+                            <div className="space-y-2 bg-neutral-100/70 border border-neutral-200 p-2.5 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[10px] text-neutral-600 font-700 uppercase tracking-wider">
+                                  Cash Given ($)
+                                </label>
+                                {cashGivenInput && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCashGivenInput("")}
+                                    className="text-[9.5px] text-neutral-400 hover:text-neutral-600 underline font-600 cursor-pointer"
+                                  >
+                                    Clear
+                                  </button>
+                                )}
+                              </div>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={cashGivenInput}
+                                onChange={(e) =>
+                                  setCashGivenInput(e.target.value)
+                                }
+                                placeholder={`$${orderTotal.toFixed(2)}`}
+                                className="w-full bg-white border border-neutral-300 rounded-lg px-2.5 py-1.5 text-[12px] font-700 text-neutral-800 focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 shadow-xs"
+                              />
+
+                              {/* Live Return Change Display */}
+                              {isCashEntered && (
+                                <div
+                                  className={`mt-1.5 p-2 rounded-lg border flex items-center justify-between transition-all ${
+                                    isUnderpaid
+                                      ? "bg-amber-50 border-amber-200 text-amber-900"
+                                      : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                                  }`}
+                                >
+                                  <div className="space-y-0.5">
+                                    <span className="text-[10px] font-800 uppercase tracking-wider block">
+                                      {isUnderpaid
+                                        ? "Remaining Due"
+                                        : "Change to Return"}
+                                    </span>
+                                    <span className="text-[9.5px] opacity-80 block">
+                                      {isUnderpaid
+                                        ? `Short by $${(orderTotal - parsedCash).toFixed(2)}`
+                                        : `Customer Paid: $${parsedCash.toFixed(2)}`}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`text-[15px] font-900 font-mono ${
+                                      isUnderpaid
+                                        ? "text-amber-600"
+                                        : "text-emerald-600"
+                                    }`}
+                                  >
+                                    $
+                                    {isUnderpaid
+                                      ? (orderTotal - parsedCash).toFixed(2)
+                                      : changeToReturn.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         <div className="flex items-center gap-2 pt-1">
                           <button
