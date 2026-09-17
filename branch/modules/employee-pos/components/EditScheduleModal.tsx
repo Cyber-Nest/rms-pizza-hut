@@ -53,6 +53,52 @@ function calculateHours(startTime: string, endTime: string): number {
   return Math.round((diffMins / 60) * 100) / 100;
 }
 
+/**
+ * Validate that a time string is a valid 24H time.
+ * Accepts: "9", "09", "9:00", "09:00", "16:30", "23:59"
+ * Rejects: "28:00", "09:88", "abc", "25"
+ */
+function isValidTime(val: string): boolean {
+  if (!val || !val.trim()) return false;
+  const str = val.trim();
+
+  if (str.includes(":")) {
+    const parts = str.split(":");
+    if (parts.length !== 2) return false;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return false;
+    return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+  } else {
+    // Plain number like "9" or "16"
+    const h = parseFloat(str);
+    if (isNaN(h)) return false;
+    return h >= 0 && h <= 23 && Number.isInteger(h);
+  }
+}
+
+/**
+ * Auto-format time on blur:
+ * "9" → "09:00", "16" → "16:00", "9:5" → "09:05"
+ */
+function autoFormatTime(val: string): string {
+  if (!val || !val.trim()) return val;
+  const str = val.trim();
+
+  if (str.includes(":")) {
+    const [hPart, mPart] = str.split(":");
+    const h = parseInt(hPart, 10);
+    const m = parseInt(mPart, 10);
+    if (isNaN(h) || isNaN(m)) return str;
+    if (h > 23 || m > 59) return str; // Let validation show error
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  } else {
+    const h = parseInt(str, 10);
+    if (isNaN(h) || h > 23) return str;
+    return `${String(h).padStart(2, "0")}:00`;
+  }
+}
+
 export default function EditScheduleModal({
   isOpen,
   onClose,
@@ -118,6 +164,20 @@ export default function EditScheduleModal({
     });
   };
 
+  const handleShiftBlur = (index: number, field: "startTime" | "endTime", val: string) => {
+    const formatted = autoFormatTime(val);
+    setShifts((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: formatted };
+      return copy;
+    });
+  };
+
+  // Check if any shift has invalid times
+  const hasInvalidTimes = !isOff && shifts.some(
+    (s) => !isValidTime(s.startTime) || !isValidTime(s.endTime)
+  );
+
   // Calculate total scheduled hours live
   const totalHours = isOff
     ? 0
@@ -143,6 +203,12 @@ export default function EditScheduleModal({
     const branchId = getBranchId();
     if (!branchId) {
       toast.error("Branch ID not found. Please log in again.");
+      return;
+    }
+
+    // Validate all shift times before saving
+    if (hasInvalidTimes) {
+      toast.error("Please fix invalid shift times before saving. Use 24H format (e.g. 09:00, 16:30, 23:00)");
       return;
     }
 
@@ -261,6 +327,8 @@ export default function EditScheduleModal({
 
               {shifts.map((shift, idx) => {
                 const segHours = calculateHours(shift.startTime, shift.endTime);
+                const startInvalid = shift.startTime && !isValidTime(shift.startTime);
+                const endInvalid = shift.endTime && !isValidTime(shift.endTime);
                 return (
                   <div
                     key={idx}
@@ -293,9 +361,19 @@ export default function EditScheduleModal({
                           onChange={(e) =>
                             handleShiftChange(idx, "startTime", e.target.value)
                           }
+                          onBlur={(e) =>
+                            handleShiftBlur(idx, "startTime", e.target.value)
+                          }
                           placeholder="e.g. 09:00 or 9"
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 hover:border-neutral-300 rounded-xl text-xs font-700 text-neutral-900 focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
+                          className={`w-full px-3 py-2 bg-white border rounded-xl text-xs font-700 text-neutral-900 focus:ring-2 outline-none transition-all ${
+                            startInvalid
+                              ? "border-red-400 bg-red-50/40 focus:ring-red-200 focus:border-red-500"
+                              : "border-neutral-200 hover:border-neutral-300 focus:ring-brand-primary/20 focus:border-brand-primary"
+                          }`}
                         />
+                        {startInvalid && (
+                          <p className="text-[10px] text-red-500 font-700 mt-1">⚠ Invalid time (0–23 hrs, 0–59 min)</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-[10px] font-700 text-neutral-500 uppercase mb-1">
@@ -307,9 +385,19 @@ export default function EditScheduleModal({
                           onChange={(e) =>
                             handleShiftChange(idx, "endTime", e.target.value)
                           }
+                          onBlur={(e) =>
+                            handleShiftBlur(idx, "endTime", e.target.value)
+                          }
                           placeholder="e.g. 16:00 or 16"
-                          className="w-full px-3 py-2 bg-white border border-neutral-200 hover:border-neutral-300 rounded-xl text-xs font-700 text-neutral-900 focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
+                          className={`w-full px-3 py-2 bg-white border rounded-xl text-xs font-700 text-neutral-900 focus:ring-2 outline-none transition-all ${
+                            endInvalid
+                              ? "border-red-400 bg-red-50/40 focus:ring-red-200 focus:border-red-500"
+                              : "border-neutral-200 hover:border-neutral-300 focus:ring-brand-primary/20 focus:border-brand-primary"
+                          }`}
                         />
+                        {endInvalid && (
+                          <p className="text-[10px] text-red-500 font-700 mt-1">⚠ Invalid time (0–23 hrs, 0–59 min)</p>
+                        )}
                       </div>
                     </div>
 
@@ -377,8 +465,8 @@ export default function EditScheduleModal({
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving}
-              className="px-5 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary-dark text-white text-xs font-800 transition-all shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              disabled={saving || hasInvalidTimes}
+              className="px-5 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary-dark text-white text-xs font-800 transition-all shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save size={14} />
               <span>{saving ? "Saving..." : "Save Shift"}</span>
