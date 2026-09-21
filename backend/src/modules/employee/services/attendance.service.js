@@ -65,8 +65,13 @@ const checkAndAutoCheckoutOverdueShifts = async (branchId) => {
           // Trigger Auto-Checkout!
           const [endH, endM] = (activeShift.scheduledShiftEnd || "16:00").split(":").map(Number);
           // Use checkIn date as base so past-date shifts get correct checkout date (not today's date)
-          const scheduledCheckOutDt = DateTime.fromJSDate(activeShift.checkIn, { zone: TIMEZONE })
-            .set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+          const checkInDt = DateTime.fromJSDate(activeShift.checkIn, { zone: TIMEZONE });
+          let scheduledCheckOutDt = checkInDt.set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+          // If end time is midnight (00:00) or crosses midnight (endH <= checkInDt.hour and endMins <= checkInDt.minute * not same),
+          // advance by 1 day to get the correct next-day midnight
+          if (scheduledCheckOutDt <= checkInDt) {
+            scheduledCheckOutDt = scheduledCheckOutDt.plus({ days: 1 });
+          }
           const checkOutJsDate = scheduledCheckOutDt.toJSDate();
 
           // Auto-close open breaks if any
@@ -230,7 +235,16 @@ exports.checkIn = async (branchId, employeeId, managerPin) => {
 
     const [endH, endM] = matchedSegment.endTime.split(":").map(Number);
     // Grace time = scheduledEnd + 2 minutes
-    const graceDt = now.set({ hour: endH, minute: endM, second: 0, millisecond: 0 }).plus({ minutes: 2 });
+    // Handle overnight shifts: if end time (e.g. 00:00) is <= start time, the shift crosses midnight → add 1 day
+    const [startH, startM] = matchedSegment.startTime.split(":").map(Number);
+    const startTotalMins = startH * 60 + startM;
+    const endTotalMins = endH * 60 + endM;
+    let graceDt = now.set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+    if (endTotalMins <= startTotalMins) {
+      // Overnight shift: end is next calendar day
+      graceDt = graceDt.plus({ days: 1 });
+    }
+    graceDt = graceDt.plus({ minutes: 2 });
     autoCheckoutGraceTime = graceDt.toJSDate();
   }
 
@@ -379,8 +393,12 @@ exports.checkOut = async (branchId, employeeId) => {
     if (nowDt >= graceTimeDt && activeShift.scheduledShiftEnd) {
       // Grace window has passed — snap checkout to scheduled end time
       const [endH, endM] = activeShift.scheduledShiftEnd.split(":").map(Number);
-      const scheduledEndDt = DateTime.fromJSDate(activeShift.checkIn, { zone: TIMEZONE })
-        .set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+      const checkInDt = DateTime.fromJSDate(activeShift.checkIn, { zone: TIMEZONE });
+      let scheduledEndDt = checkInDt.set({ hour: endH, minute: endM, second: 0, millisecond: 0 });
+      // Handle overnight shift: if calculated end is before or equal to checkIn, advance by 1 day
+      if (scheduledEndDt <= checkInDt) {
+        scheduledEndDt = scheduledEndDt.plus({ days: 1 });
+      }
       checkOutTime = scheduledEndDt.toJSDate();
       isLateManualCheckout = true;
     }
