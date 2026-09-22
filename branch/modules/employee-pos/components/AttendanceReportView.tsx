@@ -61,6 +61,21 @@ export default function AttendanceReportView() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Active Employee / Session State — same pattern as EmployeeScheduleView
+  // Branch Admin = no staff PIN active (activeEmployee is null)
+  const [activeEmployee, setActiveEmployee] = useState<any>(null);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("rms_active_employee");
+        if (raw) setActiveEmployee(JSON.parse(raw));
+      } catch (e) {}
+    }
+  }, []);
+  // Only Branch Admin can edit attendance logs
+  const isBranchAdmin = !activeEmployee;
+  const canEditLog = isBranchAdmin;
+
   // Employee Selection State
   const [employeesList, setEmployeesList] = useState<EmployeeItem[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
@@ -340,6 +355,18 @@ export default function AttendanceReportView() {
           <h1 className="text-xl lg:text-2xl font-900 text-neutral-900 tracking-tight leading-none min-w-[180px] flex items-center gap-2">
             <span>Attendance Report</span>
           </h1>
+          {canEditLog ? (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-800 bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
+              Branch Admin (Edit Access)
+            </span>
+          ) : (
+            <span
+              className="px-2.5 py-0.5 rounded-full text-[10px] font-800 bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wide"
+              title="Only Branch Admin can edit attendance logs. Manager &amp; staff have view-only access."
+            >
+              View Only ({activeEmployee?.role ? activeEmployee.role : "Staff"})
+            </span>
+          )}
         </div>
 
         {/* Right Side: Action Buttons & Refresh */}
@@ -774,16 +801,20 @@ export default function AttendanceReportView() {
                             )}
                           </td>
 
-                          {/* Action: Edit Shift Log */}
+                          {/* Action: Edit Shift Log — Branch Admin Only */}
                           <td className="py-3.5 px-3 text-center select-none">
-                            <button
-                              onClick={() => setEditingRow(row)}
-                              className="px-3 py-1.5 bg-[#e31837] hover:bg-[#b9142d] text-white rounded-lg text-[11px] font-800 flex items-center gap-1 mx-auto transition-all active:scale-95 shadow-2xs cursor-pointer"
-                              title="Edit check-in, check-out, or break times"
-                            >
-                              <Pencil size={12} />
-                              <span>Edit</span>
-                            </button>
+                            {canEditLog ? (
+                              <button
+                                onClick={() => setEditingRow(row)}
+                                className="px-3 py-1.5 bg-[#e31837] hover:bg-[#b9142d] text-white rounded-lg text-[11px] font-800 flex items-center gap-1 mx-auto transition-all active:scale-95 shadow-2xs cursor-pointer"
+                                title="Edit check-in, check-out, or break times"
+                              >
+                                <Pencil size={12} />
+                                <span>Edit</span>
+                              </button>
+                            ) : (
+                              <span className="text-neutral-300 font-mono text-xs font-500">--</span>
+                            )}
                           </td>
                         </tr>
                       ))
