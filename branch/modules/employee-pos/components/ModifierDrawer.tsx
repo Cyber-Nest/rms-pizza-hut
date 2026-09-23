@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   X,
   Plus,
@@ -48,6 +48,7 @@ export default function ModifierDrawer({
   const [activeIdx, setActiveIdx] = useState(0);
   const [note, setNote] = useState("");
   const [selectedSize, setSelectedSize] = useState<ProductVariant | null>(null);
+  const [isDealApplied, setIsDealApplied] = useState(false);
   const isInitialMount = useRef(true);
 
   // Pre-index all available ModifierGroups (both root and nested populated groups) by ID
@@ -252,6 +253,7 @@ export default function ModifierDrawer({
     isInitialMount.current = true;
     setActiveIdx(0);
     setRemovedIncluded({});
+    setIsDealApplied(false);
 
     let defaultSize: ProductVariant | null = null;
     const availableVariants = (item.variants || []).filter(
@@ -431,7 +433,7 @@ export default function ModifierDrawer({
     optionId: string,
     optionName?: string,
   ) => {
-    if (!item) return null;
+    if (!item || !isDealApplied) return null;
     const today = getLocalDayName();
     const prodId = (item.id || (item as any)._id || item.productId) as string;
 
@@ -689,6 +691,49 @@ export default function ModifierDrawer({
     return result;
   }, [item, selections]);
 
+  //Raw helper to resolve deal of the day price (ignores toggle state, for detection & previews)
+  const getRawDealPriceForVariant = useCallback((variantSizeCode?: string) => {
+    if (!item) return null;
+    const today = getLocalDayName();
+    const prodId = (item.id || (item as any)._id || item.productId) as string;
+
+    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
+    const matchedDeal = deals.find(
+      (d: any) =>
+        d.isActive &&
+        d.dayOfWeek?.toLowerCase() === today &&
+        (d.productId === prodId ||
+          (d.productId as any)?._id === prodId ||
+          (d.productId as any)?.id === prodId ||
+          !d.productId),
+    );
+
+    if (matchedDeal && matchedDeal.sizes) {
+      const szConfig = matchedDeal.sizes.find(
+        (s: any) =>
+          (!variantSizeCode ||
+            s.sizeCode === variantSizeCode ||
+            s.sizeCode === "regular") &&
+          s.isEnabled &&
+          typeof s.dealPrice === "number" &&
+          s.dealPrice > 0,
+      );
+      if (szConfig) {
+        return szConfig.dealPrice;
+      }
+    }
+    return null;
+  }, [item]);
+
+  // Helper to check if a Deal of the Day is configured for today for this item
+  const hasDealAvailableToday = useMemo(() => {
+    if (!item) return false;
+    if (item.variants && item.variants.length > 0) {
+      return item.variants.some((v) => getRawDealPriceForVariant(v.sizeCode) !== null);
+    }
+    return getRawDealPriceForVariant() !== null;
+  }, [item, getRawDealPriceForVariant]);
+
   if (!isOpen || !item) return null;
 
   // Helper to recursively clear sub-group selections when a parent option is unselected
@@ -800,38 +845,10 @@ export default function ModifierDrawer({
       return n >= g.minSelection && n <= g.maxSelection;
     });
 
-  // Helper to resolve deal of the day price for a given size variant or simple item
+  // Active deal resolver — only returns deal price if employee has toggled Deal of the Day ON
   const getDealPriceForVariant = (variantSizeCode?: string) => {
-    if (!item) return null;
-    const today = getLocalDayName();
-    const prodId = (item.id || (item as any)._id || item.productId) as string;
-
-    const deals = (item as any).dealsOfTheDay || (item as any).deals || [];
-    const matchedDeal = deals.find(
-      (d: any) =>
-        d.isActive &&
-        d.dayOfWeek?.toLowerCase() === today &&
-        (d.productId === prodId ||
-          (d.productId as any)?._id === prodId ||
-          (d.productId as any)?.id === prodId ||
-          !d.productId),
-    );
-
-    if (matchedDeal && matchedDeal.sizes) {
-      const szConfig = matchedDeal.sizes.find(
-        (s: any) =>
-          (!variantSizeCode ||
-            s.sizeCode === variantSizeCode ||
-            s.sizeCode === "regular") &&
-          s.isEnabled &&
-          typeof s.dealPrice === "number" &&
-          s.dealPrice > 0,
-      );
-      if (szConfig) {
-        return szConfig.dealPrice;
-      }
-    }
-    return null;
+    if (!isDealApplied) return null;
+    return getRawDealPriceForVariant(variantSizeCode);
   };
 
   const effectiveSizePrice = (variant: ProductVariant) => {
@@ -1593,6 +1610,47 @@ export default function ModifierDrawer({
             </div>
           </div>
 
+          {/* Deal of the Day Manual Toggle Switch Banner */}
+          {hasDealAvailableToday && (
+            <div
+              className={`px-5 py-2.5 border-b flex items-center justify-between transition-all duration-200 ${
+                isDealApplied
+                  ? "bg-amber-500 text-white border-amber-600 shadow-sm"
+                  : "bg-amber-50/90 border-amber-200 text-amber-900"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">🔥</span>
+                <div>
+                  <span className="text-[11px] font-900 tracking-wider uppercase block">
+                    Deal of the Day Available
+                  </span>
+                  <p className="text-[10.5px] font-600 opacity-90">
+                    {isDealApplied
+                      ? "Special Deal Price Applied to Item"
+                      : "Toggle ON to apply today's special deal price"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Interactive Toggle Switch */}
+              <button
+                type="button"
+                onClick={() => setIsDealApplied(!isDealApplied)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  isDealApplied ? "bg-white" : "bg-neutral-300"
+                }`}
+                title={isDealApplied ? "Disable Deal Price" : "Apply Deal of the Day Price"}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full shadow-md ring-0 transition duration-200 ease-in-out ${
+                    isDealApplied ? "translate-x-5 bg-amber-600" : "translate-x-0 bg-white"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
+
           {/* Pizza Size Selector */}
           {item.hasVariants && item.variants && item.variants.length > 0 && (
             <div className="px-5 pt-3.5 pb-2.5 border-b border-neutral-100 bg-gradient-to-r from-orange-50/40 via-amber-50/20 to-orange-50/40 flex-shrink-0">
@@ -1601,11 +1659,15 @@ export default function ModifierDrawer({
                   <Pizza size={11} className="text-brand-primary" />
                   Select Pizza Size
                 </p>
-                {item.variants.some(
-                  (v) => getDealPriceForVariant(v.sizeCode) !== null,
-                ) && (
-                  <span className="text-[8.5px] font-700 text-amber-700 bg-amber-100/90 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200/60 shadow-xs">
-                    🔥 Deal Active
+                {hasDealAvailableToday && (
+                  <span
+                    className={`text-[8.5px] font-700 px-2 py-0.5 rounded-full flex items-center gap-1 border shadow-xs ${
+                      isDealApplied
+                        ? "text-emerald-800 bg-emerald-100 border-emerald-300"
+                        : "text-amber-700 bg-amber-100/90 border-amber-200/60"
+                    }`}
+                  >
+                    🔥 {isDealApplied ? "Deal Active" : "Deal Available (Off)"}
                   </span>
                 )}
               </div>
@@ -1632,6 +1694,7 @@ export default function ModifierDrawer({
                     const isSelected =
                       selectedSize?.sizeCode === variant.sizeCode;
                     const dPrice = getDealPriceForVariant(variant.sizeCode);
+                    const rawDealPrice = getRawDealPriceForVariant(variant.sizeCode);
                     const hasDeal = dPrice !== null;
                     const finalPrice = hasDeal ? dPrice : variant.price;
 
@@ -1653,15 +1716,15 @@ export default function ModifierDrawer({
                           <span className="text-[10px] sm:text-[10.5px] font-700 leading-tight tracking-tight whitespace-nowrap">
                             {variant.sizeName}
                           </span>
-                          {/* {hasDeal && (
+                          {!isDealApplied && rawDealPrice !== null && (
                             <span
-                              className={`text-[7px] sm:text-[7.5px] font-800 uppercase tracking-tight mt-0.5 ${
-                                isSelected ? "text-amber-200" : "text-amber-600"
+                              className={`text-[7.5px] font-700 leading-none mt-0.5 ${
+                                isSelected ? "text-white/80" : "text-amber-700"
                               }`}
                             >
-                              Deal
+                              Deal: ${rawDealPrice.toFixed(2)}
                             </span>
-                          )} */}
+                          )}
                         </div>
 
                         {/* Price Column */}
