@@ -97,6 +97,56 @@ export default function CheckInOutModal({
     }
   };
 
+  const shouldAutoLogoutOnCheckout = (verifiedEmp: any): boolean => {
+    // 1. Driver role NEVER triggers auto logout
+    if (!verifiedEmp || verifiedEmp.role === "driver") {
+      return false;
+    }
+
+    let activeEmp: any = null;
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem("rms_active_employee");
+      if (raw) {
+        try {
+          activeEmp = JSON.parse(raw);
+        } catch (e) {}
+      }
+    }
+
+    // Scenario A: Master Manager mode (no staff login code active)
+    if (!activeEmp) {
+      // If Manager checks out their attendance, lock/end staff session
+      if (verifiedEmp.role === "manager") {
+        return true;
+      }
+      // If a crew member checks out while in Master mode, DO NOT lock session
+      return false;
+    }
+
+    // Scenario B: Active employee session set in localStorage
+    const isSameUser =
+      (activeEmp._id && String(activeEmp._id) === String(verifiedEmp._id)) ||
+      (activeEmp.employeeId &&
+        String(activeEmp.employeeId).toUpperCase() === String(verifiedEmp.employeeId).toUpperCase());
+
+    // Only log out staff session if the person checking out is the CURRENT LOGGED IN USER
+    return isSameUser;
+  };
+
+  const performStaffLogout = () => {
+    if (typeof window !== "undefined") {
+      const isImp = localStorage.getItem("rms_superadmin_impersonation") === "true";
+      localStorage.removeItem("rms_active_employee");
+      if (!isImp) {
+        localStorage.setItem("rms_terminal_locked", "true");
+        document.cookie = "rms_terminal_locked=true; path=/; max-age=604800; SameSite=Lax";
+      }
+      window.dispatchEvent(new Event("rms_active_employee_changed"));
+      toast.success("Checked out & staff session ended");
+      window.location.href = "/login";
+    }
+  };
+
   const handleAttendanceAction = async (
     actionType: "check-in" | "break-in" | "break-out" | "check-out",
     mgrPin?: string
@@ -122,6 +172,17 @@ export default function CheckInOutModal({
         };
         toast.success(actionLabels[actionType]);
         onSuccess();
+
+        // ── Auto-Logout Logic on Checkout ──
+        if (actionType === "check-out") {
+          const mustLogout = shouldAutoLogoutOnCheckout(verifiedEmployee);
+          if (mustLogout) {
+            handleClose();
+            performStaffLogout();
+            return;
+          }
+        }
+
         handleClose();
       }
     } catch (err: any) {
