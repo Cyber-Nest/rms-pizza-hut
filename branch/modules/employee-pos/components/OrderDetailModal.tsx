@@ -1011,6 +1011,21 @@ export default function OrderDetailModal({
                         : "Manager")}
                   </span>
                 </div>
+                {/* Assigned Driver — only shown for delivery orders that have a driver */}
+                {order.orderType === "delivery" &&
+                  (order as any).assignedDriverName && (
+                    <div className="flex justify-between py-1 items-center">
+                      <span>Assigned Driver :</span>
+                      <span className="text-neutral-800 font-700 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-brand-primary text-white flex items-center justify-center text-[9px] font-900 shrink-0">
+                          {((order as any).assignedDriverName as string)
+                            .charAt(0)
+                            .toUpperCase()}
+                        </span>
+                        {(order as any).assignedDriverName}
+                      </span>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -1133,14 +1148,31 @@ export default function OrderDetailModal({
                         <td className="px-4 py-2 font-800 text-neutral-800">
                           {hIdx + 1}
                         </td>
-                        <td className="px-4 py-2 text-brand-primary font-700 capitalize">
-                          Status Changed (
-                          {hist.status === "completed"
-                            ? "Completed"
-                            : hist.status === "ready"
-                              ? "Ready Pick"
-                              : hist.status}
-                          )
+                        {/* Action cell — colour-coded by event type */}
+                        <td className="px-4 py-2 font-700">
+                          {hist.status === "driver_assigned" ? (
+                            <span className="text-indigo-600">
+                              🚗 Driver Assigned
+                            </span>
+                          ) : hist.status === "driver_delivered" ? (
+                            <span className="text-green-600">
+                              ✓ Delivered by Driver
+                            </span>
+                          ) : hist.status === "pos_delivered" ? (
+                            <span className="text-green-600">
+                              ✓ Delivered (POS Dispatch)
+                            </span>
+                          ) : (
+                            <span className="text-brand-primary capitalize">
+                              Status Changed (
+                              {hist.status === "completed"
+                                ? "Completed"
+                                : hist.status === "ready"
+                                  ? "Ready Pick"
+                                  : hist.status}
+                              )
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-2 text-neutral-400 italic">
                           {hist.note || `Transition to ${hist.status}`}
