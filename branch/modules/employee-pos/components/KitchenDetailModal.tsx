@@ -1260,9 +1260,16 @@ export default function KitchenDetailModal({
             <span className="text-[12px] font-500 text-neutral-300">
               Placed By :{" "}
               <span className="text-white font-700">
-                {localOrder.orderSource === "online"
-                  ? "Online System"
-                  : "Employee Terminal"}
+                {(localOrder as any).placedBy ||
+                  (localOrder as any).employeeName ||
+                  (localOrder.orderSource === "online"
+                    ? "Online System"
+                    : typeof window !== "undefined" &&
+                      localStorage.getItem("rms_active_employee")
+                    ? JSON.parse(
+                        localStorage.getItem("rms_active_employee") || "{}",
+                      ).name
+                    : "Employee Terminal")}
               </span>
             </span>
           </div>
@@ -1868,9 +1875,16 @@ export default function KitchenDetailModal({
                   <div className="flex justify-between py-1 border-b border-neutral-50 last:border-b-0">
                     <span className="text-neutral-450 font-500">Order By:</span>
                     <span className="text-neutral-700 font-600">
-                      {localOrder.orderSource === "online"
-                        ? "Online Source"
-                        : "Employee (Doe)"}
+                      {(localOrder as any).placedBy ||
+                        (localOrder as any).employeeName ||
+                        (localOrder.orderSource === "online"
+                          ? "Online Source"
+                          : typeof window !== "undefined" &&
+                            localStorage.getItem("rms_active_employee")
+                          ? JSON.parse(
+                              localStorage.getItem("rms_active_employee") || "{}",
+                            ).name
+                          : "Employee")}
                     </span>
                   </div>
                 </div>

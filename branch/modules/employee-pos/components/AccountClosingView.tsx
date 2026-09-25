@@ -491,7 +491,7 @@ export default function AccountClosingView() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Print & PDF Buttons */}
+          {/* Print & PDF Buttons*/}
           <div className="flex items-center gap-2">
             <button
               onClick={handleSilentPrintAccountClosing}
