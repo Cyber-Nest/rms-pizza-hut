@@ -622,8 +622,12 @@ exports.assignDriver = async (req, res) => {
     const assignedByName =
       req.body.assignedBy ||
       req.body.assignedByName ||
+      req.body.userName ||
       req.body.managedBy ||
       req.body.settledBy ||
+      req.user?.name ||
+      req.branch?.userName ||
+      req.branch?.employeeName ||
       "Manager";
 
     await Order.findByIdAndUpdate(orderId, {
@@ -1166,8 +1170,11 @@ exports.markDeliveredByBranch = async (req, res) => {
     const actorName =
       req.body.dispatchedBy ||
       req.body.dispatchedByName ||
+      req.body.userName ||
       req.body.settledBy ||
-      req.branch?.name ||
+      req.user?.name ||
+      req.branch?.userName ||
+      req.branch?.employeeName ||
       "Manager";
 
     const order = await Order.findByIdAndUpdate(

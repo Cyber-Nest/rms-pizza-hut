@@ -303,10 +303,27 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   assignDriver: async (orderId, driverId) => {
     try {
       const config = getBranchConfig();
-      const res = await axios.post(`${API_URL}/delivery/assign`, {
-        orderId,
-        driverId,
-      }, config);
+      let activeUserName = "Manager";
+      if (typeof window !== "undefined") {
+        try {
+          const rawEmp = localStorage.getItem("rms_active_employee");
+          if (rawEmp) {
+            const emp = JSON.parse(rawEmp);
+            if (emp.name) activeUserName = emp.name;
+          }
+        } catch (e) {}
+      }
+
+      const res = await axios.post(
+        `${API_URL}/delivery/assign`,
+        {
+          orderId,
+          driverId,
+          assignedBy: activeUserName,
+          userName: activeUserName,
+        },
+        config
+      );
       if (res.data.success) {
         // Re-fetch to sync state across dashboard
         await Promise.all([get().fetchOrders(), get().fetchDrivers()]);
@@ -319,9 +336,11 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   unassignDriver: async (orderId) => {
     try {
       const config = getBranchConfig();
-      const res = await axios.post(`${API_URL}/delivery/unassign`, {
-        orderId,
-      }, config);
+      const res = await axios.post(
+        `${API_URL}/delivery/unassign`,
+        { orderId },
+        config
+      );
       if (res.data.success) {
         await Promise.all([get().fetchOrders(), get().fetchDrivers()]);
       }
@@ -333,7 +352,26 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   markDelivered: async (orderId) => {
     try {
       const config = getBranchConfig();
-      const res = await axios.post(`${API_URL}/delivery/deliver`, { orderId }, config);
+      let activeUserName = "Manager";
+      if (typeof window !== "undefined") {
+        try {
+          const rawEmp = localStorage.getItem("rms_active_employee");
+          if (rawEmp) {
+            const emp = JSON.parse(rawEmp);
+            if (emp.name) activeUserName = emp.name;
+          }
+        } catch (e) {}
+      }
+
+      const res = await axios.post(
+        `${API_URL}/delivery/deliver`,
+        {
+          orderId,
+          dispatchedBy: activeUserName,
+          userName: activeUserName,
+        },
+        config
+      );
       if (res.data.success) {
         await Promise.all([get().fetchOrders(), get().fetchDrivers()]);
       }
