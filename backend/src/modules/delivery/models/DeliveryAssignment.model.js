@@ -48,5 +48,7 @@ const deliveryAssignmentSchema = new mongoose.Schema(
 deliveryAssignmentSchema.index({ orderId: 1 });
 deliveryAssignmentSchema.index({ driverId: 1, status: 1 });
 deliveryAssignmentSchema.index({ restaurantId: 1, status: 1 });
+// Compound index for Driver Drop queries: filter by driver + status + actual delivery time
+deliveryAssignmentSchema.index({ driverId: 1, status: 1, deliveredAt: 1 });
 
 module.exports = mongoose.model("DeliveryAssignment", deliveryAssignmentSchema);

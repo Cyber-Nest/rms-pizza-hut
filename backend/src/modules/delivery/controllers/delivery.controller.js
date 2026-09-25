@@ -10,7 +10,12 @@ const silentPrintService = require("../../order/services/silentPrint.service");
 const fs = require("fs");
 
 const logger = require("../../../shared/utils/logger");
-const { getLocalDateStr, getLocalStartOfDay, getLocalEndOfDay, formatLocalDateTime } = require("../../../shared/utils/timezone");
+const {
+  getLocalDateStr,
+  getLocalStartOfDay,
+  getLocalEndOfDay,
+  formatLocalDateTime,
+} = require("../../../shared/utils/timezone");
 const {
   authenticateChannel,
   triggerDeliveryAssigned,
@@ -22,7 +27,10 @@ const {
 
 const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "rms_super_secret_jwt_key";
-const { generateSignedQrPayload, verifyQrPayload } = require("../../../shared/utils/qrSigning");
+const {
+  generateSignedQrPayload,
+  verifyQrPayload,
+} = require("../../../shared/utils/qrSigning");
 
 // ─── Helper ───
 const handleError = (res, error, status = 400) => {
@@ -50,6 +58,45 @@ const getRestaurantIdFromReq = (req) => {
   }
 
   return branchId ? String(branchId) : "default";
+};
+
+/**
+ * Helper to filter assignments strictly to DELIVERED/COMPLETED orders and deduplicate by orderId.
+ */
+const getValidDeliveredOrdersFromAssignments = (assignments) => {
+  if (!Array.isArray(assignments)) return [];
+
+  const validAssignments = assignments.filter((a) => {
+    if (!a || !a.orderId) return false;
+    const orderStatus = a.orderId.status;
+    return orderStatus === "completed" || orderStatus === "delivered";
+  });
+
+  const mapByOrderKey = new Map();
+  for (const a of validAssignments) {
+    const orderKey = a.orderId.orderNumber
+      ? String(a.orderId.orderNumber)
+      : a.orderId._id
+        ? a.orderId._id.toString()
+        : String(a.orderId);
+
+    if (!mapByOrderKey.has(orderKey)) {
+      mapByOrderKey.set(orderKey, a);
+    } else {
+      const existing = mapByOrderKey.get(orderKey);
+      const existingTime = new Date(
+        existing.deliveredAt || existing.assignedAt || 0,
+      ).getTime();
+      const currentTime = new Date(
+        a.deliveredAt || a.assignedAt || 0,
+      ).getTime();
+      if (currentTime > existingTime) {
+        mapByOrderKey.set(orderKey, a);
+      }
+    }
+  }
+
+  return Array.from(mapByOrderKey.values());
 };
 
 // ─── PUSHER AUTH ───
@@ -216,7 +263,7 @@ exports.getDrivers = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
 
-    // fix cross side driver show 
+    // fix cross side driver show
     // Self-healing sync: Ensure all active driver employees for this branch have a matched Driver doc
     // try {
     //   const driverEmployees = await Employee.find({ branchId: restaurantId, role: "driver", isActive: true });
@@ -288,7 +335,10 @@ exports.getDrivers = async (req, res) => {
         driverCheckedInMap.set(emp.driverRef.toString(), isCheckedIn);
       }
       if (emp.employeeId) {
-        driverCheckedInMap.set(String(emp.employeeId).toUpperCase(), isCheckedIn);
+        driverCheckedInMap.set(
+          String(emp.employeeId).toUpperCase(),
+          isCheckedIn,
+        );
       }
     });
 
@@ -299,12 +349,13 @@ exports.getDrivers = async (req, res) => {
         driverCheckedInMap.get(String(driver.driverId).toUpperCase()) ||
         false;
 
-      const isBusy = driver.status === "on-delivery" || driver.status === "returning";
+      const isBusy =
+        driver.status === "on-delivery" || driver.status === "returning";
       const computedStatus = isBusy
         ? driver.status
         : Boolean(driver.isDutyOnline)
-        ? "available"
-        : "offline";
+          ? "available"
+          : "offline";
 
       return {
         _id: driver._id,
@@ -349,7 +400,9 @@ exports.getVehicles = async (req, res) => {
 
     // Auto-migrate legacy 'default' vehicles only if this branch has 0 vehicles
     if (vehicles.length === 0 && restaurantId !== "default") {
-      const defaultCount = await Vehicle.countDocuments({ restaurantId: "default" });
+      const defaultCount = await Vehicle.countDocuments({
+        restaurantId: "default",
+      });
       if (defaultCount > 0) {
         await Vehicle.updateMany(
           { restaurantId: "default" },
@@ -563,6 +616,27 @@ exports.assignDriver = async (req, res) => {
         address: order.customer?.address || "",
       },
       restaurantId: driver.restaurantId,
+    });
+
+    // Stamp the order with assigned driver info + add history log entry
+    const assignedByName =
+      req.body.assignedBy ||
+      req.body.assignedByName ||
+      req.body.managedBy ||
+      req.body.settledBy ||
+      "Manager";
+
+    await Order.findByIdAndUpdate(orderId, {
+      assignedDriverId: driver._id,
+      assignedDriverName: driver.name,
+      $push: {
+        statusHistory: {
+          status: "driver_assigned",
+          changedAt: new Date(),
+          note: `Driver assigned: ${driver.name}`,
+          userName: assignedByName, // The manager/employee who assigned
+        },
+      },
     });
 
     // Update driver status and active orders
@@ -784,7 +858,7 @@ exports.driverLogin = async (req, res) => {
       }
     }
 
-    //ONLY DRIVERS CAN LOGIN TO DRIVER 
+    //ONLY DRIVERS CAN LOGIN TO DRIVER
     const isDriverRole =
       employee?.role === "driver" ||
       Boolean(employee?.driverRef) ||
@@ -898,7 +972,7 @@ exports.driverLogin = async (req, res) => {
         restaurantId: driver.restaurantId,
       },
       JWT_SECRET,
-      { expiresIn: "12h" }
+      { expiresIn: "12h" },
     );
 
     res.status(200).json({
@@ -998,9 +1072,10 @@ exports.markDelivered = async (req, res) => {
         status: "completed",
         $push: {
           statusHistory: {
-            status: "completed",
+            status: "driver_delivered",
             changedAt: new Date(),
-            note: "Delivered to customer",
+            note: `Delivered by driver: ${driver?.name || "Driver"}`,
+            userName: driver?.name || "Driver",
           },
         },
       },
@@ -1088,15 +1163,23 @@ exports.markDeliveredByBranch = async (req, res) => {
       }
     }
 
+    const actorName =
+      req.body.dispatchedBy ||
+      req.body.dispatchedByName ||
+      req.body.settledBy ||
+      req.branch?.name ||
+      "Manager";
+
     const order = await Order.findByIdAndUpdate(
       orderId,
       {
         status: "completed",
         $push: {
           statusHistory: {
-            status: "completed",
+            status: "pos_delivered",
             changedAt: new Date(),
             note: "Delivered to customer (via POS Dispatch)",
+            userName: actorName,
           },
         },
       },
@@ -1164,7 +1247,7 @@ exports.markCompleted = async (req, res) => {
       { new: true },
     );
 
-    // Trigger Pusher events 
+    // Trigger Pusher events
     await triggerDeliveryStatusUpdate(
       assignment.restaurantId,
       assignment.orderId.toString(),
@@ -1388,17 +1471,23 @@ exports.unassignDriver = async (req, res) => {
 
     // If the order itself was marked completed or delivered, reset status back to 'ready'
     const targetOrder = await Order.findById(orderId);
-    if (targetOrder && (targetOrder.status === "completed" || targetOrder.status === "delivered")) {
-      targetOrder.status = "ready";
+    if (targetOrder) {
+      if (targetOrder.status === "completed" || targetOrder.status === "delivered") {
+        targetOrder.status = "ready";
+      }
+      targetOrder.assignedDriverId = null;
+      targetOrder.assignedDriverName = "";
       await targetOrder.save();
     }
 
     // Clean up DriverDropSettlement if order was already included
     try {
-      const settlements = await DriverDropSettlement.find({ "orders.orderId": orderId });
+      const settlements = await DriverDropSettlement.find({
+        "orders.orderId": orderId,
+      });
       for (const st of settlements) {
         st.orders = st.orders.filter(
-          (o) => o.orderId && o.orderId.toString() !== orderId.toString()
+          (o) => o.orderId && o.orderId.toString() !== orderId.toString(),
         );
         st.totalOrders = st.orders.length;
         st.totalSales = st.orders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -1413,7 +1502,7 @@ exports.unassignDriver = async (req, res) => {
           .reduce((sum, o) => sum + (o.total || 0), 0);
         st.totalTipsEarned = st.orders.reduce(
           (sum, o) => sum + (o.prepaidTip || 0) + (o.terminalTip || 0),
-          0
+          0,
         );
         st.driverTotalCommission =
           (st.driverBaseCommission || 0) + (st.additionalCommission || 0);
@@ -1423,7 +1512,9 @@ exports.unassignDriver = async (req, res) => {
         await st.save();
       }
     } catch (err) {
-      logger.warn(`Could not clean up DriverDropSettlement on unassign: ${err.message}`);
+      logger.warn(
+        `Could not clean up DriverDropSettlement on unassign: ${err.message}`,
+      );
     }
 
     // Update driver state
@@ -1520,10 +1611,10 @@ exports.getDriverDropDrivers = async (req, res) => {
 
     const employeeIds = employees.map((e) => e._id);
     const driverRefSet = new Set(
-      employees.map((e) => e.driverRef?.toString()).filter(Boolean)
+      employees.map((e) => e.driverRef?.toString()).filter(Boolean),
     );
     const empCodeSet = new Set(
-      employees.map((e) => String(e.employeeId).toUpperCase()).filter(Boolean)
+      employees.map((e) => String(e.employeeId).toUpperCase()).filter(Boolean),
     );
 
     // Find attendance records for selected date
@@ -1543,7 +1634,9 @@ exports.getDriverDropDrivers = async (req, res) => {
     const settlements = await DriverDropSettlement.find({
       branchId: restaurantId,
       date: dateStr,
-    }).sort({ shiftNumber: 1 }).lean();
+    })
+      .sort({ shiftNumber: 1 })
+      .lean();
 
     // Build map: driverId → array of settlements (sorted by shiftNumber)
     const settlementsByDriver = new Map();
@@ -1592,62 +1685,75 @@ exports.getDriverDropDrivers = async (req, res) => {
     // Filter to ONLY drivers whose Employee document role is strictly "driver"
     const driverRoleOnly = drivers.filter((d) => {
       const isRefMatch = driverRefSet.has(d._id.toString());
-      const isCodeMatch = d.driverId && empCodeSet.has(String(d.driverId).toUpperCase());
+      const isCodeMatch =
+        d.driverId && empCodeSet.has(String(d.driverId).toUpperCase());
       return isRefMatch || isCodeMatch;
     });
 
     const startOfDay = getLocalStartOfDay(dateStr);
     const endOfDay = getLocalEndOfDay(dateStr);
 
-    const result = await Promise.all(driverRoleOnly.map(async (d) => {
-      const driverShifts = settlementsByDriver.get(d._id.toString()) || [];
-      const latestSettlement = driverShifts.length > 0
-        ? driverShifts[driverShifts.length - 1]
-        : null;
-      const latestShiftNumber = latestSettlement?.shiftNumber || 0;
-      const lastSettledAt = latestSettlement?.settledAt || null;
-      const isSettled = Boolean(latestSettlement);
+    const result = await Promise.all(
+      driverRoleOnly.map(async (d) => {
+        const driverShifts = settlementsByDriver.get(d._id.toString()) || [];
+        const latestSettlement =
+          driverShifts.length > 0
+            ? driverShifts[driverShifts.length - 1]
+            : null;
+        const latestShiftNumber = latestSettlement?.shiftNumber || 0;
+        const lastSettledAt = latestSettlement?.settledAt || null;
+        const isSettled = Boolean(latestSettlement);
 
-      let vehicleStr = "No Vehicle";
-      if (d.assignedVehicleId) {
-        const v = d.assignedVehicleId;
-        const label = v.label || "";
-        if (label.toLowerCase().includes("vehicle")) {
-          vehicleStr = label;
-        } else if (label && v.number) {
-          vehicleStr = `Vehicle #${v.number} - ${label}`;
-        } else if (v.number) {
-          vehicleStr = `Vehicle #${v.number}`;
+        let vehicleStr = "No Vehicle";
+        if (d.assignedVehicleId) {
+          const v = d.assignedVehicleId;
+          const label = v.label || "";
+          if (label.toLowerCase().includes("vehicle")) {
+            vehicleStr = label;
+          } else if (label && v.number) {
+            vehicleStr = `Vehicle #${v.number} - ${label}`;
+          } else if (v.number) {
+            vehicleStr = `Vehicle #${v.number}`;
+          }
         }
-      }
 
-      // Check if there are new assignments after last settlement (for New Shift detection)
-      let hasNewOrders = false;
-      if (isSettled && lastSettledAt) {
-        const newAssignCount = await DeliveryAssignment.countDocuments({
-          driverId: d._id,
-          createdAt: { $gt: new Date(lastSettledAt), $lte: endOfDay },
-        });
-        hasNewOrders = newAssignCount > 0;
-      }
+        // Check if there are new DELIVERED assignments after last settlement (for New Shift detection)
+        let hasNewOrders = false;
+        if (isSettled && lastSettledAt) {
+          const rawNewAssignments = await DeliveryAssignment.find({
+            driverId: d._id,
+            status: { $in: ["delivered", "completed"] },
+            deliveredAt: { $ne: null, $gt: new Date(lastSettledAt), $lte: endOfDay },
+          })
+            .populate("orderId")
+            .lean();
 
-      return {
-        id: d._id.toString(),
-        driverId: d.driverId || d._id.toString().slice(-4),
-        name: d.name,
-        phone: d.phone || "",
-        vehicle: vehicleStr,
-        status: isSettled
-          ? hasNewOrders ? `Shift ${latestShiftNumber} Settled — New Orders` : `Shift ${latestShiftNumber} Settled`
-          : d.status === "offline" ? "Available" : d.status,
-        isSettled,
-        hasNewOrders,
-        latestShiftNumber,
-        lastSettledAt,
-        allSettlements: driverShifts,
-        settlementSummary: latestSettlement || null,
-      };
-    }));
+          const validNewAssignments = getValidDeliveredOrdersFromAssignments(rawNewAssignments);
+          hasNewOrders = validNewAssignments.length > 0;
+        }
+
+        return {
+          id: d._id.toString(),
+          driverId: d.driverId || d._id.toString().slice(-4),
+          name: d.name,
+          phone: d.phone || "",
+          vehicle: vehicleStr,
+          status: isSettled
+            ? hasNewOrders
+              ? `Shift ${latestShiftNumber} Settled — New Orders`
+              : `Shift ${latestShiftNumber} Settled`
+            : d.status === "offline"
+              ? "Available"
+              : d.status,
+          isSettled,
+          hasNewOrders,
+          latestShiftNumber,
+          lastSettledAt,
+          allSettlements: driverShifts,
+          settlementSummary: latestSettlement || null,
+        };
+      }),
+    );
 
     res.status(200).json({ success: true, data: result });
   } catch (error) {
@@ -1666,7 +1772,9 @@ exports.getDriverDropSummary = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
     const { driverId, date } = req.query;
-    const requestedShift = req.query.shiftNumber ? parseInt(req.query.shiftNumber, 10) : null;
+    const requestedShift = req.query.shiftNumber
+      ? parseInt(req.query.shiftNumber, 10)
+      : null;
 
     if (!driverId) {
       return res
@@ -1683,11 +1791,14 @@ exports.getDriverDropSummary = async (req, res) => {
       branchId: restaurantId,
       driverId,
       date: targetDate,
-    }).sort({ shiftNumber: 1 }).lean();
+    })
+      .sort({ shiftNumber: 1 })
+      .lean();
 
-    const latestSettlement = allSettlements.length > 0
-      ? allSettlements[allSettlements.length - 1]
-      : null;
+    const latestSettlement =
+      allSettlements.length > 0
+        ? allSettlements[allSettlements.length - 1]
+        : null;
     const latestShiftNumber = latestSettlement?.shiftNumber || 0;
 
     // Determine target shift to return:
@@ -1695,11 +1806,17 @@ exports.getDriverDropSummary = async (req, res) => {
     if (!targetShift) {
       if (latestSettlement) {
         const windowStart = new Date(latestSettlement.settledAt);
-        const newAssignCount = await DeliveryAssignment.countDocuments({
+        const rawNewAssignments = await DeliveryAssignment.find({
           driverId,
-          createdAt: { $gt: windowStart, $lte: endOfDay },
-        });
-        targetShift = newAssignCount > 0 ? latestShiftNumber + 1 : latestShiftNumber;
+          status: { $in: ["delivered", "completed"] },
+          deliveredAt: { $ne: null, $gt: windowStart, $lte: endOfDay },
+        })
+          .populate("orderId")
+          .lean();
+
+        const validNewAssignments = getValidDeliveredOrdersFromAssignments(rawNewAssignments);
+        targetShift =
+          validNewAssignments.length > 0 ? latestShiftNumber + 1 : latestShiftNumber;
       } else {
         targetShift = 1;
       }
@@ -1707,12 +1824,16 @@ exports.getDriverDropSummary = async (req, res) => {
 
     // ── Case 1: Settled shift requested (targetShift <= latestShiftNumber) ──
     if (targetShift <= latestShiftNumber) {
-      const targetSettlement = allSettlements.find((s) => s.shiftNumber === targetShift);
+      const targetSettlement = allSettlements.find(
+        (s) => s.shiftNumber === targetShift,
+      );
       if (targetSettlement) {
         const orders = (targetSettlement.orders || []).map((o) => ({
           ...o,
           id: o.id || o.orderId?.toString() || String(o._id || Math.random()),
-          ticketName: o.ticketName || `${o.orderNumber || ""} ${o.customerName || "Customer"}`.trim(),
+          ticketName:
+            o.ticketName ||
+            `${o.orderNumber || ""} ${o.customerName || "Customer"}`.trim(),
           customerName: o.customerName || "Customer",
           phone: o.phone || "",
           address: o.address || "",
@@ -1743,22 +1864,28 @@ exports.getDriverDropSummary = async (req, res) => {
       ? new Date(latestSettlement.settledAt)
       : startOfDay;
 
-    // Find assignments in the window
-    const assignments = await DeliveryAssignment.find({
+    // Find ONLY delivered/completed assignments in the window
+    // FIX: Filter by deliveredAt (not createdAt) so that old orders re-dispatched via POS
+    // don't get counted in the wrong day's Driver Drop shift.
+    const rawAssignments = await DeliveryAssignment.find({
       driverId,
-      createdAt: { $gt: windowStart, $lte: endOfDay },
+      status: { $in: ["delivered", "completed"] },
+      deliveredAt: { $ne: null, $gt: windowStart, $lte: endOfDay },
     })
       .populate("orderId")
       .lean();
 
+    const assignments = getValidDeliveredOrdersFromAssignments(rawAssignments);
+
     // Map orders
     const orders = assignments
-      .filter((a) => a.orderId)
       .map((a) => {
         const order = a.orderId;
         let pd = "CS";
         if (
-          ["online", "doordash", "skip", "ubereats"].includes(order.orderSource) ||
+          ["online", "doordash", "skip", "ubereats"].includes(
+            order.orderSource,
+          ) ||
           order.paymentMethod === "stripe"
         ) {
           pd = "PP";
@@ -1781,18 +1908,28 @@ exports.getDriverDropSummary = async (req, res) => {
         const terminalTip = pd === "TM" ? order.tip || 0 : 0;
         const cashGiven = pd === "CS" ? order.total || 0 : 0;
 
+        // Use deliveredAt for time display (actual delivery time, not order creation time)
+        const displayTime = a.deliveredAt
+          ? new Date(a.deliveredAt).toLocaleTimeString("en-US", {
+              timeZone: "America/Edmonton",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })
+          : new Date(order.createdAt).toLocaleTimeString("en-US", {
+              timeZone: "America/Edmonton",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            });
+
         return {
           id: order._id.toString(),
           ticketName: `${order.orderNumber} ${order.customer?.name || "Customer"}`,
           customerName: order.customer?.name || "Customer",
           phone: order.customer?.phone || "",
           address: order.customer?.address || "",
-          time: new Date(order.createdAt).toLocaleTimeString("en-US", {
-            timeZone: "America/Edmonton",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          }),
+          time: displayTime,
           total: order.total || 0,
           dc: 6.0,
           pd,
@@ -1828,7 +1965,9 @@ exports.startNewShift = async (req, res) => {
     const { driverId, date } = req.body;
 
     if (!driverId) {
-      return res.status(400).json({ success: false, message: "driverId is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "driverId is required" });
     }
 
     const targetDate = date || getLocalDateStr();
@@ -1839,27 +1978,37 @@ exports.startNewShift = async (req, res) => {
       branchId: restaurantId,
       driverId,
       date: targetDate,
-    }).sort({ shiftNumber: 1 }).lean();
+    })
+      .sort({ shiftNumber: 1 })
+      .lean();
 
-    const latestSettlement = allSettlements.length > 0
-      ? allSettlements[allSettlements.length - 1]
-      : null;
+    const latestSettlement =
+      allSettlements.length > 0
+        ? allSettlements[allSettlements.length - 1]
+        : null;
 
     if (!latestSettlement) {
       return res.status(400).json({
         success: false,
-        message: "No existing settlement found for this driver today. Please settle the current shift first.",
+        message:
+          "No existing settlement found for this driver today. Please settle the current shift first.",
       });
     }
 
     const nextShiftNumber = latestSettlement.shiftNumber + 1;
     const lastSettledAt = latestSettlement.settledAt;
 
-    // Count new assignments AFTER last settlement
-    const newOrderCount = await DeliveryAssignment.countDocuments({
+    // Count new DELIVERED assignments AFTER last settlement
+    const rawNewAssignments = await DeliveryAssignment.find({
       driverId,
-      createdAt: { $gt: new Date(lastSettledAt), $lte: endOfDay },
-    });
+      status: { $in: ["delivered", "completed"] },
+      deliveredAt: { $ne: null, $gt: new Date(lastSettledAt), $lte: endOfDay },
+    })
+      .populate("orderId")
+      .lean();
+
+    const validNewAssignments = getValidDeliveredOrdersFromAssignments(rawNewAssignments);
+    const newOrderCount = validNewAssignments.length;
 
     return res.status(200).json({
       success: true,
@@ -1934,20 +2083,26 @@ exports.settleDriverDrop = async (req, res) => {
       }
     }
 
-    const assignments = await DeliveryAssignment.find({
+    // FIX: Filter by deliveredAt so only actually delivered orders are included in settlement.
+    // This prevents old orders re-dispatched via POS from being counted in wrong day's shift.
+    const rawAssignments = await DeliveryAssignment.find({
       driverId,
-      createdAt: { $gt: assignmentWindowStart, $lte: endOfDay },
+      status: { $in: ["delivered", "completed"] },
+      deliveredAt: { $ne: null, $gt: assignmentWindowStart, $lte: endOfDay },
     })
       .populate("orderId")
       .lean();
 
+    const assignments = getValidDeliveredOrdersFromAssignments(rawAssignments);
+
     const orders = assignments
-      .filter((a) => a.orderId)
       .map((a) => {
         const order = a.orderId;
         let pd = "CS";
         if (
-          ["online", "doordash", "skip", "ubereats"].includes(order.orderSource) ||
+          ["online", "doordash", "skip", "ubereats"].includes(
+            order.orderSource,
+          ) ||
           order.paymentMethod === "stripe"
         ) {
           pd = "PP";
@@ -1969,7 +2124,8 @@ exports.settleDriverDrop = async (req, res) => {
         return {
           orderId: order._id,
           orderNumber: order.orderNumber,
-          ticketName: `${order.orderNumber || ""} ${order.customer?.name || "Customer"}`.trim(),
+          ticketName:
+            `${order.orderNumber || ""} ${order.customer?.name || "Customer"}`.trim(),
           customerName: order.customer?.name || "Customer",
           phone: order.customer?.phone || "",
           address: order.customer?.address || "",
@@ -1992,7 +2148,10 @@ exports.settleDriverDrop = async (req, res) => {
     const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
     const prepaidOrders = orders.filter((o) => o.pd === "PP");
     const prepaidTips = orders.reduce((sum, o) => sum + o.prepaidTip, 0);
-    const prepaidSales = prepaidOrders.reduce((sum, o) => sum + Math.max(0, o.total - o.prepaidTip), 0);
+    const prepaidSales = prepaidOrders.reduce(
+      (sum, o) => sum + Math.max(0, o.total - o.prepaidTip),
+      0,
+    );
     const totalNewSales = Math.max(0, totalSales - prepaidSales - prepaidTips);
 
     const enteredTerminalSales = parseFloat(terminalSales) || 0;
@@ -2062,10 +2221,14 @@ exports.settleDriverDrop = async (req, res) => {
     } catch (err) {
       if (err.code === 11000) {
         try {
-          await DriverDropSettlement.collection.dropIndex("branchId_1_date_1_driverId_1");
+          await DriverDropSettlement.collection.dropIndex(
+            "branchId_1_date_1_driverId_1",
+          );
         } catch (e1) {
           try {
-            await DriverDropSettlement.collection.dropIndex("branchId_1_driverId_1_date_1");
+            await DriverDropSettlement.collection.dropIndex(
+              "branchId_1_driverId_1_date_1",
+            );
           } catch (e2) {}
         }
         await DriverDropSettlement.syncIndexes();
@@ -2103,7 +2266,9 @@ exports.settleDriverDrop = async (req, res) => {
             driver.activeOrderIds = [];
             await driver.save();
 
-            const { triggerDriverStatusChange } = require("../../../config/pusher");
+            const {
+              triggerDriverStatusChange,
+            } = require("../../../config/pusher");
             await triggerDriverStatusChange(restaurantId, {
               driverId: driver._id.toString(),
               status: "offline",
@@ -2173,7 +2338,13 @@ exports.downloadDriverDropPdf = async (req, res) => {
     };
     const settlement = shiftNumber
       ? await DriverDropSettlement.findOne(settlementQuery).lean()
-      : await DriverDropSettlement.findOne({ branchId: restaurantId, driverId, date }).sort({ shiftNumber: -1 }).lean();
+      : await DriverDropSettlement.findOne({
+          branchId: restaurantId,
+          driverId,
+          date,
+        })
+          .sort({ shiftNumber: -1 })
+          .lean();
 
     const startOfDay = getLocalStartOfDay(date);
     const endOfDay = getLocalEndOfDay(date);
@@ -2182,20 +2353,24 @@ exports.downloadDriverDropPdf = async (req, res) => {
     if (settlement && settlement.orders && settlement.orders.length > 0) {
       orders = settlement.orders;
     } else {
-      const assignments = await DeliveryAssignment.find({
+      const rawAssignments = await DeliveryAssignment.find({
         driverId,
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        status: { $in: ["delivered", "completed"] },
+        deliveredAt: { $ne: null, $gte: startOfDay, $lte: endOfDay },
       })
         .populate("orderId")
         .lean();
 
+      const assignments = getValidDeliveredOrdersFromAssignments(rawAssignments);
+
       orders = assignments
-        .filter((a) => a.orderId)
         .map((a) => {
           const order = a.orderId;
           let pd = "CS";
           if (
-            ["online", "doordash", "skip", "ubereats"].includes(order.orderSource) ||
+            ["online", "doordash", "skip", "ubereats"].includes(
+              order.orderSource,
+            ) ||
             order.paymentMethod === "stripe"
           ) {
             pd = "PP";
@@ -2215,7 +2390,8 @@ exports.downloadDriverDropPdf = async (req, res) => {
           }
           return {
             orderNumber: order.orderNumber,
-            ticketName: `${order.orderNumber || ""} ${order.customer?.name || "Customer"}`.trim(),
+            ticketName:
+              `${order.orderNumber || ""} ${order.customer?.name || "Customer"}`.trim(),
             customerName: order.customer?.name || "Customer",
             total: order.total || 0,
             dc: 6.0,
@@ -2227,23 +2403,37 @@ exports.downloadDriverDropPdf = async (req, res) => {
     }
 
     const liveInputs = {
-      terminalSales: terminalSales !== undefined ? parseFloat(terminalSales) : undefined,
-      terminalTips: terminalTips !== undefined ? parseFloat(terminalTips) : undefined,
+      terminalSales:
+        terminalSales !== undefined ? parseFloat(terminalSales) : undefined,
+      terminalTips:
+        terminalTips !== undefined ? parseFloat(terminalTips) : undefined,
       cashSales: cashSales !== undefined ? parseFloat(cashSales) : undefined,
-      additionalCommission: additionalCommission !== undefined ? parseFloat(additionalCommission) : undefined,
+      additionalCommission:
+        additionalCommission !== undefined
+          ? parseFloat(additionalCommission)
+          : undefined,
       additionalReason: additionalReason || "",
     };
 
     const driverCode = driver.driverId || driver._id.toString().slice(-4);
-    const resolvedShift = settlement?.shiftNumber || (shiftNumber ? parseInt(shiftNumber, 10) : 1);
+    const resolvedShift =
+      settlement?.shiftNumber || (shiftNumber ? parseInt(shiftNumber, 10) : 1);
     const filename = `Driver_Receipt_${type}_${driverCode}_Shift${resolvedShift}_${date}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
     await driverDropPdfService.generateDriverDropPdf(
-      { driver, date, type, settlement, orders, branchId: restaurantId, liveInputs },
-      res
+      {
+        driver,
+        date,
+        type,
+        settlement,
+        orders,
+        branchId: restaurantId,
+        liveInputs,
+      },
+      res,
     );
   } catch (error) {
     handleError(res, error, 500);
@@ -2293,7 +2483,13 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
     };
     const settlement = shiftNumber
       ? await DriverDropSettlement.findOne(settlementQuery).lean()
-      : await DriverDropSettlement.findOne({ branchId: restaurantId, driverId, date: targetDate }).sort({ shiftNumber: -1 }).lean();
+      : await DriverDropSettlement.findOne({
+          branchId: restaurantId,
+          driverId,
+          date: targetDate,
+        })
+          .sort({ shiftNumber: -1 })
+          .lean();
 
     const startOfDay = getLocalStartOfDay(targetDate);
     const endOfDay = getLocalEndOfDay(targetDate);
@@ -2302,20 +2498,24 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
     if (settlement && settlement.orders && settlement.orders.length > 0) {
       orders = settlement.orders;
     } else {
-      const assignments = await DeliveryAssignment.find({
+      const rawAssignments = await DeliveryAssignment.find({
         driverId,
-        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        status: { $in: ["delivered", "completed"] },
+        deliveredAt: { $ne: null, $gte: startOfDay, $lte: endOfDay },
       })
         .populate("orderId")
         .lean();
 
+      const assignments = getValidDeliveredOrdersFromAssignments(rawAssignments);
+
       orders = assignments
-        .filter((a) => a.orderId)
         .map((a) => {
           const order = a.orderId;
           let pd = "CS";
           if (
-            ["online", "doordash", "skip", "ubereats"].includes(order.orderSource) ||
+            ["online", "doordash", "skip", "ubereats"].includes(
+              order.orderSource,
+            ) ||
             order.paymentMethod === "stripe"
           ) {
             pd = "PP";
@@ -2335,7 +2535,8 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
           }
           return {
             orderNumber: order.orderNumber,
-            ticketName: `${order.orderNumber || ""} ${order.customer?.name || "Customer"}`.trim(),
+            ticketName:
+              `${order.orderNumber || ""} ${order.customer?.name || "Customer"}`.trim(),
             customerName: order.customer?.name || "Customer",
             total: order.total || 0,
             dc: 6.0,
@@ -2347,22 +2548,36 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
     }
 
     const driverCode = driver.driverId || driver._id.toString().slice(-4);
-    const resolvedShiftPrint = settlement?.shiftNumber || (shiftNumber ? parseInt(shiftNumber, 10) : 1);
+    const resolvedShiftPrint =
+      settlement?.shiftNumber || (shiftNumber ? parseInt(shiftNumber, 10) : 1);
     const filename = `driver-drop-${driverCode}-Shift${resolvedShiftPrint}-${targetDate}-${Date.now()}.pdf`;
     tempPdfPath = silentPrintService.getTempReceiptPath(filename);
 
     const fileStream = fs.createWriteStream(tempPdfPath);
     const liveInputs = {
-      terminalSales: terminalSales !== undefined ? parseFloat(terminalSales) : undefined,
-      terminalTips: terminalTips !== undefined ? parseFloat(terminalTips) : undefined,
+      terminalSales:
+        terminalSales !== undefined ? parseFloat(terminalSales) : undefined,
+      terminalTips:
+        terminalTips !== undefined ? parseFloat(terminalTips) : undefined,
       cashSales: cashSales !== undefined ? parseFloat(cashSales) : undefined,
-      additionalCommission: additionalCommission !== undefined ? parseFloat(additionalCommission) : undefined,
+      additionalCommission:
+        additionalCommission !== undefined
+          ? parseFloat(additionalCommission)
+          : undefined,
       additionalReason: additionalReason || "",
     };
 
     await driverDropPdfService.generateDriverDropPdf(
-      { driver, date: targetDate, type, settlement, orders, branchId: restaurantId, liveInputs },
-      fileStream
+      {
+        driver,
+        date: targetDate,
+        type,
+        settlement,
+        orders,
+        branchId: restaurantId,
+        liveInputs,
+      },
+      fileStream,
     );
 
     await new Promise((resolve, reject) => {
@@ -2372,7 +2587,7 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
 
     const printResult = await silentPrintService.printPdfSilently(
       tempPdfPath,
-      printerName || null
+      printerName || null,
     );
 
     if (printResult.printer === "Cloud Bypassed" && restaurantId) {
@@ -2383,10 +2598,14 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
         type,
         branchId: String(restaurantId),
       });
-      if (terminalSales !== undefined) params.append("terminalSales", String(terminalSales));
-      if (terminalTips !== undefined) params.append("terminalTips", String(terminalTips));
-      if (cashSales !== undefined) params.append("cashSales", String(cashSales));
-      if (additionalCommission !== undefined) params.append("additionalCommission", String(additionalCommission));
+      if (terminalSales !== undefined)
+        params.append("terminalSales", String(terminalSales));
+      if (terminalTips !== undefined)
+        params.append("terminalTips", String(terminalTips));
+      if (cashSales !== undefined)
+        params.append("cashSales", String(cashSales));
+      if (additionalCommission !== undefined)
+        params.append("additionalCommission", String(additionalCommission));
 
       const pdfUrl = `${apiBase}/delivery/driver-drop/receipt/pdf?${params.toString()}`;
 
@@ -2416,7 +2635,7 @@ exports.silentPrintDriverDropPdf = async (req, res) => {
 };
 
 /**
- * POST: Verify a signed Store QR token 
+ * POST: Verify a signed Store QR token
  */
 exports.verifyStoreQr = async (req, res) => {
   try {
@@ -2429,12 +2648,14 @@ exports.verifyStoreQr = async (req, res) => {
     }
 
     // Sanitize token:
-    const qrToken = rawQrToken.trim().replace(/^["']|["']$/g, "").replace(/[\r\n]+/g, "");
+    const qrToken = rawQrToken
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .replace(/[\r\n]+/g, "");
 
     // Determine fallback API URL dynamically from backend host
     let defaultApiUrl =
-      process.env.API_PUBLIC_URL ||
-      `${req.protocol}://${req.get("host")}/api`;
+      process.env.API_PUBLIC_URL || `${req.protocol}://${req.get("host")}/api`;
 
     if (
       !defaultApiUrl.includes("localhost") &&
@@ -2470,15 +2691,19 @@ exports.verifyStoreQr = async (req, res) => {
           parsed = JSON.parse(decodeURIComponent(trimmed));
         }
 
-        if (parsed && (parsed.type === "BRANCH_PAIRING_QR" || parsed.branchId)) {
+        if (
+          parsed &&
+          (parsed.type === "BRANCH_PAIRING_QR" || parsed.branchId)
+        ) {
           logger.warn(
-            `[QR] Plain JSON QR used for branch ${parsed.branchId} — consider upgrading to signed QR`
+            `[QR] Plain JSON QR used for branch ${parsed.branchId} — consider upgrading to signed QR`,
           );
           return res.status(200).json({
             success: true,
             data: {
               branchId: parsed.branchId,
-              branchName: parsed.branchName || parsed.name || "Restaurant Branch",
+              branchName:
+                parsed.branchName || parsed.name || "Restaurant Branch",
               branchCode: parsed.branchCode || parsed.code || "STORE",
               apiUrl: parsed.apiUrl || defaultApiUrl,
               verified: true,
@@ -2493,7 +2718,8 @@ exports.verifyStoreQr = async (req, res) => {
       return res.status(403).json({
         success: false,
         code: "INVALID_QR",
-        message: "Invalid or tampered QR code. Please scan a valid Restaurant Store QR code.",
+        message:
+          "Invalid or tampered QR code. Please scan a valid Restaurant Store QR code.",
       });
     }
   } catch (error) {
@@ -2501,9 +2727,8 @@ exports.verifyStoreQr = async (req, res) => {
   }
 };
 
-
 /**
- * GET: Generate a signed QR token for a branch 
+ * GET: Generate a signed QR token for a branch
  */
 exports.generateBranchQrToken = async (req, res) => {
   try {
@@ -2525,10 +2750,13 @@ exports.generateBranchQrToken = async (req, res) => {
     }
 
     let apiUrl =
-      process.env.API_PUBLIC_URL ||
-      `${req.protocol}://${req.get("host")}/api`;
+      process.env.API_PUBLIC_URL || `${req.protocol}://${req.get("host")}/api`;
 
-    if (!apiUrl.includes("localhost") && !apiUrl.includes("127.0.0.1") && apiUrl.startsWith("http://")) {
+    if (
+      !apiUrl.includes("localhost") &&
+      !apiUrl.includes("127.0.0.1") &&
+      apiUrl.startsWith("http://")
+    ) {
       apiUrl = apiUrl.replace("http://", "https://");
     }
 
@@ -2586,7 +2814,9 @@ exports.updateDriverLocation = async (req, res) => {
 
     const driver = await Driver.findById(driverId);
     if (!driver) {
-      return res.status(404).json({ success: false, message: "Driver not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Driver not found." });
     }
 
     driver.currentLocation = { lat: Number(lat), lng: Number(lng) };
@@ -2607,7 +2837,12 @@ exports.updateDriverLocation = async (req, res) => {
         const custLng = assignment.customerLocation?.lng;
 
         if (custLat && custLng) {
-          const distMeters = calculateHaversineMeters(numLat, numLng, custLat, custLng);
+          const distMeters = calculateHaversineMeters(
+            numLat,
+            numLng,
+            custLat,
+            custLng,
+          );
           if (distMeters <= 100) {
             assignment.status = "delivered";
             assignment.deliveredAt = new Date();
@@ -2625,11 +2860,11 @@ exports.updateDriverLocation = async (req, res) => {
                   },
                 },
               },
-              { new: true }
+              { new: true },
             );
 
             driver.activeOrderIds = driver.activeOrderIds.filter(
-              (oid) => oid.toString() !== assignment.orderId.toString()
+              (oid) => oid.toString() !== assignment.orderId.toString(),
             );
             if (driver.activeOrderIds.length === 0) {
               driver.status = "returning";
@@ -2642,7 +2877,7 @@ exports.updateDriverLocation = async (req, res) => {
               {
                 status: "delivered",
                 driverId: assignment.driverId.toString(),
-              }
+              },
             );
 
             if (order) await triggerOrderUpdated(order);
@@ -2667,11 +2902,16 @@ exports.updateDriverLocation = async (req, res) => {
         const restLng = branch?.lng ? Number(branch.lng) : null;
 
         if (restLat && restLng) {
-          const distRestMeters = calculateHaversineMeters(numLat, numLng, restLat, restLng);
+          const distRestMeters = calculateHaversineMeters(
+            numLat,
+            numLng,
+            restLat,
+            restLng,
+          );
           if (distRestMeters <= 150) {
             await DeliveryAssignment.updateMany(
               { driverId: driver._id, status: "delivered" },
-              { $set: { status: "completed", completedAt: new Date() } }
+              { $set: { status: "completed", completedAt: new Date() } },
             );
 
             driver.status = driver.isDutyOnline ? "available" : "offline";
@@ -2695,13 +2935,14 @@ exports.updateDriverLocation = async (req, res) => {
       pusher.pusherInstance.trigger(
         `private-restaurant-${driver.restaurantId}`,
         "client-driver-location",
-        { driverId, lat: numLat, lng: numLng, bearing, speed }
+        { driverId, lat: numLat, lng: numLng, bearing, speed },
       );
     }
 
-    res.status(200).json({ success: true, message: "Location updated successfully." });
+    res
+      .status(200)
+      .json({ success: true, message: "Location updated successfully." });
   } catch (error) {
     handleError(res, error, 500);
   }
 };
-
