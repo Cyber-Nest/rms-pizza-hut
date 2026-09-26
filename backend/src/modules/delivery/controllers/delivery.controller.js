@@ -257,40 +257,69 @@ exports.getDeliveryOrders = async (req, res) => {
 };
 
 /**
+ * Helper to perform self-healing auto-sync between Employee and Driver models for a branch.
+ * Guarantees that every active Employee with role "driver" has a corresponding Driver document
+ * with matching name and phone, and fixes any corrupted/mismatched Driver names.
+ */
+const syncBranchDrivers = async (restaurantId) => {
+  if (!restaurantId || restaurantId === "default") return;
+  try {
+    const driverEmployees = await Employee.find({
+      branchId: restaurantId,
+      role: { $regex: "^driver$", $options: "i" },
+      isActive: true,
+    }).lean();
+
+    for (const emp of driverEmployees) {
+      const driverFilter = emp.driverRef
+        ? { _id: emp.driverRef, restaurantId: String(restaurantId) }
+        : { restaurantId: String(restaurantId), driverId: emp.employeeId };
+
+      let driverDoc = await Driver.findOne(driverFilter);
+
+      if (!driverDoc) {
+        driverDoc = new Driver({
+          driverId: emp.employeeId,
+          name: emp.name,
+          phone: emp.phone || "",
+          password: emp.pin || "0000",
+          restaurantId: String(restaurantId),
+          status: "offline",
+        });
+        await driverDoc.save();
+      } else {
+        let needsUpdate = false;
+        if (driverDoc.name !== emp.name) {
+          driverDoc.name = emp.name;
+          needsUpdate = true;
+        }
+        if (emp.phone && driverDoc.phone !== emp.phone) {
+          driverDoc.phone = emp.phone;
+          needsUpdate = true;
+        }
+        if (needsUpdate) {
+          await driverDoc.save();
+        }
+      }
+
+      if (!emp.driverRef || String(emp.driverRef) !== String(driverDoc._id)) {
+        await Employee.findByIdAndUpdate(emp._id, { driverRef: driverDoc._id });
+      }
+    }
+  } catch (syncErr) {
+    logger.warn(`Driver auto-sync warning for branch ${restaurantId}: ${syncErr.message}`);
+  }
+};
+
+/**
  *GET: Get all drivers for this restaurant.
  */
 exports.getDrivers = async (req, res) => {
   try {
     const restaurantId = getRestaurantIdFromReq(req);
 
-    // fix cross side driver show
     // Self-healing sync: Ensure all active driver employees for this branch have a matched Driver doc
-    // try {
-    //   const driverEmployees = await Employee.find({ branchId: restaurantId, role: "driver", isActive: true });
-    //   for (const emp of driverEmployees) {
-    //     let driverDoc = await Driver.findOne({ restaurantId, driverId: emp.employeeId });
-    //     if (!driverDoc) {
-    //       driverDoc = new Driver({
-    //         driverId: emp.employeeId,
-    //         name: emp.name,
-    //         phone: emp.phone || "",
-    //         password: emp.pin || "0000",
-    //         restaurantId,
-    //         status: "offline",
-    //       });
-    //       await driverDoc.save();
-    //     } else if (driverDoc.name !== emp.name) {
-    //       driverDoc.name = emp.name;
-    //       if (emp.phone) driverDoc.phone = emp.phone;
-    //       await driverDoc.save();
-    //     }
-    //     if (!emp.driverRef || String(emp.driverRef) !== String(driverDoc._id)) {
-    //       await Employee.findByIdAndUpdate(emp._id, { driverRef: driverDoc._id });
-    //     }
-    //   }
-    // } catch (syncErr) {
-    //   console.warn("Driver auto-sync warning:", syncErr.message);
-    // }
+    await syncBranchDrivers(restaurantId);
 
     const drivers = await Driver.find({ restaurantId })
       .select(
@@ -1607,6 +1636,9 @@ exports.getDriverDropDrivers = async (req, res) => {
     const restaurantId = getRestaurantIdFromReq(req);
     const dateStr = req.query.date || getLocalDateStr();
 
+    // Auto-sync driver models for this branch
+    await syncBranchDrivers(restaurantId);
+
     // Find all driver employees for this branch (STRICTLY role === "driver")
     const employees = await Employee.find({
       branchId: restaurantId,
@@ -1623,6 +1655,12 @@ exports.getDriverDropDrivers = async (req, res) => {
     const empCodeSet = new Set(
       employees.map((e) => String(e.employeeId).toUpperCase()).filter(Boolean),
     );
+
+    const empNameMap = new Map();
+    employees.forEach((emp) => {
+      if (emp.driverRef) empNameMap.set(emp.driverRef.toString(), emp.name);
+      if (emp.employeeId) empNameMap.set(String(emp.employeeId).toUpperCase(), emp.name);
+    });
 
     // Find attendance records for selected date
     const attendances = await Attendance.find({
@@ -1739,10 +1777,15 @@ exports.getDriverDropDrivers = async (req, res) => {
           hasNewOrders = validNewAssignments.length > 0;
         }
 
+        const trueName =
+          empNameMap.get(d._id.toString()) ||
+          (d.driverId ? empNameMap.get(String(d.driverId).toUpperCase()) : null) ||
+          d.name;
+
         return {
           id: d._id.toString(),
           driverId: d.driverId || d._id.toString().slice(-4),
-          name: d.name,
+          name: trueName,
           phone: d.phone || "",
           vehicle: vehicleStr,
           status: isSettled
