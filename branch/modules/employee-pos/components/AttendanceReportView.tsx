@@ -14,10 +14,13 @@ import {
   FileSpreadsheet,
   User,
   Pencil,
+  Plus,
 } from "lucide-react";
 import { getLocalTodayStr } from "../utils/timezone";
 import EditShiftModal from "./EditShiftModal";
+import AddManualShiftModal from "./AddManualShiftModal";
 import { getPusherClient } from "../../../lib/pusher";
+
 
 interface AttendanceReportRow {
   attendanceId: string;
@@ -41,8 +44,11 @@ interface AttendanceReportRow {
   scheduledShiftEnd?: string;
   autoCheckedOut?: boolean;
   managerOverride?: boolean;
+  isManualEntry?: boolean;
+  createdByAdmin?: boolean;
   managerOverrideBy?: { name: string; employeeId: string };
   notes?: string;
+
   segmentIndex?: number;
   totalSegments?: number;
 }
@@ -122,7 +128,10 @@ export default function AttendanceReportView() {
         params: { branchId, minimal: true, excludeDrivers: true },
       });
       if (res.data.success && Array.isArray(res.data.data)) {
-        setEmployeesList(res.data.data);
+        const nonDrivers = res.data.data.filter(
+          (emp: any) => emp.role && emp.role.toLowerCase() !== "driver"
+        );
+        setEmployeesList(nonDrivers);
       }
     } catch (err) {
       console.warn("Failed to fetch employees list:", err);
@@ -239,6 +248,8 @@ export default function AttendanceReportView() {
 
   // Edit Modal State
   const [editingRow, setEditingRow] = useState<AttendanceReportRow | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
 
   // Selected Employee Aggregated Totals
   const selectedEmployeeTotals = useMemo(() => {
@@ -371,6 +382,18 @@ export default function AttendanceReportView() {
 
         {/* Right Side: Action Buttons & Refresh */}
         <div className="flex flex-wrap items-center gap-3">
+          {canEditLog && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 bg-[#e31837] hover:bg-[#b9142d] text-white text-xs font-900 rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer active:scale-95 uppercase tracking-wide"
+              title="Add Manual Shift Log for an Employee (1 Day or Multi-Days)"
+            >
+              <Plus size={15} />
+              <span>Add Shift</span>
+
+            </button>
+          )}
+
           <button
             onClick={fetchReport}
             className="p-2 rounded-full border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 transition-colors cursor-pointer shadow-xs"
@@ -380,6 +403,7 @@ export default function AttendanceReportView() {
           </button>
         </div>
       </div>
+
 
       {/* ── Main Scrollable Body Container ── */}
       <div className="flex-1 p-4 md:p-6 overflow-y-auto min-h-0 space-y-5">
@@ -637,9 +661,21 @@ export default function AttendanceReportView() {
                       className="bg-transparent focus:outline-none cursor-pointer font-mono font-700 text-neutral-900 text-xs"
                     />
                   </div>
+
+                  {canEditLog && (
+                    <button
+                      onClick={() => setIsAddModalOpen(true)}
+                      className="px-3.5 py-1.5 bg-[#e31837] hover:bg-[#b9142d] text-white text-[11px] font-800 rounded-xl transition-all shadow-2xs flex items-center gap-1 cursor-pointer active:scale-95 uppercase tracking-wide shrink-0 ml-1"
+                      title="Add Manual Shift Log"
+                    >
+                      <Plus size={13} />
+                      <span>Add Shift</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
+
 
             {/* Attendance Logs Table (DYNAMIC BREAK COLUMNS: Automatically expands for 1, 2, 3, 5+ breaks!) */}
             <div className="overflow-x-auto min-h-[350px]">
@@ -775,6 +811,13 @@ export default function AttendanceReportView() {
                               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-900 bg-amber-100 text-amber-800 border border-amber-300">
                                 On Break
                               </span>
+                            ) : row.isManualEntry || (row.notes && row.notes.toLowerCase().includes("manual")) ? (
+                              <span
+                                className="px-2.5 py-0.5 rounded-full text-[10px] font-900 bg-sky-100 text-sky-800 border border-sky-300 cursor-help"
+                                title={row.notes || "Shift added manually by Branch Admin"}
+                              >
+                                Admin Entry
+                              </span>
                             ) : row.autoCheckedOut ? (
                               <span
                                 className="px-2.5 py-0.5 rounded-full text-[10px] font-900 bg-purple-100 text-purple-800 border border-purple-300 cursor-help"
@@ -800,6 +843,7 @@ export default function AttendanceReportView() {
                               </span>
                             )}
                           </td>
+
 
                           {/* Action: Edit Shift Log — Branch Admin Only */}
                           <td className="py-3.5 px-3 text-center select-none">
@@ -835,6 +879,19 @@ export default function AttendanceReportView() {
         onClose={() => setEditingRow(null)}
         onSuccess={fetchReport}
       />
+
+      {/* Add Manual Shift Log Modal */}
+      <AddManualShiftModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+          fetchReport();
+          fetchEmployees();
+        }}
+        employeesList={employeesList}
+        defaultEmployeeId={selectedEmployeeId}
+      />
+
 
       {/* Sidebar Drawer Component */}
       <POSSidebarDrawer
