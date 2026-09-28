@@ -34,6 +34,8 @@ router.get("/attendance/sweep", attendanceController.runSweeper);
 router.get("/attendance", attendanceController.getTodayAttendanceList);
 router.get("/attendance/report", attendanceController.getAttendanceReport);
 router.put("/attendance/shift/edit", attendanceController.editAttendanceShift);
+router.post("/attendance/shift/manual", attendanceController.addManualAttendanceShift);
 router.get("/attendance/employee/:employeeId", attendanceController.getEmployeeAttendanceHistory);
+
 
 module.exports = router;
