@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -55,6 +55,12 @@ export default function AddManualShiftModal({
   const [breaksList, setBreaksList] = useState<BreakItem[]>([]);
   const [notes, setNotes] = useState("Manual Entry by Branch Admin");
 
+  const filteredEmployeesList = useMemo(() => {
+    return (employeesList || []).filter(
+      (emp) => emp.role && emp.role.toLowerCase() !== "driver"
+    );
+  }, [employeesList]);
+
   useEffect(() => {
     if (isOpen) {
       if (typeof window !== "undefined") {
@@ -67,8 +73,8 @@ export default function AddManualShiftModal({
       }
       if (defaultEmployeeId) {
         setEmployeeId(defaultEmployeeId);
-      } else if (employeesList.length > 0) {
-        setEmployeeId(employeesList[0]._id);
+      } else if (filteredEmployeesList.length > 0) {
+        setEmployeeId(filteredEmployeesList[0]._id);
       }
       const t = getLocalTodayStr();
       setStartDate(t);
@@ -78,7 +84,7 @@ export default function AddManualShiftModal({
       setBreaksList([]);
       setNotes("Manual Entry by Branch Admin");
     }
-  }, [isOpen, defaultEmployeeId, employeesList, onClose]);
+  }, [isOpen, defaultEmployeeId, filteredEmployeesList, onClose]);
 
 
   if (!isOpen) return null;
@@ -269,7 +275,7 @@ export default function AddManualShiftModal({
               required
             >
               <option value="">-- Choose Employee --</option>
-              {employeesList.map((emp) => (
+              {filteredEmployeesList.map((emp) => (
                 <option key={emp._id} value={emp._id}>
                   {emp.name} ({emp.employeeId}) • {emp.role.toUpperCase()}
                 </option>

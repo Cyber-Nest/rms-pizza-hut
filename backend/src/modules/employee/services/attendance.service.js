@@ -568,6 +568,9 @@ exports.getAttendanceReport = async (branchId, options = {}) => {
 
   const filteredDocs = attendanceDocs.filter((doc) => {
     if (!doc.employeeId) return false;
+    if (doc.employeeId.role && doc.employeeId.role.toLowerCase() === "driver") {
+      return false;
+    }
     if (role && role !== "all") {
       return doc.employeeId.role === role;
     }

@@ -128,7 +128,10 @@ export default function AttendanceReportView() {
         params: { branchId, minimal: true, excludeDrivers: true },
       });
       if (res.data.success && Array.isArray(res.data.data)) {
-        setEmployeesList(res.data.data);
+        const nonDrivers = res.data.data.filter(
+          (emp: any) => emp.role && emp.role.toLowerCase() !== "driver"
+        );
+        setEmployeesList(nonDrivers);
       }
     } catch (err) {
       console.warn("Failed to fetch employees list:", err);
