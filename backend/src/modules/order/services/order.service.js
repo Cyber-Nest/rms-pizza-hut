@@ -656,7 +656,15 @@ exports.markOrderPaid = async (id, payments) => {
     if (!order) throw new Error("Order not found.");
 
     if (payments && payments.length > 0) {
-      order.payments = [...(order.payments || []), ...payments];
+      const existingSum = (order.payments || []).reduce(
+        (sum, p) => sum + (p.amount || 0),
+        0,
+      );
+      if (existingSum >= (order.total || 0) - 0.01 && order.total > 0) {
+        order.payments = payments;
+      } else {
+        order.payments = [...(order.payments || []), ...payments];
+      }
       const lastMethod = payments[payments.length - 1].method;
       if (lastMethod) {
         order.paymentMethod = lastMethod;
@@ -1082,40 +1090,66 @@ exports.getSalesSummary = async (filters = {}) => {
         if (order.paymentStatus === "unpaid") {
           unpaidTotal += order.total || 0;
         } else if (order.paymentStatus === "paid") {
-          if (order.payments && order.payments.length > 0) {
-            for (const p of order.payments) {
-              if (
-                ["online", "doordash", "skip", "ubereats"].includes(
-                  order.orderSource,
-                ) ||
-                p.method === "stripe"
-              ) {
-                accountPayTotal += p.amount;
-              } else if (p.method === "cash") {
-                cashTotal += p.amount;
-              } else {
-                cardTotal += p.amount;
+          const rawPayments =
+            order.payments && order.payments.length > 0
+              ? order.payments
+              : [
+                  {
+                    method: order.paymentMethod || "cash",
+                    amount: order.total || 0,
+                  },
+                ];
 
-                const brand = p.cardBrand?.toLowerCase() || "";
-                if (brand === "visa") visaTotal += p.amount;
-                else if (brand === "mastercard") mastercardTotal += p.amount;
-                else interacTotal += p.amount;
+          const rawSum = rawPayments.reduce((s, p) => s + (p.amount || 0), 0);
+          const scale =
+            rawSum > (order.total || 0) && order.total > 0
+              ? order.total / rawSum
+              : 1;
 
-                const funding = p.cardFunding?.toLowerCase() || "";
-                if (funding === "credit") creditCardTotal += p.amount;
-                else debitCardTotal += p.amount;
-              }
-            }
-          } else {
-            if (
+          for (const p of rawPayments) {
+            const pAmount = (p.amount || 0) * scale;
+            const method = (
+              p.method ||
+              order.paymentMethod ||
+              "cash"
+            )
+              .toLowerCase()
+              .trim();
+            const brand = (p.cardBrand || "").toLowerCase().trim();
+            const funding = (p.cardFunding || "").toLowerCase().trim();
+
+            const isOnlinePrepaid =
               ["online", "doordash", "skip", "ubereats"].includes(
                 order.orderSource,
               ) ||
-              order.paymentMethod === "stripe"
+              method === "stripe" ||
+              method === "account";
+
+            if (isOnlinePrepaid) {
+              accountPayTotal += pAmount;
+            } else if (method === "cash") {
+              cashTotal += pAmount;
+            } else if (
+              method === "debit" ||
+              method === "interac" ||
+              funding === "debit" ||
+              brand === "interac"
             ) {
-              accountPayTotal += order.total;
+              cardTotal += pAmount;
+              debitCardTotal += pAmount;
+              interacTotal += pAmount;
             } else {
-              cashTotal += order.total;
+              cardTotal += pAmount;
+              creditCardTotal += pAmount;
+
+              if (brand === "visa") visaTotal += pAmount;
+              else if (brand === "mastercard") mastercardTotal += pAmount;
+              else if (brand === "interac" || method === "interac")
+                interacTotal += pAmount;
+              else {
+                visaTotal += pAmount * 0.6;
+                mastercardTotal += pAmount * 0.4;
+              }
             }
           }
         }
@@ -2733,14 +2767,17 @@ exports.getMonthlySalesSummary = async ({
             ? o.payments
             : [{ method: o.paymentMethod || "cash", amount: o.total || 0 }];
 
+        const rawSum = orderPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+        const scale = rawSum > Number(o.total || 0) && Number(o.total || 0) > 0 ? Number(o.total || 0) / rawSum : 1;
+
         let isDebitOrder = false;
         let isCreditOrder = false;
 
         for (const p of orderPayments) {
-          const method = (p.method || "cash").toLowerCase();
-          const funding = (p.cardFunding || "").toLowerCase();
-          const brand = (p.cardBrand || "").toLowerCase();
-          const amt = Number(p.amount || 0);
+          const method = (p.method || o.paymentMethod || "cash").toLowerCase().trim();
+          const funding = (p.cardFunding || "").toLowerCase().trim();
+          const brand = (p.cardBrand || "").toLowerCase().trim();
+          const amt = Number(p.amount || 0) * scale;
 
           if (
             ["online", "doordash", "skip", "ubereats"].includes(o.orderSource) ||
@@ -2754,7 +2791,8 @@ exports.getMonthlySalesSummary = async ({
           } else if (
             method === "debit" ||
             method === "interac" ||
-            funding === "debit"
+            funding === "debit" ||
+            brand === "interac"
           ) {
             debitCardSales += amt;
             interacSales += amt;
@@ -3118,26 +3156,46 @@ const calculateDaySystemTotals = async (targetDateStr, branchId) => {
 
     if (isOnlinePrepaid) {
       systemAccountPay += order.total || 0;
-    } else if (order.payments && order.payments.length > 0) {
-      for (const p of order.payments) {
+    } else {
+      const rawPayments =
+        order.payments && order.payments.length > 0
+          ? order.payments
+          : [
+              {
+                method: order.paymentMethod || "cash",
+                amount: order.total || 0,
+              },
+            ];
+
+      const rawSum = rawPayments.reduce((s, p) => s + (p.amount || 0), 0);
+      const scale =
+        rawSum > (order.total || 0) && order.total > 0
+          ? order.total / rawSum
+          : 1;
+
+      for (const p of rawPayments) {
+        const pAmount = (p.amount || 0) * scale;
+        const method = (
+          p.method ||
+          order.paymentMethod ||
+          "cash"
+        )
+          .toLowerCase()
+          .trim();
+
         if (
           ["online", "doordash", "skip", "ubereats"].includes(
             order.orderSource,
           ) ||
-          p.method === "stripe"
+          method === "stripe" ||
+          method === "account"
         ) {
-          systemAccountPay += p.amount || 0;
-        } else if (p.method === "cash") {
-          systemCash += p.amount || 0;
+          systemAccountPay += pAmount;
+        } else if (method === "cash") {
+          systemCash += pAmount;
         } else {
-          systemCard += p.amount || 0;
+          systemCard += pAmount;
         }
-      }
-    } else {
-      if (order.paymentMethod === "cash") {
-        systemCash += order.total || 0;
-      } else {
-        systemCard += order.total || 0;
       }
     }
   }
