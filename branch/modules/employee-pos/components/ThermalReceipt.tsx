@@ -183,7 +183,7 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
           )}
         </div>
 
-        {/* Totals Section */}
+        {/* Totals Section  */}
         <div className="border-t border-dashed border-neutral-800 pt-2 mt-3 space-y-1 text-[11px] font-600">
           <div className="flex justify-between">
             <span>Subtotal :</span>
