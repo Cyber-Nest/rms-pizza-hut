@@ -193,13 +193,16 @@ export default function ThermalReceipt({ order }: ThermalReceiptProps) {
           </div>
           {(order.discount ?? 0) > 0 && (
             <div className="flex justify-between">
-              <span>Discount :</span>
+              <span>
+                Discount{order.promoCode ? ` (${order.promoCode})` : ""} :
+              </span>
               <span className="font-700">
-                -${(order.discount ?? 0).toFixed(2)} (
-                {order.discountType === "percentage"
-                  ? `${((order.discount / order.subtotal) * 100).toFixed(0)}%`
-                  : "Fixed"}
-                )
+                -${(order.discount ?? 0).toFixed(2)}
+                {!order.promoCode && order.discountType === "percentage"
+                  ? ` (${((order.discount / (order.subtotal || 1)) * 100).toFixed(0)}%)`
+                  : !order.promoCode && order.discountType === "flat"
+                  ? " (Fixed)"
+                  : ""}
               </span>
             </div>
           )}

@@ -728,8 +728,7 @@ export default function OrderDetailModal({
                   <div className="flex justify-between text-green-600 font-700">
                     <span>Discount :</span>
                     <span className="font-mono">
-                      -${(order.discount ?? 0).toFixed(2)} ({order.discountType}
-                      )
+                      -${(order.discount ?? 0).toFixed(2)} ({order.promoCode ? `promo: ${order.promoCode}` : order.discountType || "discount"})
                     </span>
                   </div>
                 )}

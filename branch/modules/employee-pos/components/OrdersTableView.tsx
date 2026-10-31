@@ -306,6 +306,11 @@ export default function OrdersTableView({
                       <span className="font-900 text-[12.5px] lg:text-[14px] text-neutral-900">
                         ${grandTotalDisplay.toFixed(2)}
                       </span>
+                      {order.promoCode ? (
+                        <div className="text-[10px] font-750 text-emerald-600 uppercase tracking-wider">
+                          Promo: {order.promoCode}
+                        </div>
+                      ) : null}
                     </td>
 
                     {/* Order Type */}
