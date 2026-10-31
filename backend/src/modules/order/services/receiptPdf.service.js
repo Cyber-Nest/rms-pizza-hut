@@ -625,10 +625,11 @@ exports.generateReceiptPdfStream = async (
       });
 
     if (discount > 0) {
+      const discountLabel = order.promoCode ? `Discount (${order.promoCode}):` : `Discount:`;
       doc
         .font("Helvetica-Bold")
         .fontSize(totFs)
-        .text(`Discount:  -$${discount.toFixed(2)}`, startX, doc.y, {
+        .text(`${discountLabel}  -$${discount.toFixed(2)}`, startX, doc.y, {
           width: printableWidth,
           align: "right",
         });

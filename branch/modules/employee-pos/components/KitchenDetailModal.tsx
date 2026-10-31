@@ -1729,7 +1729,10 @@ export default function KitchenDetailModal({
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Discount:</span>
+                    <span>
+                      Discount
+                      {localOrder.promoCode ? ` (${localOrder.promoCode})` : ""}:
+                    </span>
                     <span className="text-[#DC2626] font-mono">
                       -$
                       {(

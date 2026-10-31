@@ -903,6 +903,9 @@ exports.updateOrderItems = async (id, updateData) => {
     if (updateData.subtotal !== undefined) order.subtotal = updateData.subtotal;
     if (updateData.tax !== undefined) order.tax = updateData.tax;
     if (updateData.discount !== undefined) order.discount = updateData.discount;
+    if (updateData.discountType !== undefined) order.discountType = updateData.discountType;
+    if (updateData.promoCode !== undefined) order.promoCode = updateData.promoCode;
+    if (updateData.promoApplyCount !== undefined) order.promoApplyCount = updateData.promoApplyCount;
     if (updateData.total !== undefined) {
       order.total = updateData.total;
 
