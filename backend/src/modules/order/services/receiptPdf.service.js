@@ -238,16 +238,26 @@ exports.generateReceiptPdfStream = async (
     const doc = new PDFDocument({ size: [pageWidth, pageHeight], margin: 0 });
     doc.pipe(outputStream);
 
-    // ── Helper: compact date ─────────────────────────────────────────────────
+    // ── Helper: compact date (Alberta America/Edmonton timezone) ─────────────
     const fmtDate = (dateStr) => {
       if (!dateStr) return "";
       try {
         const d = new Date(dateStr);
-        const mo = String(d.getMonth() + 1).padStart(2, "0");
-        const da = String(d.getDate()).padStart(2, "0");
-        const yr = d.getFullYear();
-        const hh = String(d.getHours()).padStart(2, "0");
-        const mi = String(d.getMinutes()).padStart(2, "0");
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Edmonton",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        });
+        const parts = formatter.formatToParts(d);
+        const mo = parts.find((p) => p.type === "month")?.value || "";
+        const da = parts.find((p) => p.type === "day")?.value || "";
+        const yr = parts.find((p) => p.type === "year")?.value || "";
+        const hh = parts.find((p) => p.type === "hour")?.value || "";
+        const mi = parts.find((p) => p.type === "minute")?.value || "";
         return `${mo}/${da}/${yr} ${hh}:${mi}`;
       } catch {
         return "";
