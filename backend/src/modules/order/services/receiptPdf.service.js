@@ -179,11 +179,15 @@ exports.generateReceiptPdfStream = async (
       isCardPayment = true;
     }
 
+    // ── Timed / Scheduled order check ────────────────────────────────────────
+    const isTimedOrder =
+      order.orderTiming === "later" && Boolean(order.scheduledAt || order.dueAt);
+
     // ── Dynamic page height estimation (tight fit for thermal paper roll cut) ─
     const lineH = is58mm ? 12 : 14;
     let h = margin * 2;
     h += lineH * 4 + 8; // store asterisk block (4 lines)
-    h += lineH * 5 + 8; // order info (5 lines)
+    h += lineH * (isTimedOrder ? 6 : 5) + 8; // order info (5 lines normally, 6 lines if timed order)
     h += 8; // divider
 
     let sourceLabel = {
@@ -259,6 +263,34 @@ exports.generateReceiptPdfStream = async (
         const hh = parts.find((p) => p.type === "hour")?.value || "";
         const mi = parts.find((p) => p.type === "minute")?.value || "";
         return `${mo}/${da}/${yr} ${hh}:${mi}`;
+      } catch {
+        return "";
+      }
+    };
+
+    const fmtDateTime12 = (dateStr) => {
+      if (!dateStr) return "";
+      try {
+        const d = new Date(dateStr);
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/Edmonton",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+        const parts = formatter.formatToParts(d);
+        const mo = parts.find((p) => p.type === "month")?.value || "";
+        const da = parts.find((p) => p.type === "day")?.value || "";
+        const yr = parts.find((p) => p.type === "year")?.value || "";
+        const hh = parts.find((p) => p.type === "hour")?.value || "";
+        const mi = parts.find((p) => p.type === "minute")?.value || "";
+        const dayPeriod = (
+          parts.find((p) => p.type === "dayPeriod")?.value || ""
+        ).toUpperCase();
+        return `${mo}/${da}/${yr} ${hh}:${mi} ${dayPeriod}`.trim();
       } catch {
         return "";
       }
@@ -422,15 +454,35 @@ exports.generateReceiptPdfStream = async (
       .text(`Order:   ${orderNumStr}`, startX, doc.y, {
         width: printableWidth,
       });
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(infoFs)
-      .text(
-        `Store: ${branchInfo.code}  ${fmtDate(order.createdAt)}`,
-        startX,
-        doc.y,
-        { width: printableWidth },
-      );
+
+    if (isTimedOrder) {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(infoFs)
+        .text(`Store: ${branchInfo.code}`, startX, doc.y, {
+          width: printableWidth,
+        });
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(infoFs)
+        .text(
+          `Timed Order: ${fmtDateTime12(order.scheduledAt || order.dueAt)}`,
+          startX,
+          doc.y,
+          { width: printableWidth },
+        );
+    } else {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(infoFs)
+        .text(
+          `Store: ${branchInfo.code}  ${fmtDate(order.createdAt)}`,
+          startX,
+          doc.y,
+          { width: printableWidth },
+        );
+    }
+
     doc
       .font("Helvetica-Bold")
       .fontSize(infoFs)
